@@ -113,3 +113,20 @@
   color: rgba(0, 0, 0, 0.6);
   text-transform: capitalize;
 }
+
+/* The user menu is rendered in a CDK overlay outside this component's
+   view encapsulation, so we pierce it with ::ng-deep. Constrain its width
+   to the sidenav and give it the Apple-like card treatment so it reads as
+   a clean dropdown anchored to the button, not a full-width sheet.
+   We target the panel by its Material position classes (reliably present). */
+::ng-deep .mat-mdc-menu-panel.mat-menu-above {
+  min-width: 200px !important;
+  max-width: 220px !important;
+  border-radius: var(--cs-radius-sm) !important;
+  box-shadow: var(--cs-shadow-hover) !important;
+  overflow: hidden;
+}
+
+::ng-deep .mat-mdc-menu-panel.mat-menu-above .mat-mdc-menu-item {
+  color: var(--cs-text);
+}

@@ -14,14 +14,14 @@
 
     @if (user) {
       <div class="sidenav-user">
-        <button mat-button [matMenuTriggerFor]="userMenu" class="user-btn">
+        <button mat-button [matMenuTriggerFor]="userMenu" class="user-btn" [matMenuTriggerRestoreFocus]="false">
           <cs-icon name="account_circle"></cs-icon>
           <span class="user-meta">
             <span class="user-name">{{ user.fullName }}</span>
             <span class="user-role">{{ user.role }}</span>
           </span>
         </button>
-        <mat-menu #userMenu="matMenu">
+        <mat-menu #userMenu="matMenu" yPosition="above" xPosition="before" panelClass="user-menu-panel">
           <div class="menu-header">
             <div class="menu-name">{{ user.fullName }}</div>
             <div class="menu-role">{{ user.role }}</div>
