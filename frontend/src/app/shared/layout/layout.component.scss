@@ -1,0 +1,115 @@
+.brand {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 1.25rem 1rem;
+  font-size: 1.05rem;
+}
+
+.user-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  justify-content: flex-start;
+  /* Neutralize Material's default blue button text/icon color. */
+  color: var(--cs-text) !important;
+  font-weight: 500;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--cs-radius-sm);
+  transition: background 0.2s var(--cs-ease);
+}
+
+.user-btn:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.user-btn cs-icon {
+  color: var(--cs-text-muted);
+  flex: 0 0 auto;
+}
+
+.user-meta {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+  text-align: left;
+  min-width: 0;
+}
+
+.user-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--cs-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-role {
+  font-size: 0.72rem;
+  color: var(--cs-text-muted);
+  text-transform: capitalize;
+}
+
+.shell {
+  height: 100vh;
+}
+
+.sidenav {
+  width: 220px;
+  border-right: 1px solid var(--cs-border);
+  overflow: hidden;
+}
+
+/* Material wraps the sidenav content in .mat-drawer-inner-container
+   (created outside this component's view encapsulation), so we must
+   pierce encapsulation with ::ng-deep to make it the flex column that
+   pushes brand/nav to the top and the user block to the bottom. */
+.sidenav ::ng-deep .mat-drawer-inner-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+}
+
+.sidenav-top {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  overflow-y: auto;
+}
+
+.nav {
+  padding-top: 0;
+}
+
+.sidenav-user {
+  border-top: 1px solid var(--cs-border);
+  padding: 0.5rem;
+}
+
+.sidenav a.active {
+  background: rgba(0, 113, 227, 0.1);
+  color: var(--cs-accent);
+  font-weight: 600;
+}
+
+.content {
+  padding: 1.5rem;
+  background: var(--cs-bg);
+  overflow: auto;
+}
+
+.menu-header {
+  padding: 0.5rem 1rem;
+}
+
+.menu-name {
+  font-weight: 600;
+}
+
+.menu-role {
+  font-size: 0.75rem;
+  color: rgba(0, 0, 0, 0.6);
+  text-transform: capitalize;
+}

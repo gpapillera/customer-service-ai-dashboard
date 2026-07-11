@@ -1,0 +1,7 @@
+case_id,customer,email,phone,category,created_date,subject
+1,Juan Dela Cruz,juan@acme.ph,09171234567,Billing,2024-01-05,double charge on invoice
+2,Maria Clara,maria.c@bcd.com,+639189998888,Shipping,2024-01-10,package not delivered
+3,Pedro Penduko,pedro@xyz.io,639151111222,General,2024-02-14,api returning 500 errors
+4,Ana Reyes,ana@supplychain.com,,Account,2024-03-01,cannot reset password
+5,,broken@product.com,09171234599,Product,,warranty replacement request
+6,Liza Cruz,liza@x.com,09179998877,Billing,2024-04-22,refund not received

@@ -1,0 +1,37 @@
+<a class="back" mat-button routerLink="/customers">
+  <cs-icon name="arrow_back"></cs-icon> Back to customers
+</a>
+
+@if (loading()) {
+  <div class="center"><mat-spinner diameter="36"></mat-spinner></div>
+} @else {
+  @if (customer(); as c) {
+    <div class="detail-grid">
+    <mat-card class="cs-lift profile reveal" appReveal>
+      <mat-card-content>
+        <div class="head">
+          <div class="avatar">{{ c.name.charAt(0).toUpperCase() }}</div>
+          <div>
+            <div class="name">{{ c.name }}</div>
+            <div class="sub">{{ c.email }}</div>
+          </div>
+        </div>
+        <dl class="facts">
+          <div><dt>Phone</dt><dd>{{ c.phone || '—' }}</dd></div>
+          <div><dt>Company</dt><dd>{{ c.company || '—' }}</dd></div>
+          <div><dt>Address</dt><dd>{{ c.address || '—' }}</dd></div>
+          <div><dt>Total cases</dt><dd>{{ c.caseCount }}</dd></div>
+        </dl>
+        <div class="actions">
+          <a mat-stroked-button color="primary" [routerLink]="[c.id, 'edit']">
+            <cs-icon name="edit"></cs-icon> Edit
+          </a>
+          <a mat-flat-button color="primary" [routerLink]="['/cases']" [queryParams]="{ customerId: c.id }">
+            <cs-icon name="confirmation_number"></cs-icon> View cases
+          </a>
+        </div>
+      </mat-card-content>
+    </mat-card>
+    </div>
+  }
+}

@@ -1,0 +1,10 @@
+# ML pipeline dependencies for the Customer Service AI Dashboard.
+# Python 3.12 recommended.
+pandas==2.2.2
+scikit-learn==1.5.1
+numpy==1.26.4
+joblib==1.4.2
+onnx==1.22.0
+onnxruntime==1.18.1
+skl2onnx==1.20.0
+matplotlib==3.9.1

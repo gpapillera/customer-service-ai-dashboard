@@ -1,0 +1,66 @@
+<a class="back" mat-button (click)="router.navigateByUrl('/customers')">
+  <cs-icon name="arrow_back"></cs-icon> Back to customers
+</a>
+
+<h1 class="page-title">{{ isEdit() ? 'Edit customer' : 'New customer' }}</h1>
+
+@if (loading()) {
+  <div class="center"><mat-spinner diameter="36"></mat-spinner></div>
+} @else {
+  <mat-card class="form-card reveal" appReveal>
+    <mat-card-content>
+      <form [formGroup]="form" (ngSubmit)="submit()" class="form">
+        <mat-form-field appearance="outline" class="full">
+          <mat-label>Full name</mat-label>
+          <input matInput formControlName="name" />
+          @if (form.controls.name.hasError('required') && form.controls.name.touched) {
+            <mat-error>Name is required</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full">
+          <mat-label>Email</mat-label>
+          <input matInput formControlName="email" type="email" />
+          @if (form.controls.email.hasError('required') && form.controls.email.touched) {
+            <mat-error>Email is required</mat-error>
+          }
+          @if (form.controls.email.hasError('email') && form.controls.email.touched) {
+            <mat-error>Enter a valid email</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full">
+          <mat-label>Phone</mat-label>
+          <input matInput formControlName="phone" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full">
+          <mat-label>Company</mat-label>
+          <input matInput formControlName="company" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full">
+          <mat-label>Address</mat-label>
+          <textarea matInput formControlName="address" rows="2"></textarea>
+        </mat-form-field>
+
+        @if (error()) {
+          <div class="error-banner">{{ error() }}</div>
+        }
+
+        <div class="actions">
+          <button mat-stroked-button type="button" (click)="router.navigateByUrl('/customers')">
+            Cancel
+          </button>
+          <button mat-flat-button color="primary" type="submit" [disabled]="saving()">
+            @if (saving()) {
+              <mat-spinner diameter="20"></mat-spinner>
+            } @else {
+              {{ isEdit() ? 'Save changes' : 'Create customer' }}
+            }
+          </button>
+        </div>
+      </form>
+    </mat-card-content>
+  </mat-card>
+}

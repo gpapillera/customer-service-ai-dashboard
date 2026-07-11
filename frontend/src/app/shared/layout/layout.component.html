@@ -1,0 +1,41 @@
+<mat-sidenav-container class="shell">
+  <mat-sidenav mode="side" opened class="sidenav">
+    <div class="sidenav-top">
+      <div class="brand">CS AI Dashboard</div>
+      <mat-nav-list class="nav">
+        @for (link of navLinks; track link.path) {
+          <a mat-list-item [routerLink]="link.path" routerLinkActive="active">
+            <cs-icon [name]="link.icon" class="nav-icon"></cs-icon>
+            <span matListItemTitle>{{ link.label }}</span>
+          </a>
+        }
+      </mat-nav-list>
+    </div>
+
+    @if (user) {
+      <div class="sidenav-user">
+        <button mat-button [matMenuTriggerFor]="userMenu" class="user-btn">
+          <cs-icon name="account_circle"></cs-icon>
+          <span class="user-meta">
+            <span class="user-name">{{ user.fullName }}</span>
+            <span class="user-role">{{ user.role }}</span>
+          </span>
+        </button>
+        <mat-menu #userMenu="matMenu">
+          <div class="menu-header">
+            <div class="menu-name">{{ user.fullName }}</div>
+            <div class="menu-role">{{ user.role }}</div>
+          </div>
+          <button mat-menu-item (click)="logout()">
+            <cs-icon name="logout"></cs-icon>
+            <span>Sign out</span>
+          </button>
+        </mat-menu>
+      </div>
+    }
+  </mat-sidenav>
+
+  <mat-sidenav-content class="content">
+    <router-outlet></router-outlet>
+  </mat-sidenav-content>
+</mat-sidenav-container>

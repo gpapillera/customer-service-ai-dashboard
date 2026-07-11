@@ -1,0 +1,64 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{3872299C-3183-4B63-8CDE-5091303461C7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CustomerService.Api", "src\CustomerService.Api\CustomerService.Api.csproj", "{E12B29C8-3D9B-4A0E-BEA2-16DAD4D534FA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CustomerService.Domain", "src\CustomerService.Domain\CustomerService.Domain.csproj", "{335D9934-EFFD-4BEA-9FF2-DDDEF0F0C185}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CustomerService.Application", "src\CustomerService.Application\CustomerService.Application.csproj", "{2F75DB12-5F4C-4A09-88B8-F503F0AAC07F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CustomerService.Infrastructure", "src\CustomerService.Infrastructure\CustomerService.Infrastructure.csproj", "{50CDB6E5-C496-4E4C-BA43-3AF6E61FC3B1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CustomerService.ML", "src\CustomerService.ML\CustomerService.ML.csproj", "{17A19266-1B29-4B02-B6C0-ACDE0D1A47DA}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{B861F231-922E-4032-91FB-87A54C578182}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CustomerService.Tests", "tests\CustomerService.Tests\CustomerService.Tests.csproj", "{D0E4E80D-7A88-45E1-93C2-6DCB19B8B25D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{E12B29C8-3D9B-4A0E-BEA2-16DAD4D534FA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E12B29C8-3D9B-4A0E-BEA2-16DAD4D534FA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E12B29C8-3D9B-4A0E-BEA2-16DAD4D534FA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E12B29C8-3D9B-4A0E-BEA2-16DAD4D534FA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{335D9934-EFFD-4BEA-9FF2-DDDEF0F0C185}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{335D9934-EFFD-4BEA-9FF2-DDDEF0F0C185}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{335D9934-EFFD-4BEA-9FF2-DDDEF0F0C185}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{335D9934-EFFD-4BEA-9FF2-DDDEF0F0C185}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2F75DB12-5F4C-4A09-88B8-F503F0AAC07F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2F75DB12-5F4C-4A09-88B8-F503F0AAC07F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2F75DB12-5F4C-4A09-88B8-F503F0AAC07F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2F75DB12-5F4C-4A09-88B8-F503F0AAC07F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{50CDB6E5-C496-4E4C-BA43-3AF6E61FC3B1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{50CDB6E5-C496-4E4C-BA43-3AF6E61FC3B1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{50CDB6E5-C496-4E4C-BA43-3AF6E61FC3B1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{50CDB6E5-C496-4E4C-BA43-3AF6E61FC3B1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{17A19266-1B29-4B02-B6C0-ACDE0D1A47DA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{17A19266-1B29-4B02-B6C0-ACDE0D1A47DA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{17A19266-1B29-4B02-B6C0-ACDE0D1A47DA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{17A19266-1B29-4B02-B6C0-ACDE0D1A47DA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D0E4E80D-7A88-45E1-93C2-6DCB19B8B25D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D0E4E80D-7A88-45E1-93C2-6DCB19B8B25D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D0E4E80D-7A88-45E1-93C2-6DCB19B8B25D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D0E4E80D-7A88-45E1-93C2-6DCB19B8B25D}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{E12B29C8-3D9B-4A0E-BEA2-16DAD4D534FA} = {3872299C-3183-4B63-8CDE-5091303461C7}
+		{335D9934-EFFD-4BEA-9FF2-DDDEF0F0C185} = {3872299C-3183-4B63-8CDE-5091303461C7}
+		{2F75DB12-5F4C-4A09-88B8-F503F0AAC07F} = {3872299C-3183-4B63-8CDE-5091303461C7}
+		{50CDB6E5-C496-4E4C-BA43-3AF6E61FC3B1} = {3872299C-3183-4B63-8CDE-5091303461C7}
+		{17A19266-1B29-4B02-B6C0-ACDE0D1A47DA} = {3872299C-3183-4B63-8CDE-5091303461C7}
+		{D0E4E80D-7A88-45E1-93C2-6DCB19B8B25D} = {B861F231-922E-4032-91FB-87A54C578182}
+	EndGlobalSection
+EndGlobal

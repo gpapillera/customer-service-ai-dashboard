@@ -1,0 +1,12 @@
+Customer Name,Email,Phone,Case Subject,Description,Category,Date Created,Status
+juan dela cruz,  JUAN@ACME.PH,(0917) 123 4567 ,double charge on invoice,billed twice this month,billing,2024/01/05,Open
+juan dela cruz,Juan@acme.ph,09171234567,double charge on invoice,billed twice this month,Billing,2024-01-05,Open
+Maria Clara,maria.c@bcd.com,+63 918 999 8888,package not delivered,order stuck in transit,Shipping,01/10/2024,Open
+pedro penduko,pedro@xyz.io,639151111222,api returning 500 errors,integration is down,tech,2024.02.14,In Progress
+Ana Reyes,ana@supplychain.com,,cannot reset password,reset link not arriving,account,2024-03-01,Closed
+,broken@product.com,09171234599,warranty replacement request,arrived broken,Product,,Open
+Liza Cruz,liza@x.com,09179998877,refund not received,asked last week,billingg,2024/04/22,Open
+Carlos Mendoza,carlos@corp.com,09171230099,general question about service,curious about plan,General Inquiry,2024-05-01,Open
+Sofia Reyes,sofia@shop.com,+63 917 555 1212,website shows error,page crashes on checkout,Technical Support,2024-06-15,Open
+,missing@name.com,09179990011,subject but no name,should be rejected,Product,2024-07-01,Open
+No Name Customer,noname@x.com,09179990022,,no subject line,Account,2024-07-02,Open

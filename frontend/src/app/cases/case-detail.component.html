@@ -1,0 +1,89 @@
+<a class="back" mat-button (click)="router.navigateByUrl('/cases')">
+  <cs-icon name="arrow_back"></cs-icon> Back to cases
+</a>
+
+@if (loading()) {
+  <div class="center"><mat-spinner diameter="36"></mat-spinner></div>
+} @else {
+  @if (case(); as c) {
+  <div class="detail-grid">
+    <mat-card class="cs-lift case-card reveal" appReveal>
+      <mat-card-content>
+        <div class="head">
+          <div>
+            <div class="subject">{{ c.subject }}</div>
+            <a class="customer-link" [routerLink]="['/customers', c.customerId]">{{ c.customerName }}</a>
+          </div>
+          <span class="badge status" [class]="'st-' + c.status.toLowerCase()">{{ c.status }}</span>
+        </div>
+
+        <p class="desc">{{ c.description || 'No description provided.' }}</p>
+
+        <div class="meta-row">
+          <span class="badge prio" [class]="'pr-' + c.priority.toLowerCase()">{{ c.priority }}</span>
+          @if (c.priorityAutoSuggested) {
+            <span class="ai-tag"><cs-icon name="auto_awesome" [size]="16"></cs-icon> AI suggested</span>
+          }
+          <span class="muted">{{ c.categoryName }}</span>
+        </div>
+
+        <dl class="facts">
+          <div><dt>Assigned to</dt><dd>{{ c.assignedToUserName || 'Unassigned' }}</dd></div>
+          <div><dt>Created</dt><dd>{{ formatDate(c.createdAtUtc) }}</dd></div>
+          @if (c.updatedAtUtc) {
+            <div><dt>Updated</dt><dd>{{ formatDate(c.updatedAtUtc) }}</dd></div>
+          }
+        </dl>
+
+        <div class="actions">
+          <a mat-stroked-button color="primary" [routerLink]="[c.id, 'edit']">
+            <cs-icon name="edit"></cs-icon> Edit
+          </a>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="cs-lift log-card reveal" appReveal>
+      <mat-card-content>
+        <h2 class="card-title">Call &amp; follow-up log</h2>
+
+        @if (logs().length === 0) {
+          <p class="muted">No logs yet. Add the first follow-up below.</p>
+        } @else {
+          <div class="log-list stagger">
+            @for (log of logs(); track log.id) {
+              <div class="log-item">
+                <div class="log-head">
+                  <span class="dir" [class]="log.direction.toLowerCase()">{{ log.direction }}</span>
+                  <span class="muted">{{ formatDate(log.createdAtUtc) }}</span>
+                </div>
+                <div class="log-notes">{{ log.notes }}</div>
+                @if (log.durationSeconds > 0) {
+                  <div class="muted small">Duration: {{ log.durationSeconds }}s</div>
+                }
+              </div>
+            }
+          </div>
+        }
+
+        <form [formGroup]="logForm" (ngSubmit)="addLog()" class="log-form">
+          <mat-form-field appearance="outline" class="dir-field">
+            <mat-label>Direction</mat-label>
+            <mat-select formControlName="direction">
+              <mat-option value="Inbound">Inbound</mat-option>
+              <mat-option value="Outbound">Outbound</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="notes-field">
+            <mat-label>Notes</mat-label>
+            <textarea matInput formControlName="notes" rows="2"></textarea>
+          </mat-form-field>
+          <button mat-flat-button color="primary" type="submit" [disabled]="savingLog()">
+            <cs-icon name="add"></cs-icon> Add
+          </button>
+        </form>
+      </mat-card-content>
+    </mat-card>
+    </div>
+  }
+}

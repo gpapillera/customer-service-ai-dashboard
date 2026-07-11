@@ -1,0 +1,79 @@
+<div class="page-head">
+  <h1 class="page-title">Cases</h1>
+  <a mat-flat-button color="primary" routerLink="new">
+    <cs-icon name="add"></cs-icon> New case
+  </a>
+</div>
+
+<div class="filters">
+  <mat-form-field appearance="outline" class="f-search">
+    <cs-icon name="search" class="prefix-icon"></cs-icon>
+    <input
+      matInput
+      placeholder="Search subject, description, customer"
+      [ngModel]="filters().search"
+      (ngModelChange)="updateFilter('search', $event)"
+    />
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" class="f-select">
+    <mat-label>Status</mat-label>
+    <mat-select [value]="filters().status" (selectionChange)="updateFilter('status', $event.value)">
+      <mat-option value="">All</mat-option>
+      <mat-option value="Open">Open</mat-option>
+      <mat-option value="InProgress">In Progress</mat-option>
+      <mat-option value="Resolved">Resolved</mat-option>
+      <mat-option value="Closed">Closed</mat-option>
+    </mat-select>
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" class="f-select">
+    <mat-label>Priority</mat-label>
+    <mat-select [value]="filters().priority" (selectionChange)="updateFilter('priority', $event.value)">
+      <mat-option value="">All</mat-option>
+      <mat-option value="Low">Low</mat-option>
+      <mat-option value="Medium">Medium</mat-option>
+      <mat-option value="High">High</mat-option>
+    </mat-select>
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" class="f-select">
+    <mat-label>Category</mat-label>
+    <mat-select [value]="filters().categoryId" (selectionChange)="updateFilter('categoryId', $event.value || null)">
+      <mat-option [value]="null">All</mat-option>
+      @for (c of categories; track c.id) {
+        <mat-option [value]="c.id">{{ c.name }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+</div>
+
+@if (loading()) {
+  <div class="center"><mat-spinner diameter="36"></mat-spinner></div>
+} @else if (cases().length === 0) {
+  <div class="empty reveal" appReveal>
+    <cs-icon name="confirmation_number"></cs-icon>
+    <p>No cases match your filters.</p>
+  </div>
+} @else {
+  <div class="list stagger">
+    @for (c of cases(); track c.id) {
+      <mat-card class="cs-lift case-row" appReveal (click)="open(c.id)">
+        <div class="row-main">
+          <div class="subject">{{ c.subject }}</div>
+          <div class="sub">{{ c.customerName }} · {{ c.categoryName }}</div>
+        </div>
+        <div class="badges">
+          <span class="badge status" [class]="'st-' + c.status.toLowerCase()">{{ c.status }}</span>
+          <span class="badge prio" [class]="'pr-' + c.priority.toLowerCase()">
+            {{ c.priority }}
+            @if (c.priorityAutoSuggested) {
+              <cs-icon name="auto_awesome" class="ai" [size]="16"></cs-icon>
+            }
+          </span>
+        </div>
+        <cs-icon name="chevron_right" class="chev"></cs-icon>
+      </mat-card>
+    }
+  </div>
+}

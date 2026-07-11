@@ -1,0 +1,39 @@
+<h1 class="page-title">Dashboard</h1>
+
+@if (loading()) {
+  <div class="center"><mat-spinner diameter="40"></mat-spinner></div>
+} @else {
+  @if (data(); as d) {
+  <div class="kpis stagger">
+    @for (k of kpis; track k.label) {
+      <mat-card class="cs-lift kpi" appReveal [class]="'tone-' + k.tone">
+        <mat-card-content>
+          <div class="kpi-icon"><cs-icon [name]="k.icon" [size]="28"></cs-icon></div>
+          <div class="kpi-value">{{ k.value }}</div>
+          <div class="kpi-label">{{ k.label }}</div>
+        </mat-card-content>
+      </mat-card>
+    }
+  </div>
+
+  <div class="charts">
+    <mat-card class="cs-lift chart-card reveal" appReveal>
+      <mat-card-content>
+        <h2 class="chart-title">Cases created (last 30 days)</h2>
+        <div class="chart-box">
+          <canvas baseChart [type]="trendChart.type" [data]="trendChart.data" [options]="trendChart.options"></canvas>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="cs-lift chart-card reveal" appReveal>
+      <mat-card-content>
+        <h2 class="chart-title">Cases by category</h2>
+        <div class="chart-box">
+          <canvas baseChart [type]="categoryChart.type" [data]="categoryChart.data" [options]="categoryChart.options"></canvas>
+        </div>
+      </mat-card-content>
+    </mat-card>
+    </div>
+  }
+}

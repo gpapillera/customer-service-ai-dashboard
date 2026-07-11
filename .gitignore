@@ -1,0 +1,46 @@
+# Build output
+bin/
+obj/
+*.user
+*.suo
+.vs/
+
+# .NET user secrets / local dev settings (may contain secrets)
+appsettings.Development.json
+secrets.json
+
+# Node / Angular
+node_modules/
+dist/
+.angular/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+ml/data/cleaned/
+ml/data/raw/*.output.csv
+ml/models/
+*.onnx
+!ml/models/.gitkeep
+
+# Environment files (secrets)
+.env
+.env.local
+*.local
+
+# IDE / OS
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/

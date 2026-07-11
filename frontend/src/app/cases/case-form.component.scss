@@ -1,0 +1,54 @@
+.back {
+  margin-bottom: 0.5rem;
+  color: var(--cs-text-muted);
+}
+
+.form-card {
+  max-width: 640px;
+  border-radius: var(--cs-radius);
+  box-shadow: var(--cs-shadow);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 0.5rem;
+}
+.full {
+  width: 100%;
+}
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.ai-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  margin-right: 0.25rem;
+  color: var(--cs-accent);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.error-banner {
+  background: #ffe5e5;
+  color: #c0392b;
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--cs-radius-sm);
+  font-size: 0.85rem;
+}
+
+.center {
+  display: flex;
+  justify-content: center;
+  padding: 3rem;
+}
