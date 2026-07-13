@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { AfterViewInit, Component, inject, OnInit, QueryList, signal, ViewChildren } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
@@ -34,11 +34,15 @@ import { Dashboard, RecentCase } from '../shared/models';
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',
 })
-export class DashboardComponent implements OnInit {
+export class DashboardComponent implements OnInit, AfterViewInit {
   private readonly service = inject(DashboardService);
 
   readonly data = signal<Dashboard | null>(null);
   readonly loading = signal(true);
+
+  /** Chart.js directive instances, used to replay the entrance animation. */
+  @ViewChildren(BaseChartDirective) private chartRefs!: QueryList<BaseChartDirective>;
+  private entrancePlayed = false;
 
   readonly trendChart: ChartConfiguration<'line'> = {
     type: 'line',
@@ -113,6 +117,8 @@ export class DashboardComponent implements OnInit {
         this.statusChart.data.datasets[0].backgroundColor = statusOrder.map((s) => statusColors[s]);
 
         this.loading.set(false);
+        // Replay a clear entrance animation once all four chart canvases exist.
+        this.tryPlayEntrance();
       },
       error: () => this.loading.set(false),
     });
@@ -147,11 +153,36 @@ export class DashboardComponent implements OnInit {
     return 'priority-' + p.toLowerCase();
   }
 
+  /** After the view (and all four chart directives) initialize, replay. */
+  ngAfterViewInit(): void {
+    this.tryPlayEntrance();
+  }
+
+  /** Force a visible "grow-in" entrance animation on all four charts. */
+  private tryPlayEntrance(): void {
+    if (this.entrancePlayed) return;
+    const refs = this.chartRefs;
+    // Wait until all four chart canvases are registered, otherwise the
+    // later-created charts would render their final frame instantly.
+    if (!refs || refs.length < 4) {
+      setTimeout(() => this.tryPlayEntrance(), 30);
+      return;
+    }
+    this.entrancePlayed = true;
+    refs.forEach((ref) => {
+      const chart = ref.chart;
+      if (chart) {
+        chart.reset();
+        chart.update();
+      }
+    });
+  }
+
   private lineOptions(): ChartOptions<'line'> {
     return {
       responsive: true,
       maintainAspectRatio: false,
-      animation: { duration: 700, easing: 'easeOutQuart' },
+      animation: { duration: 900, easing: 'easeOutQuart' },
       plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
       scales: {
         x: { grid: { display: false } },
@@ -165,7 +196,7 @@ export class DashboardComponent implements OnInit {
       responsive: true,
       maintainAspectRatio: false,
       cutout: '68%',
-      animation: { animateRotate: true, animateScale: true, duration: 700, easing: 'easeOutQuart' },
+      animation: { animateRotate: true, animateScale: true, duration: 900, easing: 'easeOutQuart' },
       plugins: {
         legend: { display: true, position: 'bottom' },
       },
@@ -177,7 +208,7 @@ export class DashboardComponent implements OnInit {
       responsive: true,
       maintainAspectRatio: false,
       indexAxis: horizontal ? 'y' : 'x',
-      animation: { duration: 700, easing: 'easeOutQuart' },
+      animation: { duration: 900, easing: 'easeOutQuart' },
       plugins: { legend: { display: false } },
       scales: {
         x: { beginAtZero: true, ticks: { precision: 0 }, grid: { display: !horizontal } },
