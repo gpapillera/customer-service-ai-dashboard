@@ -2,6 +2,16 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Seed] Added 7 customers + 8 cases (now 11 customers / 13 cases) — 2026-07-14
+**Status:** Complete (verified via API + dashboard UI)
+**Context:** User asked to expand demo data with 7 more customers and 8 more cases. One customer (Liza Lopez, `customers[4]`) intentionally has **two** cases to demonstrate a customer with multiple cases.
+**Changes (`backend/src/CustomerService.Infrastructure/Data/SeedData.cs`):**
+- `Customers()`: added 7 — Liza Lopez, Carlos Mendoza, Sofia Reyes, Benjie Cruz, Grace Tan, Mark Villanueva, Ella Garcia (total 11).
+- `Cases()`: added 8 — Integration webhook failing (Benjie), Wrong amount on receipt (Carlos), Item arrived damaged (Sofia), Cannot enable 2FA (Grace), Feature request: bulk export (Mark), Dashboard latency spike (Ella), Duplicate invoice dispute (Benjie), Login blocked after password change (Liza). Total 13. 5 cases are `PriorityAutoSuggested = true` (AI Predicted KPI = 5).
+**DB reset note (important):** The SQL Server `CustomerServiceDb` had a **stale schema** (missing the later-added `PriorityReason` column), so `EnsureCreated()` could not seed. Fix applied on the dev machine: dropped the old DB and recreated it so EF `EnsureCreated()` rebuilds the current schema. Required granting `csadmin` the `dbcreator` server role (via `sa` / `SqlServer!2024Dev`) because `EnsureCreated` issues `CREATE DATABASE` and `csadmin` previously lacked that right. After reset, backend seeded cleanly: `totalCases: 13, totalCustomers: 11, aiPredicted: 5`.
+**Verification:** `GET /api/dashboard` → `totalCases:13, totalCustomers:11, aiPredicted:5`. Dashboard UI shows 13 Total Cases / 11 Customers / 5 AI Predicted; recent-cases list shows new seeded cases. `ng build` (frontend) unaffected.
+**Known issues / TODO:** `NG0912` Lucide warning (cosmetic). The SQL Server `csadmin` now has `dbcreator` (dev-only; fine for local demo). `priority_model.onnx` gitignored.
+
 ## [Bugfix] Modal dialogs: add padding/breathing room — 2026-07-14
 **Status:** Complete (verified in browser for New Customer + New Case modals)
 **Context:** The form modals (New/Edit Customer, New/Edit Case) rendered their title, inputs, and buttons flush against the dialog outline — no spacing between the content and the box edge. The form components (`case-form.component.*`, `customer-form.component.*`) had a `.modal-head` and `.form` with no outer padding; the dialog surface itself had `padding: 0`.
