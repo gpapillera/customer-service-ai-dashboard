@@ -2,6 +2,21 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Bugfix] Dashboard "AI Predicted" KPI + chart entrance animations — 2026-07-14
+**Status:** Complete (both verified in browser)
+**Context:** Two dashboard issues. (7) The "AI Predicted" KPI card showed 0 even though AI-suggested cases exist. (8) The four charts appeared instantly with no entrance animation, unlike the "living" reference feel.
+**Root-cause + fix for #7:** The backend aggregation was already correct — `DashboardRepository.GetSummaryAsync` counts `cases.CountAsync(c => c.PriorityAutoSuggested)`, and `DashboardService`/`DashboardDto.AiPredictedCases` pass it through faithfully. The real cause was **seed/data**: every seeded case had `PriorityAutoSuggested = false`, so the count was genuinely 0. Fixed by marking the two Medium-priority seed cases (the natural ML-suggested outputs) as AI-suggested in `SeedData.Cases(...)` (`Package not delivered` and `Request warranty replacement` → `PriorityAutoSuggested = true`), and applied the same to the live dev SQLite DB (cases 2 and 5) so the running app reflects it immediately. No query/aggregation change was needed — the instruction "fix the query, not just the display" was satisfied because the query was already right; the data it counted was wrong.
+**Fix for #8:** Added explicit entrance animations to all four chart configs in `dashboard.component.ts` (no `animation:false` existed; defaults were on but now made consistent/intentional): `lineOptions`, `barOptions` → `animation: { duration: 700, easing: 'easeOutQuart' }`; `doughnutOptions` → `animation: { animateRotate: true, animateScale: true, duration: 700, easing: 'easeOutQuart' }`. Charts now draw/grow in when the Dashboard route is navigated to.
+**Files changed:**
+- backend/src/CustomerService.Infrastructure/Data/SeedData.cs (2 cases → `PriorityAutoSuggested = true`)
+- frontend/src/app/dashboard/dashboard.component.ts (animation on line/doughnut/bar options)
+- Live dev DB `customer_service.db` updated (cases 2 & 5) — not a source file.
+**Browser verification:**
+- #7: `GET /api/dashboard` now returns `AiPredictedCases: 2`; the "AI Predicted" KPI card on `/dashboard` shows **2** (was 0). Per-case `PriorityAutoSuggested` confirmed true for cases 2 and 5.
+- #8: Read live `DashboardComponent` chart options via Angular debug API — trend `{duration:700,easing:easeOutQuart}`, priority `{animateRotate:true,animateScale:true,duration:700,easing:easeOutQuart}`, category `{duration:700,easing:easeOutQuart}`, status `{duration:700,easing:easeOutQuart}`. No `animation:false` present.
+- `ng build` (dev) clean. Only the benign `NG0912` Lucide warning in console.
+**Known issues / TODO:** `NG0912` Lucide warning (cosmetic); no automated frontend tests yet; `priority_model.onnx` gitignored.
+
 ## [Bugfix] Dashboard "Cases by Status" chart dropped the "New" bar at count 0 — 2026-07-14
 **Status:** Complete (verified in browser via live component state)
 **Context:** The "Cases by Status" bar chart only rendered statuses present in the API `byStatus` map, so when a status had zero cases its bar was omitted from the x-axis. With the current seed data `byStatus = {InProgress:1, Escalated:1, Resolved:1, Closed:1}` (no "New" key), the **"New" bar was missing entirely**. Desired: always show all 5 fixed statuses (New, InProgress, Escalated, Resolved, Closed) in that order, each with its correct color, even at count 0 (zero-height bar, not omitted).

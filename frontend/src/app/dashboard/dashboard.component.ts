@@ -151,6 +151,7 @@ export class DashboardComponent implements OnInit {
     return {
       responsive: true,
       maintainAspectRatio: false,
+      animation: { duration: 700, easing: 'easeOutQuart' },
       plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
       scales: {
         x: { grid: { display: false } },
@@ -164,6 +165,7 @@ export class DashboardComponent implements OnInit {
       responsive: true,
       maintainAspectRatio: false,
       cutout: '68%',
+      animation: { animateRotate: true, animateScale: true, duration: 700, easing: 'easeOutQuart' },
       plugins: {
         legend: { display: true, position: 'bottom' },
       },
@@ -175,6 +177,7 @@ export class DashboardComponent implements OnInit {
       responsive: true,
       maintainAspectRatio: false,
       indexAxis: horizontal ? 'y' : 'x',
+      animation: { duration: 700, easing: 'easeOutQuart' },
       plugins: { legend: { display: false } },
       scales: {
         x: { beginAtZero: true, ticks: { precision: 0 }, grid: { display: !horizontal } },
