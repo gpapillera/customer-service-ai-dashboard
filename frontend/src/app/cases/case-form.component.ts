@@ -10,12 +10,13 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
-import { MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { MatDialog, MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { CsIconComponent } from '../shared/cs-icon.component';
 import { CaseService } from './case.service';
 import { CustomerService } from '../customers/customer.service';
 import { Case, Customer } from '../shared/models';
 import { CATEGORIES } from '../shared/categories';
+import { ConfirmDialogComponent, ConfirmDialogData } from '../shared/confirm-dialog.component';
 
 /** Dialog data accepted by the case form. */
 export interface CaseFormDialogData {
@@ -60,6 +61,7 @@ export class CaseFormComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly dialogRef = inject(MatDialogRef<CaseFormComponent>);
+  private readonly dialog = inject(MatDialog);
   /** Dialog data: optional case id (edit) and/or locked customer id (create). */
   private readonly dialogData = inject<CaseFormDialogData>(MAT_DIALOG_DATA, { optional: true }) ?? {};
 
@@ -71,6 +73,7 @@ export class CaseFormComponent implements OnInit {
   readonly suggestedPriority = signal<string | null>(null);
   readonly predicting = signal(false);
   readonly error = signal<string | null>(null);
+  readonly deleting = signal(false);
   /** When set, the Customer field is prefilled and disabled. */
   readonly lockedCustomerId = signal<number | null>(this.dialogData.customerId ?? null);
 
@@ -191,6 +194,41 @@ export class CaseFormComponent implements OnInit {
   /** Closes the dialog without saving. */
   cancel(): void {
     this.dialogRef.close(null);
+  }
+
+  /** Deletes the case after a confirmation dialog (edit mode only). */
+  deleteCase(): void {
+    const id = this.dialogData.caseId ?? this.route.snapshot.paramMap.get('id');
+    if (!id) return;
+    const ref: MatDialogRef<ConfirmDialogComponent, boolean> = this.dialog.open(
+      ConfirmDialogComponent,
+      {
+        data: {
+          title: 'Delete case',
+          message: "Delete this case? This can't be undone.",
+          confirmText: 'Delete',
+          cancelText: 'Cancel',
+          icon: 'delete',
+        } as ConfirmDialogData,
+        width: '400px',
+        maxWidth: '92vw',
+        autoFocus: false,
+      },
+    );
+    ref.afterClosed().subscribe((confirmed) => {
+      if (!confirmed) return;
+      this.deleting.set(true);
+      this.caseService.delete(Number(id)).subscribe({
+        next: () => {
+          // Close the case modal; the caller navigates to the Cases List.
+          this.dialogRef.close({ deleted: true, id: Number(id) });
+        },
+        error: () => {
+          this.deleting.set(false);
+          this.error.set('Could not delete the case. Please try again.');
+        },
+      });
+    });
   }
 
   /** Priority pill class for the AI suggestion preview. */

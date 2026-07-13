@@ -2,6 +2,24 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Bugfix] Edit Case modal: Delete button + confirm-before-delete — 2026-07-14
+**Status:** Complete (verified in browser: Cancel keeps case, Confirm deletes + returns to list)
+**Context:** The Edit Case modal had no way to delete a case. Desired: a "Delete" button at the **bottom-left** of the modal footer (opposite Cancel/Save Changes at bottom-right) that opens a second confirmation dialog ("Delete this case? This can't be undone." — Cancel / Delete), and only on confirmation calls `DELETE /api/cases/{id}`. After success: close both dialogs and navigate to the Cases List.
+**Backend check:** `DELETE /api/cases/{id}` already exists in `CasesController` (returns 204) and `CaseService.delete()` already wraps it — **no backend change needed**.
+**Fix applied (frontend only):**
+1. **`CaseFormComponent`** — added `MatDialog` + `ConfirmDialogComponent`/`ConfirmDialogData` imports; a `deleting` signal; and `deleteCase()` which opens the confirm dialog (title "Delete case", message "Delete this case? This can't be undone.", confirm "Delete") and, on confirm, calls `caseService.delete(id)` then closes the case modal with `{ deleted: true, id }`. `cancel()`/submit unchanged.
+2. **`case-form.component.html`** — footer now splits into a bottom-left `Delete` button (edit mode only, with spinner while deleting) and a bottom-right group (Cancel + Save Changes). Added `cs-icon name="delete"` to the Delete button.
+3. **`case-form.component.scss`** — `.actions` uses `justify-content: space-between`; new `.actions-right` (margin-left:auto) holds Cancel/Save; `.delete-btn` is danger-colored with a hover bg.
+4. **`CaseDetailComponent.edit()`** — now opens `CaseFormComponent` via `MatDialog` (was a route navigation to `/cases/:id/edit`) and, when the modal returns `{ deleted: true }`, navigates to `/cases`. (The Cases List path already navigates to `/cases` + reloads on dialog close, so it needs no change.)
+**Files changed:**
+- frontend/src/app/cases/case-form.component.{ts,html,scss}
+- frontend/src/app/cases/case-detail.component.ts
+**Browser verification (clicked through both paths on `/cases/1` "Double charged on invoice"):**
+- Edit Case → Delete (bottom-left) → confirm dialog "Delete this case? This can't be undone." → clicked **Cancel** → confirm dialog closed, still in Edit Case modal, case detail still present (not deleted).
+- Edit Case → Delete → confirm dialog → clicked **Delete** → both dialogs closed, navigated to `/cases`, list shows "4 cases found" (the deleted case is gone). Verified via API earlier that `DELETE /api/cases/{id}` returns 204.
+- `ng build` (dev) clean. Only the benign `NG0912` Lucide warning in console.
+**Known issues / TODO:** `NG0912` Lucide warning (cosmetic); no automated frontend tests yet; `priority_model.onnx` gitignored.
+
 ## [Bugfix] Sign Out requires confirmation dialog — 2026-07-14
 **Status:** Complete (verified in browser: Cancel stays, Confirm logs out)
 **Context:** Clicking "Sign Out" in the sidenav logged the user out immediately with no confirmation — easy to trigger by accident. Desired: a MatDialog confirmation ("Are you sure you want to sign out?" with Cancel + "Sign out") using the same modal shell/style as the other dialogs; only call the real `logout()` on confirmation.

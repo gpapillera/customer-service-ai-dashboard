@@ -113,14 +113,25 @@
     }
 
     <div class="actions">
-      <button mat-button type="button" class="text-btn" (click)="cancel()">Cancel</button>
-      <button mat-flat-button color="primary" type="submit" [disabled]="saving()">
-        @if (saving()) {
-          <mat-spinner diameter="20"></mat-spinner>
-        } @else {
-          {{ isEdit() ? 'Save Changes' : 'Create Case' }}
-        }
-      </button>
+      @if (isEdit()) {
+        <button mat-button type="button" class="delete-btn" (click)="deleteCase()" [disabled]="deleting()">
+          @if (deleting()) {
+            <mat-spinner diameter="18"></mat-spinner>
+          } @else {
+            <cs-icon name="delete"></cs-icon> Delete
+          }
+        </button>
+      }
+      <span class="actions-right">
+        <button mat-button type="button" class="text-btn" (click)="cancel()">Cancel</button>
+        <button mat-flat-button color="primary" type="submit" [disabled]="saving() || deleting()">
+          @if (saving()) {
+            <mat-spinner diameter="20"></mat-spinner>
+          } @else {
+            {{ isEdit() ? 'Save Changes' : 'Create Case' }}
+          }
+        </button>
+      </span>
     </div>
   </form>
 }

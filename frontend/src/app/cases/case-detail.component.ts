@@ -9,10 +9,12 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatDialog } from '@angular/material/dialog';
 import { RevealDirective } from '../shared/reveal.directive';
 import { CsIconComponent } from '../shared/cs-icon.component';
 import { CaseService } from './case.service';
 import { CallLogService } from './call-log.service';
+import { CaseFormComponent, CaseFormDialogData } from './case-form.component';
 import { Case, CallLog } from '../shared/models';
 
 /**
@@ -44,6 +46,7 @@ export class CaseDetailComponent implements OnInit {
   readonly router = inject(Router);
   private readonly caseService = inject(CaseService);
   private readonly callLogService = inject(CallLogService);
+  private readonly dialog = inject(MatDialog);
   private readonly fb = inject(FormBuilder);
 
   readonly case = signal<Case | null>(null);
@@ -126,9 +129,23 @@ export class CaseDetailComponent implements OnInit {
       .subscribe(() => this.case.set({ ...c, priority, priorityAutoSuggested: false }));
   }
 
-  /** Opens the edit-case modal. */
+  /** Opens the edit-case modal directly; navigates to Cases List if deleted. */
   edit(): void {
-    this.router.navigateByUrl(`/cases/${this.case()?.id}/edit`);
+    const id = this.case()?.id;
+    if (!id) return;
+    const data: CaseFormDialogData = { caseId: id };
+    const ref = this.dialog.open(CaseFormComponent, {
+      data,
+      width: '560px',
+      maxWidth: '92vw',
+      autoFocus: false,
+    });
+    ref.afterClosed().subscribe((result) => {
+      if (result && (result as { deleted?: boolean }).deleted) {
+        // The case no longer exists — go back to the list.
+        this.router.navigateByUrl('/cases');
+      }
+    });
   }
 
   /** Status pill class. */
