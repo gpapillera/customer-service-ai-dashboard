@@ -27,37 +27,26 @@
 } @else {
   <div class="grid stagger">
     @for (c of customers(); track c.id) {
-      <mat-card class="cs-lift customer-card" appReveal>
+      <mat-card class="cs-lift customer-card" appReveal [routerLink]="[c.id]">
         <mat-card-content>
           <div class="card-top">
-            <div class="avatar">{{ c.name.charAt(0).toUpperCase() }}</div>
+            <div class="avatar" [style.background]="avatarColor(c.id)">{{ c.name.charAt(0).toUpperCase() }}</div>
             <div class="meta">
               <div class="name">{{ c.name }}</div>
-              <div class="sub">{{ c.email }}</div>
+              @if (c.company) {
+                <div class="sub">{{ c.company }}</div>
+              }
             </div>
-            <button mat-icon-button [matMenuTriggerFor]="menu">
-              <cs-icon name="more_vert"></cs-icon>
-            </button>
-            <mat-menu #menu="matMenu">
-              <a mat-menu-item [routerLink]="[c.id]">
-                <cs-icon name="visibility"></cs-icon><span>View</span>
-              </a>
-              <a mat-menu-item [routerLink]="[c.id, 'edit']">
-                <cs-icon name="edit"></cs-icon><span>Edit</span>
-              </a>
-              <button mat-menu-item (click)="remove(c.id)">
-                <cs-icon name="delete"></cs-icon><span>Delete</span>
-              </button>
-            </mat-menu>
           </div>
-          <div class="chips">
-            @if (c.company) {
-              <span class="chip">{{ c.company }}</span>
-            }
+          <div class="rows">
+            <div class="row"><cs-icon name="mail"></cs-icon><span>{{ c.email }}</span></div>
             @if (c.phone) {
-              <span class="chip">{{ c.phone }}</span>
+              <div class="row"><cs-icon name="phone"></cs-icon><span>{{ c.phone }}</span></div>
             }
-            <span class="chip cases">{{ c.caseCount }} cases</span>
+          </div>
+          <div class="footer">
+            <span class="cs-pill status-resolved"><span class="cs-dot"></span>{{ c.caseCount }} cases</span>
+            <span class="since">Since {{ formatDate(c.createdAtUtc) }}</span>
           </div>
         </mat-card-content>
       </mat-card>

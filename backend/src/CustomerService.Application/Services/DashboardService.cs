@@ -22,12 +22,15 @@ public class DashboardService : IDashboardService
         var summary = await _repo.GetSummaryAsync();
         var trend = await _repo.GetCasesCreatedTrendAsync(30);
         var byCategory = await _repo.GetCasesByCategoryAsync();
+        var recent = await _repo.GetRecentCasesAsync(5);
 
         return new DashboardDto
         {
             TotalCases = summary.TotalCases,
             OpenCases = summary.OpenCases,
             ClosedCases = summary.ClosedCases,
+            ResolvedCases = summary.ResolvedCases,
+            AiPredictedCases = summary.AiPredictedCases,
             HighPriorityCases = summary.HighPriorityCases,
             TotalCustomers = summary.TotalCustomers,
             ByStatus = summary.ByStatus,
@@ -41,6 +44,17 @@ public class DashboardService : IDashboardService
             {
                 Category = c.Category,
                 Count = c.Count,
+            }).ToList(),
+            RecentCases = recent.Select(c => new RecentCaseDto
+            {
+                Id = c.Id,
+                Subject = c.Subject,
+                CustomerName = c.Customer?.Name ?? string.Empty,
+                CategoryName = c.Category?.Name ?? string.Empty,
+                CreatedAtUtc = c.CreatedAtUtc,
+                Priority = c.Priority,
+                Status = c.Status,
+                PriorityAutoSuggested = c.PriorityAutoSuggested,
             }).ToList(),
         };
     }

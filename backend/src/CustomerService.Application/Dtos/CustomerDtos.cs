@@ -51,4 +51,7 @@ public class CustomerDto
 
     /// <summary>Number of cases raised by this customer.</summary>
     public int CaseCount { get; set; }
+
+    /// <summary>UTC timestamp when the customer record was created.</summary>
+    public DateTime CreatedAtUtc { get; set; }
 }

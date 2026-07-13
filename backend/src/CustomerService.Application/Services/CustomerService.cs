@@ -36,6 +36,7 @@ public class CustomerService : ICustomerService
                 Company = c.Company,
                 Address = c.Address,
                 CaseCount = c.Cases.Count,
+                CreatedAtUtc = c.CreatedAtUtc,
             })
             .OrderBy(c => c.Name)
             .ToListAsync();
@@ -69,6 +70,7 @@ public class CustomerService : ICustomerService
             Company = c.Company,
             Address = c.Address,
             CaseCount = c.Cases.Count,
+            CreatedAtUtc = c.CreatedAtUtc,
         }).OrderBy(c => c.Name).ToListAsync();
     }
 
@@ -120,6 +122,7 @@ public class CustomerService : ICustomerService
         Company = c.Company,
         Address = c.Address,
         CaseCount = c.Cases?.Count ?? 0,
+        CreatedAtUtc = c.CreatedAtUtc,
     };
 
     private static string NormalizeEmail(string email) => email.Trim().ToLower();

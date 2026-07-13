@@ -51,6 +51,36 @@ export class CaseService {
     return this.http.delete<void>(`${this.baseUrl}/${id}`);
   }
 
+  /**
+   * Previews an AI priority suggestion on demand (does not create a case).
+   * The backend computes priority from the same features used at creation;
+   * we derive the keyword flag from the description and send neutral
+   * history values since the case does not exist yet.
+   */
+  predictPriority(req: {
+    categoryId: number;
+    customerId: number;
+    description: string;
+  }): Observable<{ priority: string; reason: string }> {
+    const keywords = [
+      'urgent', 'asap', 'immediately', 'broken', 'error', 'fail', 'failed',
+      'complaint', 'angry', 'furious', 'unacceptable', 'refund', 'chargeback',
+      'lawsuit', 'escalate', 'critical', 'down', 'outage', 'lost', 'missing',
+    ];
+    const hasKeyword = keywords.some((k) =>
+      req.description.toLowerCase().includes(k),
+    );
+    return this.http.post<{ priority: string; reason: string }>(
+      '/api/ml/predict-priority',
+      {
+        categoryId: req.categoryId,
+        priorCaseCount: 0,
+        daysSinceLastContact: 0,
+        hasComplaintKeyword: hasKeyword,
+      },
+    );
+  }
+
   /** Lists categories for dropdowns (from the shared seed constant). */
   categories(): Observable<Category[]> {
     return of(CATEGORIES);

@@ -73,4 +73,19 @@ export class CustomerListComponent implements OnInit {
     if (!confirm('Delete this customer? This cannot be undone.')) return;
     this.service.delete(id).subscribe(() => this.load());
   }
+
+  /** Deterministic avatar color from the customer id. */
+  avatarColor(id: number): string {
+    const palette = [
+      '#4f46e5', '#0ea5e9', '#10b981', '#f59e0b',
+      '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6',
+    ];
+    return palette[id % palette.length];
+  }
+
+  /** Formats a UTC date string for display. */
+  formatDate(value?: string): string {
+    if (!value) return '—';
+    return new Date(value).toLocaleDateString();
+  }
 }

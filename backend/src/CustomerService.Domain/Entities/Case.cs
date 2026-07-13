@@ -11,11 +11,14 @@ public enum CaseStatus
     /// <summary>Agent is actively working the case.</summary>
     InProgress = 1,
 
-    /// <summary>Waiting on customer or third party.</summary>
-    OnHold = 2,
+    /// <summary>Escalated to a higher tier or manager.</summary>
+    Escalated = 2,
+
+    /// <summary>Issue resolved, pending closure.</summary>
+    Resolved = 3,
 
     /// <summary>Resolved and closed.</summary>
-    Closed = 3,
+    Closed = 4,
 }
 
 /// <summary>
@@ -74,6 +77,9 @@ public class Case
 
     /// <summary>True when the priority was set by the ML model rather than a human.</summary>
     public bool PriorityAutoSuggested { get; set; }
+
+    /// <summary>Plain-English reason for the ML-suggested priority (when auto-suggested).</summary>
+    public string? PriorityReason { get; set; }
 
     /// <summary>UTC timestamp when the case was created.</summary>
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;

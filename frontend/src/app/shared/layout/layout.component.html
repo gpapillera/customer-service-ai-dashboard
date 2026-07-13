@@ -1,36 +1,29 @@
 <mat-sidenav-container class="shell">
   <mat-sidenav mode="side" opened class="sidenav">
     <div class="sidenav-top">
-      <div class="brand">CS AI Dashboard</div>
-      <mat-nav-list class="nav">
+      <div class="brand">
+        <div class="brand-logo"><cs-icon name="headset"></cs-icon></div>
+        <div class="brand-text">
+          <span class="brand-name">ServiceAI</span>
+          <span class="brand-sub">Case Dashboard</span>
+        </div>
+      </div>
+      <nav class="nav">
         @for (link of navLinks; track link.path) {
-          <a mat-list-item [routerLink]="link.path" routerLinkActive="active">
+          <a class="nav-item" [routerLink]="link.path" routerLinkActive="active">
             <cs-icon [name]="link.icon" class="nav-icon"></cs-icon>
-            <span matListItemTitle>{{ link.label }}</span>
+            <span class="nav-label">{{ link.label }}</span>
           </a>
         }
-      </mat-nav-list>
+      </nav>
     </div>
 
     @if (user) {
       <div class="sidenav-user">
-        <button mat-button [matMenuTriggerFor]="userMenu" class="user-btn" [matMenuTriggerRestoreFocus]="false">
-          <cs-icon name="account_circle"></cs-icon>
-          <span class="user-meta">
-            <span class="user-name">{{ user.fullName }}</span>
-            <span class="user-role">{{ user.role }}</span>
-          </span>
+        <button type="button" class="signout-btn" (click)="logout()">
+          <cs-icon name="logout"></cs-icon>
+          <span>Sign Out</span>
         </button>
-        <mat-menu #userMenu="matMenu" yPosition="above" xPosition="before" panelClass="user-menu-panel">
-          <div class="menu-header">
-            <div class="menu-name">{{ user.fullName }}</div>
-            <div class="menu-role">{{ user.role }}</div>
-          </div>
-          <button mat-menu-item (click)="logout()">
-            <cs-icon name="logout"></cs-icon>
-            <span>Sign out</span>
-          </button>
-        </mat-menu>
       </div>
     }
   </mat-sidenav>

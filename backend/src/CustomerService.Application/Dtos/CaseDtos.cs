@@ -70,6 +70,9 @@ public class CaseDto
     /// <summary>True if priority was ML-suggested.</summary>
     public bool PriorityAutoSuggested { get; set; }
 
+    /// <summary>Plain-English reason for the ML-suggested priority (when auto-suggested).</summary>
+    public string? PriorityReason { get; set; }
+
     /// <summary>Customer id.</summary>
     public int CustomerId { get; set; }
 

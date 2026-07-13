@@ -33,10 +33,14 @@ public class OnnxPriorityPredictor : IPriorityPredictor, IDisposable
 
     /// <inheritdoc/>
     public Priority Predict(PriorityFeatures features)
+        => PredictWithReason(features).Priority;
+
+    /// <inheritdoc/>
+    public PriorityPredictionResult PredictWithReason(PriorityFeatures features)
     {
         if (_session is null)
         {
-            return _fallback.Predict(features);
+            return _fallback.PredictWithReason(features);
         }
 
         // Feature vector order must match the Python training pipeline:
@@ -54,6 +58,13 @@ public class OnnxPriorityPredictor : IPriorityPredictor, IDisposable
             NamedOnnxValue.CreateFromTensor("input", tensor),
         };
 
+        return PredictWithReasonFromOutput(features, inputs);
+    }
+
+    /// <summary>Runs the session and builds a prediction result from the output.</summary>
+    private PriorityPredictionResult PredictWithReasonFromOutput(PriorityFeatures features, List<NamedOnnxValue> inputs)
+    {
+        if (_session is null) return _fallback.PredictWithReason(features);
         using var results = _session.Run(inputs);
         // The model emits two outputs: "label" (string) and "probabilities"
         // (float[3] in [Low, Medium, High] order). Prefer the probabilities
@@ -61,7 +72,32 @@ public class OnnxPriorityPredictor : IPriorityPredictor, IDisposable
         var prob = results.FirstOrDefault(r => r.Name == "probabilities") ?? results.First();
         var output = prob.AsEnumerable<float>().ToArray();
         var predicted = Array.IndexOf(output, output.Max());
-        return Enum.Parse<Priority>(_labels[predicted]);
+        var priority = Enum.Parse<Priority>(_labels[predicted]);
+        return new PriorityPredictionResult
+        {
+            Priority = priority,
+            Reason = BuildReason(features, priority, output),
+        };
+    }
+
+    /// <summary>Builds a plain-English reason from the features and model output.</summary>
+    private string BuildReason(PriorityFeatures features, Priority priority, float[] probs)
+    {
+        var reasons = new List<string>();
+        if (features.HasComplaintKeyword)
+            reasons.Add("the description contains urgent/complaint keywords");
+        if (features.DaysSinceLastContact > 30)
+            reasons.Add($"the customer has had no contact for {features.DaysSinceLastContact} days");
+        if (features.PriorCaseCount >= 3)
+            reasons.Add($"the customer has {features.PriorCaseCount} prior cases");
+        if (features.CategoryId == 1)
+            reasons.Add("the category is Billing, which is often time-sensitive");
+
+        var confidence = probs.Length == 3 ? probs[Array.IndexOf(_labels, priority.ToString())] : 0f;
+        var tail = reasons.Count == 0
+            ? $"no urgency signals were detected (model confidence {confidence:P0})"
+            : string.Join(", and ", reasons);
+        return $"Suggested {priority} because {tail}.";
     }
 
     /// <inheritdoc/>

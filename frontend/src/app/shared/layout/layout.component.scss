@@ -1,70 +1,60 @@
 .brand {
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  padding: 1.25rem 1rem;
-  font-size: 1.05rem;
-}
-
-.user-btn {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 0.6rem;
-  width: 100%;
-  justify-content: flex-start;
-  /* Neutralize Material's default blue button text/icon color. */
-  color: var(--cs-text) !important;
-  font-weight: 500;
-  padding: 0.5rem 0.75rem;
-  border-radius: var(--cs-radius-sm);
-  transition: background 0.2s var(--cs-ease);
+  gap: 0.7rem;
+  padding: 1.25rem 1rem;
 }
 
-.user-btn:hover {
-  background: rgba(0, 0, 0, 0.04);
-}
-
-.user-btn cs-icon {
-  color: var(--cs-text-muted);
+.brand-logo {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--cs-accent-gradient);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
   flex: 0 0 auto;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.35);
 }
 
-.user-meta {
+.brand-logo cs-icon {
+  width: 22px;
+  height: 22px;
+}
+
+.brand-text {
   display: flex;
   flex-direction: column;
-  line-height: 1.25;
-  text-align: left;
-  min-width: 0;
+  line-height: 1.2;
 }
 
-.user-name {
-  font-weight: 600;
-  font-size: 0.9rem;
+.brand-name {
+  font-weight: 700;
+  font-size: 1.05rem;
   color: var(--cs-text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  letter-spacing: -0.01em;
 }
 
-.user-role {
+.brand-sub {
   font-size: 0.72rem;
   color: var(--cs-text-muted);
-  text-transform: capitalize;
 }
 
 .shell {
   height: 100vh;
+  overflow: hidden;
+  position: fixed;
+  inset: 0;
 }
 
 .sidenav {
-  width: 220px;
+  width: 248px;
+  background: var(--cs-surface);
   border-right: 1px solid var(--cs-border);
   overflow: hidden;
 }
 
-/* Material wraps the sidenav content in .mat-drawer-inner-container
-   (created outside this component's view encapsulation), so we must
-   pierce encapsulation with ::ng-deep to make it the flex column that
-   pushes brand/nav to the top and the user block to the bottom. */
 .sidenav ::ng-deep .mat-drawer-inner-container {
   display: flex;
   flex-direction: column;
@@ -75,8 +65,79 @@
 .sidenav-top {
   display: flex;
   flex-direction: column;
-  flex: 0 0 auto;
+  flex: 1 1 auto;
   overflow-y: auto;
+  padding: 0 0.75rem;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: var(--cs-radius-sm);
+  color: var(--cs-text-muted);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 0.92rem;
+  transition: background 0.18s var(--cs-ease), color 0.18s var(--cs-ease);
+}
+
+.nav-item:hover {
+  background: rgba(79, 70, 229, 0.06);
+  color: var(--cs-accent);
+}
+
+.nav-item.active {
+  background: var(--cs-accent-light);
+  color: var(--cs-accent-strong);
+  font-weight: 700;
+}
+
+.nav-icon {
+  color: inherit;
+  flex: 0 0 auto;
+}
+
+.sidenav-user {
+  border-top: 1px solid var(--cs-border);
+  padding: 0.75rem;
+}
+
+.signout-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  justify-content: flex-start;
+  padding: 0.65rem 0.85rem;
+  border: none;
+  background: transparent;
+  border-radius: var(--cs-radius-sm);
+  color: var(--cs-text-muted);
+  font: inherit;
+  font-weight: 500;
+  font-size: 0.92rem;
+  cursor: pointer;
+  transition: background 0.18s var(--cs-ease), color 0.18s var(--cs-ease);
+}
+
+.signout-btn:hover {
+  background: var(--cs-danger-bg);
+  color: var(--cs-danger);
+}
+
+.content {
+  padding: 1.75rem 2rem;
+  background: var(--cs-bg);
+  overflow: auto;
 }
 
 .nav {
@@ -84,8 +145,57 @@
 }
 
 .sidenav-user {
+  position: relative;
   border-top: 1px solid var(--cs-border);
   padding: 0.5rem;
+}
+
+/* Dropdown rendered inside the sidenav, anchored above the button. Using
+   position:absolute within .sidenav-user (not a CDK overlay) keeps it
+   predictable and prevents the whole page from shifting. */
+.user-dropdown {
+  position: absolute;
+  left: 0.5rem;
+  right: 0.5rem;
+  bottom: calc(100% - 0.25rem);
+  background: var(--cs-surface);
+  border: 1px solid var(--cs-border);
+  border-radius: var(--cs-radius-sm);
+  box-shadow: var(--cs-shadow-hover);
+  padding: 0.25rem;
+  z-index: 21;
+}
+
+/* Full-screen transparent layer that captures outside clicks to close
+   the dropdown. Sits behind the dropdown but above page content. */
+.user-dropdown-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  font: inherit;
+  color: var(--cs-text);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s var(--cs-ease);
+}
+
+.dropdown-item:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.dropdown-item cs-icon {
+  color: var(--cs-text-muted);
 }
 
 .sidenav a.active {
@@ -100,33 +210,4 @@
   overflow: auto;
 }
 
-.menu-header {
-  padding: 0.5rem 1rem;
-}
 
-.menu-name {
-  font-weight: 600;
-}
-
-.menu-role {
-  font-size: 0.75rem;
-  color: rgba(0, 0, 0, 0.6);
-  text-transform: capitalize;
-}
-
-/* The user menu is rendered in a CDK overlay outside this component's
-   view encapsulation, so we pierce it with ::ng-deep. Constrain its width
-   to the sidenav and give it the Apple-like card treatment so it reads as
-   a clean dropdown anchored to the button, not a full-width sheet.
-   We target the panel by its Material position classes (reliably present). */
-::ng-deep .mat-mdc-menu-panel.mat-menu-above {
-  min-width: 200px !important;
-  max-width: 220px !important;
-  border-radius: var(--cs-radius-sm) !important;
-  box-shadow: var(--cs-shadow-hover) !important;
-  overflow: hidden;
-}
-
-::ng-deep .mat-mdc-menu-panel.mat-menu-above .mat-mdc-menu-item {
-  color: var(--cs-text);
-}

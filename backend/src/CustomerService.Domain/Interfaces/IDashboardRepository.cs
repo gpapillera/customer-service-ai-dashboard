@@ -19,6 +19,11 @@ public interface IDashboardRepository
     /// <summary>Returns case counts grouped by category.</summary>
     /// <returns>A list of (categoryName, count) pairs.</returns>
     Task<IReadOnlyList<CategoryCount>> GetCasesByCategoryAsync();
+
+    /// <summary>Returns the most recent cases (for the dashboard list).</summary>
+    /// <param name="limit">Maximum number of cases to return.</param>
+    /// <returns>A list of recent <see cref="Case"/> entities.</returns>
+    Task<IReadOnlyList<Case>> GetRecentCasesAsync(int limit);
 }
 
 /// <summary>Lightweight aggregate returned by <see cref="IDashboardRepository"/>.</summary>
@@ -27,7 +32,7 @@ public class DashboardSummary
     /// <summary>Total number of cases.</summary>
     public int TotalCases { get; set; }
 
-    /// <summary>Number of open (New/InProgress/OnHold) cases.</summary>
+    /// <summary>Number of open (New/InProgress/Escalated) cases.</summary>
     public int OpenCases { get; set; }
 
     /// <summary>Number of closed cases.</summary>
@@ -35,6 +40,12 @@ public class DashboardSummary
 
     /// <summary>Number of high-priority cases.</summary>
     public int HighPriorityCases { get; set; }
+
+    /// <summary>Number of resolved cases.</summary>
+    public int ResolvedCases { get; set; }
+
+    /// <summary>Number of cases whose priority was ML-suggested.</summary>
+    public int AiPredictedCases { get; set; }
 
     /// <summary>Total number of customers.</summary>
     public int TotalCustomers { get; set; }

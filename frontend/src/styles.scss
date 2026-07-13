@@ -6,7 +6,7 @@ $cs-theme: mat.define-theme(
     color: (
       theme-type: light,
       primary: mat.$azure-palette,
-      tertiary: mat.$blue-palette,
+      tertiary: mat.$violet-palette,
     ),
   )
 );
@@ -19,6 +19,9 @@ html,
 body {
   height: 100%;
   margin: 0;
+  /* Lock the page so only the content area scrolls — prevents the whole
+     app (incl. the sidenav) from scrolling when a bottom control is used. */
+  overflow: hidden;
   /* Apple-like system font stack */
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI',
     Roboto, Helvetica, Arial, sans-serif;
@@ -32,18 +35,37 @@ body {
   box-sizing: border-box;
 }
 
-/* ---- Apple-like design tokens ---- */
+/* ---- Apple-like design tokens (indigo-violet "ServiceAI" system) ---- */
 :root {
-  --cs-bg: #f5f5f7;
+  --cs-bg: #f8fafc;
   --cs-surface: #ffffff;
-  --cs-border: rgba(0, 0, 0, 0.08);
-  --cs-text: #1d1d1f;
-  --cs-text-muted: #6e6e73;
-  --cs-accent: #0071e3;
-  --cs-radius: 18px;
+  --cs-border: rgba(0, 0, 0, 0.06);
+  --cs-text: #0f172a;
+  --cs-text-muted: #64748b;
+
+  /* Primary / accent — indigo-violet */
+  --cs-accent: #4f46e5;
+  --cs-accent-strong: #4338ca;
+  --cs-accent-light: #eef2ff;
+  --cs-accent-gradient: linear-gradient(135deg, #6366f1, #4f46e5);
+
+  /* Semantic status / priority colors */
+  --cs-success: #10b981;
+  --cs-success-bg: #d1fae5;
+  --cs-warning: #f59e0b;
+  --cs-warning-bg: #fef3c7;
+  --cs-danger: #ef4444;
+  --cs-danger-bg: #fee2e2;
+  --cs-info: #3b82f6;
+  --cs-info-bg: #dbeafe;
+  --cs-neutral: #94a3b8;
+  --cs-neutral-bg: #f1f5f9;
+
+  --cs-radius: 16px;
   --cs-radius-sm: 12px;
-  --cs-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
-  --cs-shadow-hover: 0 10px 30px rgba(0, 0, 0, 0.1);
+  --cs-radius-pill: 999px;
+  --cs-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --cs-shadow-hover: 0 8px 24px rgba(79, 70, 229, 0.12);
   --cs-ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -112,4 +134,76 @@ body {
   font-size: 1.75rem;
   letter-spacing: -0.02em;
 }
+
+/* ---- Status / priority pills + colored dots ---- */
+.cs-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.7rem;
+  border-radius: var(--cs-radius-pill);
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.cs-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  display: inline-block;
+}
+
+/* Priority pills */
+.cs-pill.priority-low { background: var(--cs-success-bg); color: #047857; }
+.cs-pill.priority-low .cs-dot { background: var(--cs-success); }
+.cs-pill.priority-medium { background: var(--cs-warning-bg); color: #b45309; }
+.cs-pill.priority-medium .cs-dot { background: var(--cs-warning); }
+.cs-pill.priority-high { background: var(--cs-danger-bg); color: #b91c1c; }
+.cs-pill.priority-high .cs-dot { background: var(--cs-danger); }
+
+/* Status pills */
+.cs-pill.status-new { background: var(--cs-info-bg); color: #1d4ed8; }
+.cs-pill.status-new .cs-dot { background: var(--cs-info); }
+.cs-pill.status-inprogress { background: var(--cs-accent-light); color: var(--cs-accent-strong); }
+.cs-pill.status-inprogress .cs-dot { background: var(--cs-accent); }
+.cs-pill.status-escalated { background: var(--cs-danger-bg); color: #b91c1c; }
+.cs-pill.status-escalated .cs-dot { background: var(--cs-danger); }
+.cs-pill.status-resolved { background: var(--cs-success-bg); color: #047857; }
+.cs-pill.status-resolved .cs-dot { background: var(--cs-success); }
+.cs-pill.status-closed { background: var(--cs-neutral-bg); color: #475569; }
+.cs-pill.status-closed .cs-dot { background: var(--cs-neutral); }
+
+/* ---- Shared card + page header patterns ---- */
+.cs-card {
+  background: var(--cs-surface);
+  border: 1px solid var(--cs-border);
+  border-radius: var(--cs-radius);
+  box-shadow: var(--cs-shadow);
+  padding: 1.25rem 1.5rem;
+}
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.page-header .titles h1 {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--cs-text);
+}
+.page-header .titles p {
+  margin: 0.25rem 0 0;
+  color: var(--cs-text-muted);
+  font-size: 0.95rem;
+}
+.pill-btn {
+  border-radius: var(--cs-radius-pill) !important;
+}
+
 

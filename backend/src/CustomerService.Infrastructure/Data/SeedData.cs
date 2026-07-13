@@ -36,10 +36,10 @@ public static class SeedData
     /// <returns>List of customers.</returns>
     public static List<Customer> Customers() => new()
     {
-        new Customer { Name = "Juan Dela Cruz", Email = "juan@acme.ph", Phone = "+639171234567", Company = "ACME Retail", Address = "Manila" },
-        new Customer { Name = "Maria Clara", Email = "maria.c@bcd.com", Phone = "+639189999888", Company = "BCD Corp", Address = "Cebu" },
-        new Customer { Name = "Pedro Penduko", Email = "pedro@xyz.io", Phone = "+639151111222", Company = "XYZ Logistics", Address = "Davao" },
-        new Customer { Name = "Ana Reyes", Email = "ana@supplychain.com", Phone = "+639177777333", Company = "SupplyChain Inc", Address = "Quezon City" },
+        new Customer { Name = "Juan Dela Cruz", Email = "juan@acme.ph", Phone = "+639171234567", Company = "ACME Retail", Address = "Manila", CreatedAtUtc = DateTime.UtcNow.AddDays(-120) },
+        new Customer { Name = "Maria Clara", Email = "maria.c@bcd.com", Phone = "+639189999888", Company = "BCD Corp", Address = "Cebu", CreatedAtUtc = DateTime.UtcNow.AddDays(-90) },
+        new Customer { Name = "Pedro Penduko", Email = "pedro@xyz.io", Phone = "+639151111222", Company = "XYZ Logistics", Address = "Davao", CreatedAtUtc = DateTime.UtcNow.AddDays(-60) },
+        new Customer { Name = "Ana Reyes", Email = "ana@supplychain.com", Phone = "+639177777333", Company = "SupplyChain Inc", Address = "Quezon City", CreatedAtUtc = DateTime.UtcNow.AddDays(-30) },
     };
 
     /// <summary>Returns the seed cases (depends on customers/categories/users).</summary>
@@ -52,7 +52,7 @@ public static class SeedData
         new Case { Subject = "Package not delivered", Description = "My order has not arrived in 10 days, tracking is stuck.", Customer = customers[1], Category = categories[1], Status = CaseStatus.New, Priority = Priority.Medium, AssignedToUserId = "agent-002", CreatedAtUtc = DateTime.UtcNow.AddDays(-5) },
         new Case { Subject = "API returning 500 errors", Description = "Critical outage: our integration is down, please escalate immediately.", Customer = customers[2], Category = categories[2], Status = CaseStatus.InProgress, Priority = Priority.High, AssignedToUserId = "agent-001", CreatedAtUtc = DateTime.UtcNow.AddDays(-2) },
         new Case { Subject = "Cannot reset password", Description = "Reset link is not arriving in my inbox.", Customer = customers[3], Category = categories[3], Status = CaseStatus.Closed, Priority = Priority.Low, AssignedToUserId = "agent-002", CreatedAtUtc = DateTime.UtcNow.AddDays(-20) },
-        new Case { Subject = "Request warranty replacement", Description = "Product arrived broken, would like a replacement.", Customer = customers[0], Category = categories[4], Status = CaseStatus.OnHold, Priority = Priority.Medium, AssignedToUserId = "agent-001", CreatedAtUtc = DateTime.UtcNow.AddDays(-1) },
+        new Case { Subject = "Request warranty replacement", Description = "Product arrived broken, would like a replacement.", Customer = customers[0], Category = categories[4], Status = CaseStatus.Resolved, Priority = Priority.Medium, AssignedToUserId = "agent-001", CreatedAtUtc = DateTime.UtcNow.AddDays(-1) },
     };
 
     /// <summary>Returns the seed call logs (depends on cases).</summary>

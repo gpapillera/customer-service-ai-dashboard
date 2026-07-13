@@ -72,14 +72,16 @@ public class CaseService : ICaseService
             : 999;
         var hasKeyword = RuleBasedPriorityPredictor.ContainsComplaintKeyword(dto.Description);
 
-        var priority = dto.Priority
-            ?? _predictor.Predict(new PriorityFeatures
+        var prediction = dto.Priority.HasValue
+            ? null
+            : _predictor.PredictWithReason(new PriorityFeatures
             {
                 CategoryId = dto.CategoryId,
                 PriorCaseCount = priorCaseCount,
                 DaysSinceLastContact = daysSince,
                 HasComplaintKeyword = hasKeyword,
             });
+        var priority = dto.Priority ?? prediction!.Priority;
 
         var caseEntity = new Case
         {
@@ -91,6 +93,7 @@ public class CaseService : ICaseService
             Status = CaseStatus.New,
             Priority = priority,
             PriorityAutoSuggested = !dto.Priority.HasValue,
+            PriorityReason = prediction?.Reason,
             LastContactUtc = dto.LastContactUtc,
             CreatedAtUtc = DateTime.UtcNow,
         };
@@ -133,6 +136,7 @@ public class CaseService : ICaseService
         Status = c.Status,
         Priority = c.Priority,
         PriorityAutoSuggested = c.PriorityAutoSuggested,
+        PriorityReason = c.PriorityReason,
         CustomerId = c.CustomerId,
         CustomerName = c.Customer != null ? c.Customer.Name : string.Empty,
         CategoryId = c.CategoryId,

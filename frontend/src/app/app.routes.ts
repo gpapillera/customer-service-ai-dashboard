@@ -31,9 +31,9 @@ export const routes: Routes = [
         path: 'cases',
         children: [
           { path: '', component: CaseListComponent },
-          { path: 'new', component: CaseFormComponent },
+          { path: 'new', component: CaseListComponent },
           { path: ':id', component: CaseDetailComponent },
-          { path: ':id/edit', component: CaseFormComponent },
+          { path: ':id/edit', component: CaseListComponent },
         ],
       },
       { path: '', pathMatch: 'full', redirectTo: 'dashboard' },

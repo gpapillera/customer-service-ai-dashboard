@@ -19,15 +19,50 @@ public class RuleBasedPriorityPredictor : IPriorityPredictor
 
     /// <inheritdoc/>
     public Priority Predict(PriorityFeatures features)
+        => PredictWithReason(features).Priority;
+
+    /// <inheritdoc/>
+    public PriorityPredictionResult PredictWithReason(PriorityFeatures features)
     {
         var score = 0;
-        if (features.HasComplaintKeyword) score += 2;
-        if (features.DaysSinceLastContact > 30) score += 1;
-        if (features.PriorCaseCount >= 3) score += 1;
-        if (features.CategoryId == 1) score += 1; // Billing often urgent
+        var reasons = new List<string>();
+        if (features.HasComplaintKeyword)
+        {
+            score += 2;
+            reasons.Add("the description contains urgent/complaint keywords");
+        }
+        if (features.DaysSinceLastContact > 30)
+        {
+            score += 1;
+            reasons.Add($"the customer has had no contact for {features.DaysSinceLastContact} days");
+        }
+        if (features.PriorCaseCount >= 3)
+        {
+            score += 1;
+            reasons.Add($"the customer has {features.PriorCaseCount} prior cases");
+        }
+        if (features.CategoryId == 1)
+        {
+            score += 1;
+            reasons.Add("the category is Billing, which is often time-sensitive");
+        }
 
-        return score >= 3 ? Priority.High : score >= 1 ? Priority.Medium : Priority.Low;
+        var priority = score >= 3 ? Priority.High : score >= 1 ? Priority.Medium : Priority.Low;
+        var reason = reasons.Count == 0
+            ? $"Routine {CategoryName(features.CategoryId).ToLowerInvariant()} case with no urgency signals — suggested {priority}."
+            : $"Suggested {priority} because {string.Join(", and ", reasons)}.";
+        return new PriorityPredictionResult { Priority = priority, Reason = reason };
     }
+
+    private static string CategoryName(int categoryId) => categoryId switch
+    {
+        1 => "Billing",
+        2 => "Shipping",
+        3 => "Technical",
+        4 => "Account",
+        5 => "Product",
+        _ => "General",
+    };
 
     /// <summary>Detects complaint/urgency keywords in free text.</summary>
     /// <param name="text">Text to scan.</param>

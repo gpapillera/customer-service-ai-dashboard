@@ -1,5 +1,5 @@
-<a class="back" mat-button routerLink="/customers">
-  <cs-icon name="arrow_back"></cs-icon> Back to customers
+<a class="back" (click)="router.navigateByUrl('/customers')">
+  <cs-icon name="arrow_back"></cs-icon> Back to Customers
 </a>
 
 @if (loading()) {
@@ -7,31 +7,55 @@
 } @else {
   @if (customer(); as c) {
     <div class="detail-grid">
-    <mat-card class="cs-lift profile reveal" appReveal>
-      <mat-card-content>
-        <div class="head">
-          <div class="avatar">{{ c.name.charAt(0).toUpperCase() }}</div>
-          <div>
-            <div class="name">{{ c.name }}</div>
-            <div class="sub">{{ c.email }}</div>
+      <mat-card class="cs-lift profile reveal" appReveal>
+        <mat-card-content>
+          <div class="head">
+            <div class="avatar">{{ c.name.charAt(0).toUpperCase() }}</div>
+            <div class="head-meta">
+              <div class="name">{{ c.name }}</div>
+              <div class="sub">{{ c.email }}</div>
+            </div>
           </div>
-        </div>
-        <dl class="facts">
-          <div><dt>Phone</dt><dd>{{ c.phone || '—' }}</dd></div>
-          <div><dt>Company</dt><dd>{{ c.company || '—' }}</dd></div>
-          <div><dt>Address</dt><dd>{{ c.address || '—' }}</dd></div>
-          <div><dt>Total cases</dt><dd>{{ c.caseCount }}</dd></div>
-        </dl>
-        <div class="actions">
-          <a mat-stroked-button color="primary" [routerLink]="[c.id, 'edit']">
-            <cs-icon name="edit"></cs-icon> Edit
-          </a>
-          <a mat-flat-button color="primary" [routerLink]="['/cases']" [queryParams]="{ customerId: c.id }">
-            <cs-icon name="confirmation_number"></cs-icon> View cases
-          </a>
-        </div>
-      </mat-card-content>
-    </mat-card>
+          <dl class="facts">
+            <div><dt>Phone</dt><dd>{{ c.phone || '—' }}</dd></div>
+            <div><dt>Company</dt><dd>{{ c.company || '—' }}</dd></div>
+            <div><dt>Address</dt><dd>{{ c.address || '—' }}</dd></div>
+            <div><dt>Customer since</dt><dd>{{ formatDate(c.createdAtUtc) }}</dd></div>
+          </dl>
+          <div class="actions">
+            <a mat-stroked-button color="primary" [routerLink]="[c.id, 'edit']">
+              <cs-icon name="edit"></cs-icon> Edit
+            </a>
+            <button mat-flat-button color="primary" (click)="newCase()">
+              <cs-icon name="add"></cs-icon> New Case
+            </button>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="cs-lift history reveal" appReveal>
+        <mat-card-content>
+          <h3 class="side-title">Case History ({{ cases().length }})</h3>
+          @if (cases().length === 0) {
+            <p class="muted">No cases yet for this customer.</p>
+          } @else {
+            <div class="case-list stagger">
+              @for (item of cases(); track item.id) {
+                <a class="case-row" [routerLink]="['/cases', item.id]">
+                  <div class="case-main">
+                    <div class="case-subject">{{ item.subject }}</div>
+                    <div class="case-cat">{{ item.categoryName }}</div>
+                  </div>
+                  <div class="case-pills">
+                    <span class="cs-pill" [class]="priorityClass(item.priority)"><span class="cs-dot"></span>{{ item.priority }}</span>
+                    <span class="cs-pill" [class]="statusClass(item.status)"><span class="cs-dot"></span>{{ item.status }}</span>
+                  </div>
+                </a>
+              }
+            </div>
+          }
+        </mat-card-content>
+      </mat-card>
     </div>
   }
 }

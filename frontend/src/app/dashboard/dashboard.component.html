@@ -1,39 +1,90 @@
-<h1 class="page-title">Dashboard</h1>
+<div class="page-header">
+  <div class="titles">
+    <h1>Dashboard</h1>
+    <p>Support overview and AI-prioritized cases</p>
+  </div>
+</div>
 
 @if (loading()) {
   <div class="center"><mat-spinner diameter="40"></mat-spinner></div>
 } @else {
   @if (data(); as d) {
-  <div class="kpis stagger">
-    @for (k of kpis; track k.label) {
-      <mat-card class="cs-lift kpi" appReveal [class]="'tone-' + k.tone">
+    <div class="kpis stagger">
+      @for (k of kpis; track k.label) {
+        <mat-card class="cs-lift kpi" appReveal [class]="'tone-' + k.tone">
+          <mat-card-content>
+            <div class="kpi-icon"><cs-icon [name]="k.icon" [size]="26"></cs-icon></div>
+            <div class="kpi-value">{{ k.value }}</div>
+            <div class="kpi-label">{{ k.label }}</div>
+          </mat-card-content>
+        </mat-card>
+      }
+    </div>
+
+    <div class="charts-row">
+      <mat-card class="cs-lift chart-card reveal" appReveal>
         <mat-card-content>
-          <div class="kpi-icon"><cs-icon [name]="k.icon" [size]="28"></cs-icon></div>
-          <div class="kpi-value">{{ k.value }}</div>
-          <div class="kpi-label">{{ k.label }}</div>
+          <h2 class="chart-title">Cases Created — Weekly Trend</h2>
+          <div class="chart-box">
+            <canvas baseChart [type]="trendChart.type" [data]="trendChart.data" [options]="trendChart.options"></canvas>
+          </div>
         </mat-card-content>
       </mat-card>
-    }
-  </div>
 
-  <div class="charts">
-    <mat-card class="cs-lift chart-card reveal" appReveal>
-      <mat-card-content>
-        <h2 class="chart-title">Cases created (last 30 days)</h2>
-        <div class="chart-box">
-          <canvas baseChart [type]="trendChart.type" [data]="trendChart.data" [options]="trendChart.options"></canvas>
-        </div>
-      </mat-card-content>
-    </mat-card>
-
-    <mat-card class="cs-lift chart-card reveal" appReveal>
-      <mat-card-content>
-        <h2 class="chart-title">Cases by category</h2>
-        <div class="chart-box">
-          <canvas baseChart [type]="categoryChart.type" [data]="categoryChart.data" [options]="categoryChart.options"></canvas>
-        </div>
-      </mat-card-content>
-    </mat-card>
+      <mat-card class="cs-lift chart-card reveal" appReveal>
+        <mat-card-content>
+          <h2 class="chart-title">Priority Distribution</h2>
+          <div class="chart-box donut">
+            <canvas baseChart [type]="priorityChart.type" [data]="priorityChart.data" [options]="priorityChart.options"></canvas>
+          </div>
+        </mat-card-content>
+      </mat-card>
     </div>
+
+    <div class="charts-row">
+      <mat-card class="cs-lift chart-card reveal" appReveal>
+        <mat-card-content>
+          <h2 class="chart-title">Cases by Category</h2>
+          <div class="chart-box">
+            <canvas baseChart [type]="categoryChart.type" [data]="categoryChart.data" [options]="categoryChart.options"></canvas>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="cs-lift chart-card reveal" appReveal>
+        <mat-card-content>
+          <h2 class="chart-title">Cases by Status</h2>
+          <div class="chart-box">
+            <canvas baseChart [type]="statusChart.type" [data]="statusChart.data" [options]="statusChart.options"></canvas>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+    <mat-card class="cs-lift recent-card reveal" appReveal>
+      <mat-card-content>
+        <div class="recent-head">
+          <h2 class="chart-title">Recent Cases</h2>
+          <a class="view-all" routerLink="/cases">View all &rarr;</a>
+        </div>
+        <div class="recent-list">
+          @for (c of recentCases; track c.id) {
+            <a class="recent-item" [routerLink]="['/cases', c.id]">
+              <div class="recent-main">
+                <span class="recent-title">
+                  @if (c.priorityAutoSuggested) { <cs-icon name="auto_awesome" class="ai-spark"></cs-icon> }
+                  {{ c.subject }}
+                </span>
+                <span class="recent-sub">{{ c.customerName }} · {{ c.categoryName }} · {{ c.createdAtUtc | date:'short' }}</span>
+              </div>
+              <div class="recent-pills">
+                <span class="cs-pill" [class]="priorityClass(c.priority)"><span class="cs-dot"></span>{{ c.priority }}</span>
+                <span class="cs-pill" [class]="statusClass(c.status)"><span class="cs-dot"></span>{{ c.status }}</span>
+              </div>
+            </a>
+          }
+        </div>
+      </mat-card-content>
+    </mat-card>
   }
 }

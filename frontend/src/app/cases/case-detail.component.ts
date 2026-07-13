@@ -50,6 +50,9 @@ export class CaseDetailComponent implements OnInit {
   readonly logs = signal<CallLog[]>([]);
   readonly loading = signal(true);
 
+  readonly statuses: Case['status'][] = ['New', 'InProgress', 'Escalated', 'Resolved', 'Closed'];
+  readonly priorities: Case['priority'][] = ['Low', 'Medium', 'High'];
+
   readonly logForm = this.fb.nonNullable.group({
     direction: ['Outbound' as CallLog['direction']],
     notes: ['', Validators.required],
@@ -89,6 +92,53 @@ export class CaseDetailComponent implements OnInit {
         },
         error: () => this.savingLog.set(false),
       });
+  }
+
+  /** Updates the case status immediately from the side card. */
+  updateStatus(status: Case['status']): void {
+    const c = this.case();
+    if (!c || c.status === status) return;
+    this.caseService
+      .update(c.id, {
+        subject: c.subject,
+        description: c.description,
+        status,
+        priority: c.priority,
+        categoryId: c.categoryId,
+        assignedToUserId: null,
+      })
+      .subscribe(() => this.case.set({ ...c, status }));
+  }
+
+  /** Updates the case priority immediately from the side card. */
+  updatePriority(priority: Case['priority']): void {
+    const c = this.case();
+    if (!c || c.priority === priority) return;
+    this.caseService
+      .update(c.id, {
+        subject: c.subject,
+        description: c.description,
+        status: c.status,
+        priority,
+        categoryId: c.categoryId,
+        assignedToUserId: null,
+      })
+      .subscribe(() => this.case.set({ ...c, priority, priorityAutoSuggested: false }));
+  }
+
+  /** Opens the edit-case modal. */
+  edit(): void {
+    this.router.navigateByUrl(`/cases/${this.case()?.id}/edit`);
+  }
+
+  /** Status pill class. */
+  statusClass(s: string): string {
+    return 'status-' + s.toLowerCase();
+  }
+
+  /** Priority pill class. */
+  priorityClass(p: string): string {
+    return 'priority-' + p.toLowerCase();
   }
 
   /** Formats a UTC date string for display. */

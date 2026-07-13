@@ -94,40 +94,46 @@ erDiagram
     CASES ||--o{ CALLLOGS : "has"
 
     USERS {
-        int Id PK
+        string Id PK
+        string UserName
         string FullName
         string Email
         string PasswordHash
-        string Role
+        int Role
     }
     CUSTOMERS {
         int Id PK
-        string FullName
+        string Name
         string Email
         string Phone
         string Company
+        string Address
     }
     CATEGORIES {
         int Id PK
         string Name
+        string Description
     }
     CASES {
         int Id PK
         int CustomerId FK
         int CategoryId FK
-        int AssignedAgentId FK
+        string AssignedToUserId FK
         string Subject
-        string Status
-        string Priority
-        string PredictedPriority
+        string Description
+        int Status
+        int Priority
+        bool PriorityAutoSuggested
+        datetime LastContactUtc
     }
     CALLLOGS {
         int Id PK
         int CaseId FK
-        int AgentId FK
-        string ContactType
+        int Direction
         string Notes
-        datetime FollowUpDate
+        int DurationSeconds
+        string LoggedByUserId
+        datetime CreatedAtUtc
     }
 ```
 
@@ -137,15 +143,7 @@ Full DDL is in [`database/schema.sql`](database/schema.sql).
 
 ## Screenshots
 
-> Add screenshots once the app is running locally and save them to `docs/screenshots/`.
-
-| Login | Dashboard |
-|---|---|
-| ![Login page](docs/screenshots/login.png) | ![Dashboard](docs/screenshots/dashboard.png) |
-
-| Case List | Case Detail |
-|---|---|
-| ![Case list](docs/screenshots/case-list.png) | ![Case detail](docs/screenshots/case-detail.png) |
+> Screenshots are not yet captured. When added, save them to `docs/screenshots/` and link them here.
 
 ---
 
@@ -153,34 +151,36 @@ Full DDL is in [`database/schema.sql`](database/schema.sql).
 
 ```
 customer-service-ai-dashboard/
-├── backend/                     # ASP.NET Core Web API
+├── backend/                     # ASP.NET Core 8 Web API (layered solution)
+│   ├── CustomerServiceApi.sln
 │   ├── src/
-│   │   ├── Controllers/
-│   │   ├── Services/
-│   │   ├── Repositories/
-│   │   ├── Models/               # EF Core entities
-│   │   ├── DTOs/
-│   │   ├── Data/                 # DbContext, migrations
-│   │   └── ML/                   # model loader + prediction service
-│   └── tests/
-├── frontend/                     # Angular app
+│   │   ├── CustomerService.Api/          # Controllers + Program.cs (composition root)
+│   │   ├── CustomerService.Application/  # Services, Interfaces, DTOs
+│   │   ├── CustomerService.Domain/       # EF Core entities, enums, ML contract
+│   │   ├── CustomerService.Infrastructure/# AppDbContext, Repositories, Seed
+│   │   └── CustomerService.ML/           # OnnxPriorityPredictor + rule fallback
+│   └── tests/CustomerService.Tests/      # xUnit (placeholder)
+├── frontend/                     # Angular 18 standalone SPA
 │   └── src/app/
-│       ├── auth/
-│       ├── customers/
-│       ├── cases/
-│       ├── dashboard/
-│       └── shared/
+│       ├── auth/                 # login, auth.service, auth.guard, token.interceptor
+│       ├── customers/            # list / detail / form + service
+│       ├── cases/                # list / detail / form + service, call-log.service
+│       ├── dashboard/            # KPI cards + charts
+│       └── shared/               # layout, cs-icon, categories, models, reveal.directive
 ├── ml/                            # Python data cleaning + model training
 │   ├── clean_data.py
 │   ├── train_model.py
 │   ├── requirements.txt
-│   └── data/ (raw/, cleaned/)
+│   ├── data/                      # raw_cases.csv, cleaned/
+│   └── models/priority_model.onnx  # generated, gitignored
 ├── database/
-│   └── schema.sql
+│   ├── install_sqlserver.sh
+│   ├── schema.sql
+│   └── sqlserver-data/
 ├── docs/
 │   ├── CODE_DOCUMENTATION.md
 │   ├── MODEL_CARD.md
-│   └── screenshots/
+│   └── PROGRESS_LOG.md
 ├── README.md
 └── .gitignore
 ```
@@ -192,57 +192,59 @@ customer-service-ai-dashboard/
 ### Prerequisites
 
 - [.NET 8 SDK](https://dotnet.microsoft.com/download)
-- [Node.js](https://nodejs.org/) (LTS) + Angular CLI (`npm install -g @angular/cli`)
-- [SQL Server](https://www.microsoft.com/sql-server) (or SQL Server Express / LocalDB)
-- [Python 3.10+](https://www.python.org/) with `pip`
+- [Node.js](https://nodejs.org/) (LTS) — Angular CLI is a local dev dependency, no global install needed
+- [SQL Server](https://www.microsoft.com/sql-server) (optional — a **SQLite fallback** runs with zero setup)
+- [Python 3.10+](https://www.python.org/) with `venv` (system pip is often externally-managed; use the venv)
 
-### 1. Database
+### 1. Backend (API on `http://localhost:5274`)
 
-```bash
-# Run the schema against your SQL Server instance
-sqlcmd -S <server> -d CustomerServiceAI -i database/schema.sql
-```
-
-### 2. Backend
+The app uses EF Core `EnsureCreated()` + an idempotent seed (no migrations). It defaults to
+SQL Server, but you can run it with **no database install** using the SQLite fallback:
 
 ```bash
-cd backend/src
-dotnet restore
-# Set your connection string in appsettings.Development.json
-dotnet ef database update
-dotnet run
+cd backend
+DOTNET_ENVIRONMENT=Development Database__Provider=Sqlite \
+  dotnet run --project src/CustomerService.Api/CustomerService.Api.csproj --urls "http://localhost:5274"
 ```
-The API will start on `https://localhost:5001` (Swagger UI at `/swagger`).
 
-### 3. Frontend
+To use SQL Server instead, set `Database:Provider` to `SqlServer` (or leave the default) and
+point `ConnectionStrings:SqlServer` in `appsettings.json` at your instance, then run the same
+`dotnet run` command. Swagger UI is available at `/swagger` in the Development environment only.
+
+### 2. Frontend (on `http://localhost:4200`)
 
 ```bash
 cd frontend
-npm install
-ng serve
+npm install      # already done in this workspace
+npm start        # ng serve; proxies /api -> http://localhost:5274
 ```
-The app will be available at `http://localhost:4200`.
 
-### 4. ML Pipeline (one-time / periodic)
+Sign in with demo user `admin` / `Passw0rd!` (also `agent` / `maria`, same password).
+
+### 3. ML Pipeline (one-time / periodic)
 
 ```bash
 cd ml
-python -m venv venv
-source venv/bin/activate      # or venv\Scripts\activate on Windows
+python3 -m venv .venv
+source .venv/bin/activate      # or venv\Scripts\activate on Windows
 pip install -r requirements.txt
 
-python clean_data.py          # cleans ml/data/raw/*.csv -> ml/data/cleaned/
-python train_model.py         # trains and exports priority_model.onnx
+python clean_data.py          # cleans ml/data/raw_cases.csv -> ml/data/cleaned/
+python train_model.py         # trains and exports ml/models/priority_model.onnx
 ```
-Copy the resulting `priority_model.onnx` into `backend/src/ML/` before running the backend.
 
-### Environment Variables
+`priority_model.onnx` is gitignored — it is loaded automatically from `ml/models/` at backend
+startup (config `ML:ModelPath`). If it is absent, priority prediction falls back to rules.
 
-| Variable | Location | Description |
+### Configuration
+
+| Key | Location | Description |
 |---|---|---|
-| `ConnectionStrings:DefaultConnection` | `backend/src/appsettings.Development.json` | SQL Server connection string |
-| `Jwt:Secret` | `backend/src/appsettings.Development.json` | Secret key for signing JWTs |
-| `apiUrl` | `frontend/src/environments/environment.ts` | Base URL of the backend API |
+| `Database:Provider` | `appsettings.json` / env `Database__Provider` | `SqlServer` (default) or `Sqlite` |
+| `ConnectionStrings:SqlServer` | `appsettings.json` | SQL Server connection string |
+| `ConnectionStrings:Sqlite` | `appsettings.json` | SQLite connection string (`customer_service.db`) |
+| `Jwt:Key` | `appsettings.json` | Dev placeholder signing key (externalize for prod) |
+| `ML:ModelPath` | `appsettings.json` | Path to `priority_model.onnx` |
 
 ---
 
@@ -252,12 +254,15 @@ Full interactive documentation is available via Swagger once the backend is runn
 
 | Method | Endpoint | Description |
 |---|---|---|
-| POST | `/api/auth/login` | Authenticate and receive a JWT |
-| GET/POST/PUT/DELETE | `/api/customers` | Customer CRUD + search |
-| GET/POST/PUT | `/api/cases` | Case CRUD + filtering |
-| PATCH | `/api/cases/{id}/status` | Update case status |
-| GET/POST | `/api/cases/{id}/calllogs` | Call/follow-up logs |
-| GET | `/api/dashboard/summary` | KPI totals |
+| POST | `/api/auth/login` | Authenticate and receive a JWT (anonymous) |
+| GET / POST / PUT / DELETE | `/api/customers` | Customer CRUD |
+| GET | `/api/customers/search?term=` | Search customers by name/email/phone |
+| GET / POST / PUT / DELETE | `/api/cases` | Case CRUD + filters (`status`, `priority`, `categoryId`, `from`, `to`) |
+| GET / POST | `/api/calllogs/case/{caseId}` | Call/follow-up logs for a case |
+| GET | `/api/dashboard` | KPI totals + 30-day trend + category breakdown |
+
+> Full interactive docs: Swagger at `http://localhost:5274/swagger` (Development only).
+> There is **no** `/api/categories` endpoint — categories are a frontend constant.
 | GET | `/api/dashboard/trends` | Weekly/monthly trend data |
 | POST | `/api/ml/predict-priority` | AI priority suggestion |
 

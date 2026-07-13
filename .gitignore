@@ -44,3 +44,8 @@ Thumbs.db
 # Logs
 *.log
 logs/
+
+# SQLite runtime DB (generated at startup via Database:Provider=Sqlite)
+*.db
+*.db-shm
+*.db-wal

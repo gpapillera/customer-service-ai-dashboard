@@ -1,3 +1,5 @@
+using CustomerService.Domain.Entities;
+
 namespace CustomerService.Application.Dtos;
 
 /// <summary>Aggregated dashboard payload returned by GET /api/dashboard.</summary>
@@ -15,8 +17,17 @@ public class DashboardDto
     /// <summary>High-priority cases.</summary>
     public int HighPriorityCases { get; set; }
 
+    /// <summary>Resolved cases (status == Resolved).</summary>
+    public int ResolvedCases { get; set; }
+
+    /// <summary>Cases whose priority was ML-suggested.</summary>
+    public int AiPredictedCases { get; set; }
+
     /// <summary>Total customers.</summary>
     public int TotalCustomers { get; set; }
+
+    /// <summary>Most recent cases (for the "Recent Cases" list).</summary>
+    public List<RecentCaseDto> RecentCases { get; set; } = new();
 
     /// <summary>Cases per status (label -> count).</summary>
     public Dictionary<string, int> ByStatus { get; set; } = new();
@@ -49,4 +60,32 @@ public class CategoryCountDto
 
     /// <summary>Count.</summary>
     public int Count { get; set; }
+}
+
+/// <summary>A recent case summary for the dashboard "Recent Cases" list.</summary>
+public class RecentCaseDto
+{
+    /// <summary>Case id.</summary>
+    public int Id { get; set; }
+
+    /// <summary>Subject.</summary>
+    public string Subject { get; set; } = string.Empty;
+
+    /// <summary>Customer name.</summary>
+    public string CustomerName { get; set; } = string.Empty;
+
+    /// <summary>Category name.</summary>
+    public string CategoryName { get; set; } = string.Empty;
+
+    /// <summary>Created timestamp (UTC).</summary>
+    public DateTime CreatedAtUtc { get; set; }
+
+    /// <summary>Priority.</summary>
+    public Priority Priority { get; set; }
+
+    /// <summary>Status.</summary>
+    public CaseStatus Status { get; set; }
+
+    /// <summary>True if priority was ML-suggested.</summary>
+    public bool PriorityAutoSuggested { get; set; }
 }

@@ -22,7 +22,9 @@ public class DashboardRepository : IDashboardRepository
         var cases = _context.Cases;
         var total = await cases.CountAsync();
         var closed = await cases.CountAsync(c => c.Status == CaseStatus.Closed);
+        var resolved = await cases.CountAsync(c => c.Status == CaseStatus.Resolved);
         var high = await cases.CountAsync(c => c.Priority == Priority.High);
+        var aiPredicted = await cases.CountAsync(c => c.PriorityAutoSuggested);
         var open = total - closed;
 
         var byStatus = await cases.GroupBy(c => c.Status)
@@ -39,6 +41,8 @@ public class DashboardRepository : IDashboardRepository
             TotalCases = total,
             OpenCases = open,
             ClosedCases = closed,
+            ResolvedCases = resolved,
+            AiPredictedCases = aiPredicted,
             HighPriorityCases = high,
             TotalCustomers = totalCustomers,
             ByStatus = byStatus,
@@ -74,6 +78,17 @@ public class DashboardRepository : IDashboardRepository
             .GroupBy(c => c.Category!.Name)
             .Select(g => new CategoryCount { Category = g.Key, Count = g.Count() })
             .OrderByDescending(g => g.Count)
+            .ToListAsync();
+    }
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<Case>> GetRecentCasesAsync(int limit)
+    {
+        return await _context.Cases
+            .Include(c => c.Customer)
+            .Include(c => c.Category)
+            .OrderByDescending(c => c.CreatedAtUtc)
+            .Take(limit)
             .ToListAsync();
     }
 }

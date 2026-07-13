@@ -9,14 +9,17 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatDialog } from '@angular/material/dialog';
 import { RevealDirective } from '../shared/reveal.directive';
 import { CsIconComponent } from '../shared/cs-icon.component';
 import { CaseService } from './case.service';
+import { CaseFormComponent } from './case-form.component';
 import { Case } from '../shared/models';
 import { CATEGORIES } from '../shared/categories';
 
 /**
  * Case list with status / priority / category filters and a free-text search.
+ * The new / edit case forms open as a modal dialog on top of this list.
  */
 @Component({
   selector: 'app-case-list',
@@ -42,6 +45,7 @@ export class CaseListComponent implements OnInit {
   private readonly service = inject(CaseService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly dialog = inject(MatDialog);
 
   readonly cases = signal<Case[]>([]);
   readonly loading = signal(true);
@@ -67,6 +71,27 @@ export class CaseListComponent implements OnInit {
       return;
     }
     this.load();
+
+    // Open the create/edit modal when reached via /cases/new or /cases/:id/edit.
+    const id = this.route.snapshot.paramMap.get('id');
+    if (this.route.snapshot.url.some((s) => s.path === 'new') || id) {
+      this.openDialog(id ? Number(id) : undefined);
+    }
+  }
+
+  /** Opens the create/edit case dialog. */
+  openDialog(caseId?: number): void {
+    const ref = this.dialog.open(CaseFormComponent, {
+      data: caseId,
+      width: '560px',
+      maxWidth: '92vw',
+      autoFocus: false,
+    });
+    ref.afterClosed().subscribe(() => {
+      // Return to the plain list URL and refresh.
+      this.router.navigateByUrl('/cases', { replaceUrl: true });
+      this.load();
+    });
   }
 
   /** Reloads cases using the current filter state. */
@@ -106,5 +131,20 @@ export class CaseListComponent implements OnInit {
   /** Navigates to a case detail. */
   open(id: number): void {
     this.router.navigateByUrl(`/cases/${id}`);
+  }
+
+  /** Opens the new-case modal. */
+  openNew(): void {
+    this.openDialog();
+  }
+
+  /** Status pill class for the template. */
+  statusClass(s: string): string {
+    return 'status-' + s.toLowerCase();
+  }
+
+  /** Priority pill class for the template. */
+  priorityClass(p: string): string {
+    return 'priority-' + p.toLowerCase();
   }
 }

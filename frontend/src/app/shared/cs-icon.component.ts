@@ -17,6 +17,17 @@ import {
   FolderOpen,
   TriangleAlert,
   ChevronRight,
+  Headset,
+  LayoutDashboard,
+  Briefcase,
+  Clock,
+  CheckCircle2,
+  WandSparkles,
+  CircleAlert,
+  Inbox,
+  X,
+  Mail,
+  Phone,
 } from 'lucide-angular/src/icons';
 
 /**
@@ -29,6 +40,7 @@ const ICON_MAP: Record<string, LucideIconData> = {
   arrow_back: ArrowLeft,
   add: Plus,
   auto_awesome: Sparkles,
+  wand: WandSparkles,
   edit: SquarePen,
   search: Search,
   confirmation_number: Ticket,
@@ -41,6 +53,16 @@ const ICON_MAP: Record<string, LucideIconData> = {
   folder_open: FolderOpen,
   priority_high: TriangleAlert,
   chevron_right: ChevronRight,
+  headset: Headset,
+  dashboard: LayoutDashboard,
+  briefcase: Briefcase,
+  clock: Clock,
+  check_circle: CheckCircle2,
+  circle_alert: CircleAlert,
+  inbox: Inbox,
+  close: X,
+  mail: Mail,
+  phone: Phone,
 };
 
 @Component({

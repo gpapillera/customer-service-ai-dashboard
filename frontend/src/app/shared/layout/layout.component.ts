@@ -2,17 +2,13 @@ import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink, RouterOutlet } from '@angular/router';
 import { MatSidenavModule } from '@angular/material/sidenav';
-import { MatListModule } from '@angular/material/list';
-import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatIconModule } from '@angular/material/icon';
-import { MatButtonModule } from '@angular/material/button';
-import { MatMenuModule } from '@angular/material/menu';
 import { CsIconComponent } from '../cs-icon.component';
 import { AuthService } from '../../auth/auth.service';
 
 /**
- * Application shell: a Material sidenav with navigation plus a top toolbar
- * showing the current user and a logout action. All guarded routes render
+ * Application shell: a white sidenav with navigation (active = light indigo
+ * pill) and a Sign Out action pinned at the bottom. All guarded routes render
  * inside the <router-outlet>.
  */
 @Component({
@@ -23,11 +19,7 @@ import { AuthService } from '../../auth/auth.service';
     RouterOutlet,
     RouterLink,
     MatSidenavModule,
-    MatListModule,
-    MatToolbarModule,
     MatIconModule,
-    MatButtonModule,
-    MatMenuModule,
     CsIconComponent,
   ],
   templateUrl: './layout.component.html',

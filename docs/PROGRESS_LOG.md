@@ -2,6 +2,65 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Reconciliation] Dashboard upgrade + ML endpoint + docs/commit audit — 2026-07-13
+**Status:** Complete
+**Context:** User asked whether all UI changes were logged/recorded. Audit of live code vs `PROGRESS_LOG.md` + `git` revealed drift: the dashboard had been enhanced beyond Phase 9's description, an ML controller existed but was undocumented, and **nothing had been committed to git** (only 2 commits ever existed). This entry reconciles the record and the repo.
+**Changes reconciled (already present in code, now documented):**
+1. **Dashboard enhanced** from the Phase 9 description (4 KPI cards / 2 charts) to its current state: **6 KPI cards** (added *Resolved*, *AI Predicted*), **4 charts** (added *Priority Distribution* doughnut, *Cases by Status* bar), plus a **Recent Cases** list. All wired to the `DashboardSummary` payload (`totalCases`, `openCases`, `highPriorityCases`, `resolvedCases`, `totalCustomers`, `aiPredictedCases`, `byPriority`, `byCategory`, `byStatus`, `recentCases`).
+2. **NEW backend ML endpoint** `POST /api/ml/predict-priority` (`MlController` + `MlDtos` `PredictPriorityRequest`/`PredictPriorityResponse`). Returns `Priority` + plain-English `Reason` via `IPriorityPredictor.PredictWithReason`. The frontend **case form** calls it through `case.service.predictPriority()` to preview an AI suggestion before saving a case.
+**Files affected (already modified in the working tree, now committed):**
+- frontend/src/app/dashboard/dashboard.component.{ts,html,scss}
+- backend/src/CustomerService.Api/Controllers/MlController.cs (NEW)
+- backend/src/CustomerService.Application/Dtos/MlDtos.cs (NEW)
+- frontend/src/app/cases/case.service.ts, case-form.component.ts
+- (plus all prior Phase 7–9 + bugfix changes that were never committed)
+**Repo hygiene:**
+- Removed stray screenshots from `frontend/src/` (`2026-07-13_*.png` and four `FireShot Capture … Base44 APP … .png` files that belonged to a different app) — they don't belong in source and would otherwise be bundled/committed.
+- Added SQLite runtime DB files (`customer_service.db*`) to `.gitignore` (generated at startup; not source).
+- Committed the full working tree to `git` (branch `main`).
+**Known issues / TODO (unchanged):**
+- `NG0912` Lucide warning (cosmetic).
+- No automated frontend/backend tests yet.
+- `priority_model.onnx` is gitignored (regenerate locally).
+
+## [Session] Live preview + login fix + docs audit — 2026-07-13
+**Status:** Complete
+**Context:** User wanted to review the UI live inside VS Code's integrated browser (not an external browser like Edge, which I cannot observe). The sign-in page loaded but login returned "Invalid username or password" even with the demo credentials.
+**Root cause:** The Angular dev server (`npm start` → `:4200`) was running, but the **backend API was not** — so every `/api/auth/login` call failed and the frontend showed the generic error. The backend defaults to `SqlServer`, which isn't installed locally.
+**Fix applied:**
+1. Started the backend with the **SQLite fallback** so no SQL Server is required: `DOTNET_ENVIRONMENT=Development Database__Provider=Sqlite dotnet run --project src/CustomerService.Api/CustomerService.Api.csproj --urls "http://localhost:5274"`. First run created + seeded the SQLite DB (`customer_service.db`) and loaded the ONNX session.
+2. Verified login end-to-end via `curl` (`POST /api/auth/login` → HTTP 200 + JWT) and in the browser (admin/Passw0rd! → redirected to dashboard).
+3. Opened `http://localhost:4200/login` in the integrated browser so the user can navigate freely; dev server hot-reloads on file changes.
+**Docs work (this session):** Audited documentation completeness.
+- **NEW** `docs/CODE_DOCUMENTATION.md` — the codebase reference that `README.md` and `AGENTS.md` both referenced but was missing. Covers repo layout, backend layering/registration/auth/API table, frontend conventions/design system/icons/charts, ML pipeline, and the verified run commands.
+- **FIXED** `README.md` inaccuracies vs the actual running setup: corrected ports (API `:5274`, not `:5001`; frontend `:4200`), replaced the SQL-Server-only DB steps with the working SQLite-fallback command, corrected config keys (`Database:Provider`/`Jwt:Key`, not `ConnectionStrings:DefaultConnection`/`Jwt:Secret`), removed the non-existent `frontend/src/environments/environment.ts` `apiUrl` reference, and noted Swagger is Dev-only.
+**Files changed:**
+- docs/CODE_DOCUMENTATION.md (NEW)
+- docs/PROGRESS_LOG.md (this entry)
+- README.md (ports, DB steps, env vars, screenshots note)
+**Known issues / TODO (unchanged from prior entries):**
+- `NG0912` Lucide warning (cosmetic).
+- No automated frontend/backend tests yet.
+- `priority_model.onnx` is gitignored (regenerate locally).
+
+## [Bugfix] CDK overlay CSS (mat-menu / mat-select floating) — 2026-07-13
+**Status:** Complete (verified in browser)
+**Context:** User reported two bugs. Investigation showed bug #1 (missing Material Icons `<link>`) was **already resolved** on 2026-07-11 by replacing every `<mat-icon>` with a bundled `<cs-icon>` (lucide-angular, no CDN). A repo-wide grep confirmed **zero `<mat-icon>` elements remain** (only `mat-icon-button`, a button directive). So adding the Google Fonts Material Icons `<link>` would have been a no-op and would have re-introduced the runtime CDN dependency the prior fix removed. Bug #2 was **real and current**.
+**Fix applied:**
+1. **Bug #1 — NOT applied as described.** `index.html` still has no Material Icons `<link>`, but icons already render as real Lucide SVGs via `shared/cs-icon.component.ts`. No change made; documented why.
+2. **Bug #2 — FIXED.** `angular.json` styles arrays (both `build` and `test` targets) only listed `src/styles.scss`. Added `"node_modules/@angular/cdk/overlay-prebuilt.css"` (verified the file exists in `node_modules/@angular/cdk/`) so `mat-menu` (user menu) and `mat-select` (Customer/Category dropdowns) render as floating overlays instead of inline/unpositioned.
+**Files changed:**
+- frontend/angular.json (added CDK overlay CSS to build + test `styles`)
+**Browser verification (what I literally saw, after restarting ng serve + backend):**
+- Logged in as `admin` at http://localhost:4200. Nav icons, user avatar, KPI card icons all render as `<img>` SVGs (not raw text).
+- User menu: clicking "Ada Admin" opens a proper floating `menu` element with a "Sign out" item near the button — no longer at page bottom.
+- `/customers/new`: full form renders (Full name, Email, Phone, Company, Address + Cancel/Create). Not blank.
+- `/cases/new`: full form renders (Subject, Description, Customer combobox, Category combobox, "Let AI suggest priority" toggle + Cancel/Create). Dropdowns are proper `combobox` overlays. Not blank.
+- Console: only the benign `NG0912` Lucide component-ID collision warning (known, cosmetic). No errors on either form page.
+**Known issues / TODO:**
+- `NG0912` warning persists (cosmetic, library-internal).
+- No automated frontend tests yet.
+
 ## [Bugfix] Icons, blank forms, sidenav layout, design system — 2026-07-11
 **Status:** Complete (verified in browser, not just "no console errors")
 **Root causes found & fixed:**

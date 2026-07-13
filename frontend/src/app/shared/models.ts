@@ -24,6 +24,7 @@ export interface Customer {
   company: string | null;
   address: string | null;
   caseCount: number;
+  createdAtUtc?: string;
 }
 
 /** Payload for creating a customer. */
@@ -40,9 +41,10 @@ export interface Case {
   id: number;
   subject: string;
   description: string;
-  status: 'Open' | 'InProgress' | 'Resolved' | 'Closed';
+  status: 'New' | 'InProgress' | 'Escalated' | 'Resolved' | 'Closed';
   priority: 'Low' | 'Medium' | 'High';
   priorityAutoSuggested: boolean;
+  priorityReason?: string | null;
   customerId: number;
   customerName: string;
   categoryId: number;
@@ -68,7 +70,7 @@ export interface CreateCase {
 export interface UpdateCase {
   subject: string;
   description: string;
-  status: 'Open' | 'InProgress' | 'Resolved' | 'Closed';
+  status: 'New' | 'InProgress' | 'Escalated' | 'Resolved' | 'Closed';
   priority: 'Low' | 'Medium' | 'High';
   categoryId: number;
   assignedToUserId?: string | null;
@@ -112,15 +114,30 @@ export interface CategoryCount {
   count: number;
 }
 
+/** A recent case summary for the dashboard list. */
+export interface RecentCase {
+  id: number;
+  subject: string;
+  customerName: string;
+  categoryName: string;
+  createdAtUtc: string;
+  priority: 'Low' | 'Medium' | 'High';
+  status: 'New' | 'InProgress' | 'Escalated' | 'Resolved' | 'Closed';
+  priorityAutoSuggested: boolean;
+}
+
 /** Full dashboard payload (matches DashboardDto). */
 export interface Dashboard {
   totalCases: number;
   openCases: number;
   closedCases: number;
+  resolvedCases: number;
+  aiPredictedCases: number;
   highPriorityCases: number;
   totalCustomers: number;
   byStatus: Record<string, number>;
   byPriority: Record<string, number>;
   trend: DateCount[];
   byCategory: CategoryCount[];
+  recentCases: RecentCase[];
 }
