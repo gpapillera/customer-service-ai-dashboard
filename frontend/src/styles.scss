@@ -206,4 +206,22 @@ body {
   border-radius: var(--cs-radius-pill) !important;
 }
 
+/* ---- Modal dialogs: give the content breathing room ----
+   The form components render flush against the dialog edges, so add padding
+   around the dialog surface and a little extra below the header. */
+.mat-mdc-dialog-container .mdc-dialog__surface {
+  border-radius: var(--cs-radius);
+  overflow: hidden;
+  padding: 1.5rem 1.75rem;
+}
+/* The modal-head + form live inside the dialog content; nudge the header
+   away from the top edge and add space before the action row. */
+.mat-mdc-dialog-container .modal-head {
+  margin: 0 0 1rem;
+  padding: 0;
+}
+.mat-mdc-dialog-container .form {
+  gap: 1rem;
+}
+
 

@@ -179,10 +179,42 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   }
 
   private lineOptions(): ChartOptions<'line'> {
+    // "Life line" effect: the blue line traces in from left to right like a
+    // heart-monitor, each point extending smoothly from the previous one.
+    const totalDuration = 900;
+    const points = 30; // weekly trend spans ~30 days
+    const delayBetweenPoints = totalDuration / points;
+    const previousY = (ctx: any) =>
+      ctx.index === 0
+        ? ctx.chart.scales.y.getPixelForValue(0)
+        : ctx.chart.getDatasetMeta(ctx.datasetIndex).data[ctx.index - 1].getProps(['y'], true).y;
     return {
       responsive: true,
       maintainAspectRatio: false,
-      animation: { duration: 900, easing: 'easeOutQuart' },
+      animation: {
+        x: {
+          type: 'number',
+          easing: 'linear',
+          duration: delayBetweenPoints,
+          from: NaN,
+          delay(ctx: any) {
+            if (ctx.type !== 'data' || ctx.xStarted) return 0;
+            ctx.xStarted = true;
+            return ctx.index * delayBetweenPoints;
+          },
+        },
+        y: {
+          type: 'number',
+          easing: 'easeOutCubic',
+          duration: delayBetweenPoints * 1.5,
+          from: previousY,
+          delay(ctx: any) {
+            if (ctx.type !== 'data' || ctx.yStarted) return 0;
+            ctx.yStarted = true;
+            return ctx.index * delayBetweenPoints;
+          },
+        },
+      } as any,
       plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
       scales: {
         x: { grid: { display: false } },

@@ -2,6 +2,14 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Bugfix] Modal dialogs: add padding/breathing room — 2026-07-14
+**Status:** Complete (verified in browser for New Customer + New Case modals)
+**Context:** The form modals (New/Edit Customer, New/Edit Case) rendered their title, inputs, and buttons flush against the dialog outline — no spacing between the content and the box edge. The form components (`case-form.component.*`, `customer-form.component.*`) had a `.modal-head` and `.form` with no outer padding; the dialog surface itself had `padding: 0`.
+**Fix:** Added global dialog styling in `frontend/src/styles.scss` targeting `.mat-mdc-dialog-container .mdc-dialog__surface` — `padding: 1.5rem 1.75rem` (24px / 28px), rounded corners, and a 1rem bottom margin on `.modal-head` plus a 1rem gap on `.form`. This applies to every MatDialog at once (no per-component change needed), so New Customer, Edit Customer, New Case, and Edit Case all get consistent spacing.
+**Files changed:**
+- frontend/src/styles.scss (new `.mat-mdc-dialog-container` rules)
+**Browser verification:** Opened New Customer and New Case modals — header sits 24px below the top edge, 28px left padding to inputs, and a clear gap (≈16px) between the title and the first field. No content flush against the outline. `ng build` (dev) clean. Only the benign `NG0912` Lucide warning remains.
+
 ## [Bugfix] Dashboard "AI Predicted" KPI + chart entrance animations — 2026-07-14
 **Status:** Complete (both verified in browser)
 **Context:** Two dashboard issues. (7) The "AI Predicted" KPI card showed 0 even though AI-suggested cases exist. (8) The four charts appeared instantly with no entrance animation, unlike the "living" reference feel.
