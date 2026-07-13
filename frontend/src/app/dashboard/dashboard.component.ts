@@ -105,10 +105,12 @@ export class DashboardComponent implements OnInit {
           New: '#3b82f6', InProgress: '#4f46e5', Escalated: '#ef4444',
           Resolved: '#10b981', Closed: '#94a3b8',
         };
-        const labels = statusOrder.filter((s) => s in (d.byStatus ?? {}));
-        this.statusChart.data.labels = labels;
-        this.statusChart.data.datasets[0].data = labels.map((s) => d.byStatus[s]);
-        this.statusChart.data.datasets[0].backgroundColor = labels.map((s) => statusColors[s]);
+        // Always show all 5 statuses (even when a count is 0) so no bar is
+        // dropped from the x-axis. Use 0 for missing/absent statuses.
+        const byStatus = d.byStatus ?? {};
+        this.statusChart.data.labels = statusOrder;
+        this.statusChart.data.datasets[0].data = statusOrder.map((s) => byStatus[s] ?? 0);
+        this.statusChart.data.datasets[0].backgroundColor = statusOrder.map((s) => statusColors[s]);
 
         this.loading.set(false);
       },

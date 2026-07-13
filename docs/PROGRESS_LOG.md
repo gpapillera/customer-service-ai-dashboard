@@ -2,6 +2,19 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Bugfix] Dashboard "Cases by Status" chart dropped the "New" bar at count 0 — 2026-07-14
+**Status:** Complete (verified in browser via live component state)
+**Context:** The "Cases by Status" bar chart only rendered statuses present in the API `byStatus` map, so when a status had zero cases its bar was omitted from the x-axis. With the current seed data `byStatus = {InProgress:1, Escalated:1, Resolved:1, Closed:1}` (no "New" key), the **"New" bar was missing entirely**. Desired: always show all 5 fixed statuses (New, InProgress, Escalated, Resolved, Closed) in that order, each with its correct color, even at count 0 (zero-height bar, not omitted).
+**Fix applied (one line of logic in `dashboard.component.ts`):**
+- Replaced `const labels = statusOrder.filter((s) => s in (d.byStatus ?? {}));` with always using `statusOrder` and mapping `byStatus[s] ?? 0`. So `statusChart.data.labels = statusOrder`, `data = statusOrder.map((s) => byStatus[s] ?? 0)`, `backgroundColor = statusOrder.map((s) => statusColors[s])`. The 5-status order and color map were already correct; only the filtering caused the drop.
+**Files changed:**
+- frontend/src/app/dashboard/dashboard.component.ts
+**Browser verification (read live `DashboardComponent.statusChart` via Angular debug API on `/dashboard`):**
+- `byStatus` from API = `{InProgress:1, Escalated:1, Resolved:1, Closed:1}` (no "New").
+- Rendered chart now returns `labels: ["New","InProgress","Escalated","Resolved","Closed"]`, `data: [0,1,1,1,1]`, `colors: ["#3b82f6","#4f46e5","#ef4444","#10b981","#94a3b8"]` — "New" is present as a zero-height blue bar; all 5 statuses shown in order with correct colors. (Before the fix, "New" would have been absent.)
+- `ng build` (dev) clean. Only the benign `NG0912` Lucide warning in console.
+**Known issues / TODO:** `NG0912` Lucide warning (cosmetic); no automated frontend tests yet; `priority_model.onnx` gitignored.
+
 ## [Bugfix] Edit Case modal: Delete button + confirm-before-delete — 2026-07-14
 **Status:** Complete (verified in browser: Cancel keeps case, Confirm deletes + returns to list)
 **Context:** The Edit Case modal had no way to delete a case. Desired: a "Delete" button at the **bottom-left** of the modal footer (opposite Cancel/Save Changes at bottom-right) that opens a second confirmation dialog ("Delete this case? This can't be undone." — Cancel / Delete), and only on confirmation calls `DELETE /api/cases/{id}`. After success: close both dialogs and navigate to the Cases List.
