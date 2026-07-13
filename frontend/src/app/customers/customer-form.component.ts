@@ -8,14 +8,17 @@ import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatIconModule } from '@angular/material/icon';
+import { MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { CsIconComponent } from '../shared/cs-icon.component';
 import { RevealDirective } from '../shared/reveal.directive';
 import { CustomerService } from './customer.service';
 import { Customer } from '../shared/models';
 
 /**
- * Create / edit customer form. When the route has an `:id`, it loads and
- * edits; otherwise it creates a new customer.
+ * Create / edit customer form, rendered inside a MatDialog (same modal
+ * pattern as the case form). When opened with a customer `id` in the dialog
+ * data it edits; otherwise it creates a new customer. Closes the dialog with
+ * the saved customer id (or null when cancelled).
  */
 @Component({
   selector: 'app-customer-form',
@@ -29,6 +32,7 @@ import { Customer } from '../shared/models';
     MatButtonModule,
     MatProgressSpinnerModule,
     MatIconModule,
+    MatDialogModule,
     CsIconComponent,
     RevealDirective,
   ],
@@ -40,6 +44,9 @@ export class CustomerFormComponent implements OnInit {
   private readonly service = inject(CustomerService);
   private readonly route = inject(ActivatedRoute);
   readonly router = inject(Router);
+  private readonly dialogRef = inject(MatDialogRef<CustomerFormComponent>);
+  /** Optional customer id when opened in edit mode (from dialog data or route). */
+  private readonly dialogCustomerId = inject<number | undefined>(MAT_DIALOG_DATA, { optional: true });
 
   readonly form = this.fb.nonNullable.group({
     name: ['', Validators.required],
@@ -55,7 +62,7 @@ export class CustomerFormComponent implements OnInit {
   readonly error = signal<string | null>(null);
 
   ngOnInit(): void {
-    const id = this.route.snapshot.paramMap.get('id');
+    const id = this.dialogCustomerId ?? this.route.snapshot.paramMap.get('id');
     if (id) {
       this.isEdit.set(true);
       this.loading.set(true);
@@ -84,18 +91,23 @@ export class CustomerFormComponent implements OnInit {
     this.saving.set(true);
     this.error.set(null);
     const value = this.form.getRawValue();
-    const id = this.route.snapshot.paramMap.get('id');
+    const id = this.dialogCustomerId ?? this.route.snapshot.paramMap.get('id');
 
-    const onDone = () => this.router.navigateByUrl('/customers');
+    const onDone = (savedId: number) => this.dialogRef.close(savedId);
     const onErr = () => {
       this.saving.set(false);
       this.error.set('Could not save customer. Please try again.');
     };
 
     if (id) {
-      this.service.update({ ...value, id: Number(id) }).subscribe({ next: onDone, error: onErr });
+      this.service.update({ ...value, id: Number(id) }).subscribe({ next: () => onDone(Number(id)), error: onErr });
     } else {
-      this.service.create(value).subscribe({ next: onDone, error: onErr });
+      this.service.create(value).subscribe({ next: (c) => onDone(c.id), error: onErr });
     }
+  }
+
+  /** Closes the dialog without saving. */
+  cancel(): void {
+    this.dialogRef.close(null);
   }
 }

@@ -2,6 +2,25 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Bugfix] Customer forms → modal dialogs (New + Edit) — 2026-07-14
+**Status:** Complete (verified in browser by clicking through both flows)
+**Context:** Two customer-form interaction bugs remained after the textUI/UX OVERHAUL. (1) "+ New customer" navigated to a full `/customers/new` route instead of a modal. (2) The Customer Detail "Edit" button used `[routerLink]="[c.id,'edit']"`, which (with the old route gone) resolved to `/dashboard` — a wrong-route bug. There was no Edit Customer modal. The design system itself already matched the target, so this is interaction-only — no styling changes.
+**Fix applied (mirrors the existing case-form MatDialog pattern):**
+1. **`CustomerFormComponent` made dialog-aware.** Injected `MatDialogRef<CustomerFormComponent>` + `MAT_DIALOG_DATA` (optional customer `id`); on save it now `dialogRef.close(savedId)` instead of `router.navigateByUrl('/customers')`; added `cancel()` that closes with `null`. `ngOnInit` reads the id from dialog data OR the route (route path kept for safety, though the routes are removed). Added `MatDialogModule` to imports; swapped the page shell (`<a class="back">` + `<h1>` + `<mat-card>`) for a modal shell (`<div class="modal-head">` with title + × close button, footer Cancel text-button + solid indigo submit). Updated `customer-form.component.scss` (`.modal-head`, `.text-btn`).
+2. **`CustomerListComponent` opens the modal.** "+ New customer" is now a `<button (click)="openNew()">` that calls `dialog.open(CustomerFormComponent, {width:'560px', maxWidth:'92vw', autoFocus:false})`; on close it reloads the list only if a customer was saved. Removed `RouterLink` dependency for that action.
+3. **`CustomerDetailComponent` Edit → modal.** Replaced the broken `[routerLink]="[c.id,'edit']"` anchor with `<button (click)="edit()">`. `edit()` opens `CustomerFormComponent` with `data: id`; on close it calls `load()` to **refresh the customer info in place** (no navigation away).
+4. **Routes cleaned up.** Removed `customers/new` and `customers/:id/edit` from `app.routes.ts` (and the now-unused `CustomerFormComponent` import there). The form is only ever launched via `MatDialog` now.
+**Files changed:**
+- frontend/src/app/customers/customer-form.component.{ts,html,scss}
+- frontend/src/app/customers/customer-list.component.{ts,html}
+- frontend/src/app/customers/customer-detail.component.{ts,html}
+- frontend/src/app/app.routes.ts
+**Browser verification (clicked through both flows):**
+- Customers list → clicked "+ New customer" → modal opens over the list with dark overlay, header "New customer" + × close, fields (Full name/Email/Phone/Company/Address), footer Cancel + "Create customer". Filled it, clicked Create → modal closed, new "Test Modal User" row appeared in the list (0 cases, Since 7/13/2026). (Test row deleted via API afterward.)
+- Opened that customer → clicked "Edit" → modal "Edit customer" opens prefilled (name/email). Changed name to "Test Modal Edited", clicked "Save changes" → modal closed, detail page shows the updated name **in place** (no navigation to dashboard). The old Edit→dashboard bug is gone.
+- `ng build` (dev) clean. Only the benign `NG0912` Lucide warning in console.
+**Known issues / TODO:** `NG0912` Lucide warning (cosmetic); no automated frontend tests yet; `priority_model.onnx` gitignored.
+
 ## [textUI/UX OVERHAUL] ServiceAI design-system + interaction overhaul — 2026-07-11 → 2026-07-13
 **Status:** Complete (verified in browser, not just "no console errors")
 **Context:** User requested the Angular frontend be brought up to the visual/interaction quality of the "ServiceAI" reference screenshots. Explicitly scoped as **visual + interaction only** — no backend logic/auth/data-fetching rewrites, and **no "Documentation" nav item** (nav stays Dashboard / Customers / Cases). This entry consolidates work that was previously scattered across the 2026-07-11 bugfix + Phase 9 entries and the 2026-07-13 ML/enum work, recorded here as one coherent overhaul per the user's request.

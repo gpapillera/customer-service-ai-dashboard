@@ -5,14 +5,17 @@ import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatDialog } from '@angular/material/dialog';
 import { RevealDirective } from '../shared/reveal.directive';
 import { CsIconComponent } from '../shared/cs-icon.component';
 import { CustomerService } from './customer.service';
+import { CustomerFormComponent } from './customer-form.component';
 import { CaseService } from '../cases/case.service';
 import { Customer, Case } from '../shared/models';
 
 /**
  * Customer detail view: profile info plus the customer's case history.
+ * "Edit" opens the customer form as a modal and refreshes the view in place.
  */
 @Component({
   selector: 'app-customer-detail',
@@ -33,6 +36,7 @@ import { Customer, Case } from '../shared/models';
 export class CustomerDetailComponent implements OnInit {
   private readonly service = inject(CustomerService);
   private readonly caseService = inject(CaseService);
+  private readonly dialog = inject(MatDialog);
   private readonly route = inject(ActivatedRoute);
   readonly router = inject(Router);
 
@@ -41,7 +45,13 @@ export class CustomerDetailComponent implements OnInit {
   readonly loading = signal(true);
 
   ngOnInit(): void {
+    this.load();
+  }
+
+  /** Loads the customer and their case history. */
+  private load(): void {
     const id = Number(this.route.snapshot.paramMap.get('id'));
+    this.loading.set(true);
     this.service.get(id).subscribe({
       next: (c) => {
         this.customer.set(c);
@@ -58,6 +68,21 @@ export class CustomerDetailComponent implements OnInit {
   newCase(): void {
     const id = this.customer()?.id;
     if (id) this.router.navigateByUrl(`/cases/new?customerId=${id}`);
+  }
+
+  /** Opens the edit-customer modal, prefilled, and refreshes in place on save. */
+  edit(): void {
+    const id = this.customer()?.id;
+    if (!id) return;
+    const ref = this.dialog.open(CustomerFormComponent, {
+      data: id,
+      width: '560px',
+      maxWidth: '92vw',
+      autoFocus: false,
+    });
+    ref.afterClosed().subscribe((savedId) => {
+      if (savedId) this.load();
+    });
   }
 
   statusClass(s: string): string {

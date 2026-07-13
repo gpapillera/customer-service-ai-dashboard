@@ -8,13 +8,16 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatMenuModule } from '@angular/material/menu';
+import { MatDialog } from '@angular/material/dialog';
 import { RevealDirective } from '../shared/reveal.directive';
 import { CsIconComponent } from '../shared/cs-icon.component';
 import { CustomerService } from './customer.service';
+import { CustomerFormComponent } from './customer-form.component';
 import { Customer } from '../shared/models';
 
 /**
  * Customer list with debounced search and quick actions (view / edit / delete).
+ * The new-customer form opens as a modal dialog on top of this list.
  */
 @Component({
   selector: 'app-customer-list',
@@ -37,6 +40,7 @@ import { Customer } from '../shared/models';
 })
 export class CustomerListComponent implements OnInit {
   private readonly service = inject(CustomerService);
+  private readonly dialog = inject(MatDialog);
 
   readonly customers = signal<Customer[]>([]);
   readonly loading = signal(true);
@@ -66,6 +70,18 @@ export class CustomerListComponent implements OnInit {
   onSearch(value: string): void {
     this.searchTerm.set(value);
     this.load();
+  }
+
+  /** Opens the new-customer modal dialog. */
+  openNew(): void {
+    const ref = this.dialog.open(CustomerFormComponent, {
+      width: '560px',
+      maxWidth: '92vw',
+      autoFocus: false,
+    });
+    ref.afterClosed().subscribe((savedId) => {
+      if (savedId) this.load();
+    });
   }
 
   /** Deletes a customer after confirmation. */

@@ -23,9 +23,9 @@
             <div><dt>Customer since</dt><dd>{{ formatDate(c.createdAtUtc) }}</dd></div>
           </dl>
           <div class="actions">
-            <a mat-stroked-button color="primary" [routerLink]="[c.id, 'edit']">
+            <button mat-stroked-button color="primary" (click)="edit()">
               <cs-icon name="edit"></cs-icon> Edit
-            </a>
+            </button>
             <button mat-flat-button color="primary" (click)="newCase()">
               <cs-icon name="add"></cs-icon> New Case
             </button>
