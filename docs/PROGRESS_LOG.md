@@ -2,6 +2,21 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Bugfix] Sign Out requires confirmation dialog — 2026-07-14
+**Status:** Complete (verified in browser: Cancel stays, Confirm logs out)
+**Context:** Clicking "Sign Out" in the sidenav logged the user out immediately with no confirmation — easy to trigger by accident. Desired: a MatDialog confirmation ("Are you sure you want to sign out?" with Cancel + "Sign out") using the same modal shell/style as the other dialogs; only call the real `logout()` on confirmation.
+**Fix applied:**
+1. **NEW `shared/confirm-dialog.component.ts`** — a small reusable confirmation dialog (`ConfirmDialogData { title, message, confirmText, cancelText?, icon? }`) with the app's modal shell (`.modal-head` title + × close, footer Cancel text-button + solid indigo confirm). Returns `true` on confirm, `false`/`null` on cancel/close. Styled with the same CSS variables as the case/customer form dialogs.
+2. **`LayoutComponent.logout()`** now opens `ConfirmDialogComponent` (width 400px) instead of logging out directly. On `afterClosed()`, it calls `auth.logout()` + `router.navigateByUrl('/login')` **only when confirmed**. Added `MatDialog` import; `ConfirmDialogComponent` is standalone so no module wiring needed.
+**Files changed:**
+- frontend/src/app/shared/confirm-dialog.component.ts (NEW)
+- frontend/src/app/shared/layout/layout.component.ts
+**Browser verification (clicked through both paths):**
+- On `/cases`, clicked "Sign Out" → confirmation dialog appeared ("Sign out" title, "Are you sure you want to sign out?", Cancel + "Sign out"). Clicked **Cancel** → dialog closed, still on `/cases`, still authenticated (Sign Out button present).
+- Clicked "Sign Out" again → dialog → clicked **"Sign out"** → redirected to `/login` (logout confirmed).
+- `ng build` (dev) clean. Only the benign `NG0912` Lucide warning in console.
+**Known issues / TODO:** `NG0912` Lucide warning (cosmetic); no automated frontend tests yet; `priority_model.onnx` gitignored.
+
 ## [Bugfix] "+ New Case" on Customer Detail opens modal directly (locked customer) — 2026-07-14
 **Status:** Complete (verified in browser by clicking through the full flow)
 **Context:** On the Customer Detail page, "+ New Case" (beside Edit) navigated to the Cases List pre-filtered to that customer, forcing the user to click "+ New Case" AGAIN to reach the form — a wrong-flow bug. Desired: open the New Case modal **directly** on the detail page, with the Customer field prefilled + locked, and refresh the Case History in place on save. Design system already matches the target, so interaction-only.

@@ -3,8 +3,10 @@ import { CommonModule } from '@angular/common';
 import { Router, RouterLink, RouterOutlet } from '@angular/router';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatIconModule } from '@angular/material/icon';
+import { MatDialog } from '@angular/material/dialog';
 import { CsIconComponent } from '../cs-icon.component';
 import { AuthService } from '../../auth/auth.service';
+import { ConfirmDialogComponent } from '../confirm-dialog.component';
 
 /**
  * Application shell: a white sidenav with navigation (active = light indigo
@@ -28,6 +30,7 @@ import { AuthService } from '../../auth/auth.service';
 export class LayoutComponent {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly dialog = inject(MatDialog);
 
   readonly navLinks = [
     { path: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
@@ -40,9 +43,25 @@ export class LayoutComponent {
     return this.auth.currentUser();
   }
 
-  /** Logs the user out and returns to the login screen. */
+  /** Asks for confirmation, then logs the user out (only on confirm). */
   logout(): void {
-    this.auth.logout();
-    this.router.navigateByUrl('/login');
+    const ref = this.dialog.open(ConfirmDialogComponent, {
+      data: {
+        title: 'Sign out',
+        message: 'Are you sure you want to sign out?',
+        confirmText: 'Sign out',
+        cancelText: 'Cancel',
+        icon: 'logout',
+      },
+      width: '400px',
+      maxWidth: '92vw',
+      autoFocus: false,
+    });
+    ref.afterClosed().subscribe((confirmed) => {
+      if (confirmed) {
+        this.auth.logout();
+        this.router.navigateByUrl('/login');
+      }
+    });
   }
 }
