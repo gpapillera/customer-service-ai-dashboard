@@ -2,6 +2,23 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Bugfix] "+ New Case" on Customer Detail opens modal directly (locked customer) — 2026-07-14
+**Status:** Complete (verified in browser by clicking through the full flow)
+**Context:** On the Customer Detail page, "+ New Case" (beside Edit) navigated to the Cases List pre-filtered to that customer, forcing the user to click "+ New Case" AGAIN to reach the form — a wrong-flow bug. Desired: open the New Case modal **directly** on the detail page, with the Customer field prefilled + locked, and refresh the Case History in place on save. Design system already matches the target, so interaction-only.
+**Fix applied:**
+1. **`CaseFormComponent` made a reusable dialog.** `MAT_DIALOG_DATA` now accepts `CaseFormDialogData { caseId?: number; customerId?: number }` (was a bare `number`). Added `lockedCustomerId` signal; when `customerId` is provided (create mode) the `customerId` form control is created **disabled** and prefilled to that customer (no template `[disabled]` binding — avoids the Angular reactive-forms "changed after checked" warning). Template shows a "Locked to this customer" `mat-hint` and the select is non-interactive. When opened without `customerId` (from Cases List) the field is enabled as before.
+2. **`CaseListComponent.openDialog`** now passes `data: { caseId }` (new shape) — backward compatible with route-launched dialogs.
+3. **`CustomerDetailComponent.newCase()`** rewritten to open `CaseFormComponent` via `MatDialog` with `data: { customerId: id }` (no `router.navigateByUrl`). On close it calls `loadCases()` to **refresh the Case History in place** (no navigation). Removed the now-unused `Router` import/`router` field; the "Back to Customers" link uses `routerLink` instead.
+**Files changed:**
+- frontend/src/app/cases/case-form.component.{ts,html}
+- frontend/src/app/cases/case-list.component.ts
+- frontend/src/app/customers/customer-detail.component.{ts,html}
+**Browser verification (clicked through the flow):**
+- Opened `/customers/1` (Juan Dela Cruz, Case History (3)). Clicked "+ New Case" → modal opened **on the same page** (URL stayed `/customers/1`, no navigation). Customer field showed "Juan Dela Cruz" **disabled** with "Locked to this customer" hint.
+- Filled Title + Category (Billing), clicked "Create Case" → modal closed, Case History updated **in place** to (4) with the new "Modal Test Case From Detail" (High / New) at the top. No navigation away. (Test case deleted via API afterward.)
+- `ng build` (dev) clean; the prior `[disabled]` reactive-forms warning is gone. Only the benign `NG0912` Lucide warning remains in console.
+**Known issues / TODO:** `NG0912` Lucide warning (cosmetic); no automated frontend tests yet; `priority_model.onnx` gitignored.
+
 ## [Bugfix] Customer forms → modal dialogs (New + Edit) — 2026-07-14
 **Status:** Complete (verified in browser by clicking through both flows)
 **Context:** Two customer-form interaction bugs remained after the textUI/UX OVERHAUL. (1) "+ New customer" navigated to a full `/customers/new` route instead of a modal. (2) The Customer Detail "Edit" button used `[routerLink]="[c.id,'edit']"`, which (with the old route gone) resolved to `/dashboard` — a wrong-route bug. There was no Edit Customer modal. The design system itself already matched the target, so this is interaction-only — no styling changes.

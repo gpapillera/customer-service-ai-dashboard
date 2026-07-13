@@ -17,11 +17,21 @@ import { CustomerService } from '../customers/customer.service';
 import { Case, Customer } from '../shared/models';
 import { CATEGORIES } from '../shared/categories';
 
+/** Dialog data accepted by the case form. */
+export interface CaseFormDialogData {
+  /** Case id when opened in edit mode. */
+  caseId?: number;
+  /** When set (create mode), the Customer field is prefilled and locked. */
+  customerId?: number;
+}
+
 /**
  * Create / edit case form, rendered inside a MatDialog. On create, the
  * backend ML model suggests a priority (previewable on demand via the
  * "Get AI suggestion" action). On edit, the agent can override
- * priority/status. Closes the dialog with the saved case id.
+ * priority/status. Closes the dialog with the saved case id. When opened
+ * with `customerId` it prefills + locks the Customer field (used from the
+ * Customer Detail page); otherwise the Customer field behaves as normal.
  */
 @Component({
   selector: 'app-case-form',
@@ -50,8 +60,8 @@ export class CaseFormComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly dialogRef = inject(MatDialogRef<CaseFormComponent>);
-  /** Optional case id when opened in edit mode (from dialog data or route). */
-  private readonly dialogCaseId = inject<number | undefined>(MAT_DIALOG_DATA, { optional: true });
+  /** Dialog data: optional case id (edit) and/or locked customer id (create). */
+  private readonly dialogData = inject<CaseFormDialogData>(MAT_DIALOG_DATA, { optional: true }) ?? {};
 
   readonly categories = CATEGORIES;
   readonly customers = signal<Customer[]>([]);
@@ -61,12 +71,14 @@ export class CaseFormComponent implements OnInit {
   readonly suggestedPriority = signal<string | null>(null);
   readonly predicting = signal(false);
   readonly error = signal<string | null>(null);
+  /** When set, the Customer field is prefilled and disabled. */
+  readonly lockedCustomerId = signal<number | null>(this.dialogData.customerId ?? null);
 
   readonly form = this.fb.nonNullable.group({
     subject: ['', Validators.required],
     description: [''],
     categoryId: [null as number | null, Validators.required],
-    customerId: [null as number | null, Validators.required],
+    customerId: [{ value: null as number | null, disabled: true }, Validators.required],
     status: ['New' as Case['status']],
     priority: ['Medium' as Case['priority']],
     useAiPriority: [true],
@@ -74,10 +86,17 @@ export class CaseFormComponent implements OnInit {
 
   ngOnInit(): void {
     this.customerService.list().subscribe((list) => this.customers.set(list));
-    const id = this.dialogCaseId ?? this.route.snapshot.paramMap.get('id');
+    const id = this.dialogData.caseId ?? this.route.snapshot.paramMap.get('id');
     const presetCustomer = this.route.snapshot.queryParamMap.get('customerId');
     if (presetCustomer) {
       this.form.patchValue({ customerId: Number(presetCustomer) });
+    }
+    if (this.lockedCustomerId()) {
+      // Prefill + lock the Customer field to the given customer.
+      this.form.patchValue({ customerId: this.lockedCustomerId() });
+    } else {
+      // Editable: enable the Customer select (e.g. opened from Cases List).
+      this.form.controls.customerId.enable();
     }
     if (id) {
       this.isEdit.set(true);
@@ -134,7 +153,7 @@ export class CaseFormComponent implements OnInit {
     this.saving.set(true);
     this.error.set(null);
     const v = this.form.getRawValue();
-    const id = this.dialogCaseId ?? this.route.snapshot.paramMap.get('id');
+    const id = this.dialogData.caseId ?? this.route.snapshot.paramMap.get('id');
 
     if (id) {
       this.caseService

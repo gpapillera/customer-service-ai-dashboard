@@ -1,6 +1,6 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute, RouterLink, Router } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -11,6 +11,7 @@ import { CsIconComponent } from '../shared/cs-icon.component';
 import { CustomerService } from './customer.service';
 import { CustomerFormComponent } from './customer-form.component';
 import { CaseService } from '../cases/case.service';
+import { CaseFormComponent, CaseFormDialogData } from '../cases/case-form.component';
 import { Customer, Case } from '../shared/models';
 
 /**
@@ -38,7 +39,6 @@ export class CustomerDetailComponent implements OnInit {
   private readonly caseService = inject(CaseService);
   private readonly dialog = inject(MatDialog);
   private readonly route = inject(ActivatedRoute);
-  readonly router = inject(Router);
 
   readonly customer = signal<Customer | null>(null);
   readonly cases = signal<Case[]>([]);
@@ -64,10 +64,28 @@ export class CustomerDetailComponent implements OnInit {
     });
   }
 
-  /** Opens the new-case modal pre-targeted at this customer. */
+  /** Opens the new-case modal directly on this page, locked to this customer. */
   newCase(): void {
     const id = this.customer()?.id;
-    if (id) this.router.navigateByUrl(`/cases/new?customerId=${id}`);
+    if (!id) return;
+    const data: CaseFormDialogData = { customerId: id };
+    const ref = this.dialog.open(CaseFormComponent, {
+      data,
+      width: '560px',
+      maxWidth: '92vw',
+      autoFocus: false,
+    });
+    ref.afterClosed().subscribe((savedId) => {
+      if (savedId) this.loadCases();
+    });
+  }
+
+  /** Reloads only the case history for this customer (in place). */
+  private loadCases(): void {
+    const id = Number(this.route.snapshot.paramMap.get('id'));
+    this.caseService.list({}).subscribe((list) => {
+      this.cases.set(list.filter((c) => c.customerId === id));
+    });
   }
 
   /** Opens the edit-customer modal, prefilled, and refreshes in place on save. */

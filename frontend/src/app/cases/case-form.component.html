@@ -25,7 +25,9 @@
             <mat-option [value]="c.id">{{ c.name }}</mat-option>
           }
         </mat-select>
-        @if (form.controls.customerId.hasError('required') && form.controls.customerId.touched) {
+        @if (lockedCustomerId() !== null) {
+          <mat-hint>Locked to this customer</mat-hint>
+        } @else if (form.controls.customerId.hasError('required') && form.controls.customerId.touched) {
           <mat-error>Required</mat-error>
         }
       </mat-form-field>

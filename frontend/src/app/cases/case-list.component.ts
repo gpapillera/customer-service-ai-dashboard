@@ -82,7 +82,7 @@ export class CaseListComponent implements OnInit {
   /** Opens the create/edit case dialog. */
   openDialog(caseId?: number): void {
     const ref = this.dialog.open(CaseFormComponent, {
-      data: caseId,
+      data: { caseId },
       width: '560px',
       maxWidth: '92vw',
       autoFocus: false,
