@@ -2,6 +2,30 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Tests] Frontend specs now run green (13/13) via flatpak Chrome — 2026-07-15
+**Status:** Complete (frontend `ng test` → **13 passed**; backend `dotnet test` → **15 passed**)
+**Context:** User wanted the previously compile-only frontend specs actually executed. This machine had no Chrome, so `ng test` could not run. Installed Google Chrome via Flatpak (`flatpak install flathub com.google.Chrome`) and pointed Karma at it with `CHROME_BIN=/var/lib/flatpak/exports/bin/com.google.Chrome` using the existing `ChromeHeadlessCI` launcher (`--no-sandbox --disable-gpu`). Running the specs surfaced 3 real spec-wiring bugs (not app bugs), which were fixed.
+**Changes (spec files only — no app code changed):**
+- `frontend/src/app/dashboard/dashboard.component.spec.ts`: replaced the mixed `HttpClientTestingModule` import + `provideHttpClient()` (which let the real `HttpClient` win, so the mock never saw `/api/dashboard`) with `provideHttpClient()` + `provideHttpClientTesting()` and dropped the module import. Now `httpMock.expectOne('/api/dashboard')` resolves.
+- `frontend/src/app/auth/auth.guard.spec.ts`: added `provideHttpClient()` + `provideHttpClientTesting()` so `AuthService`'s injected `HttpClient` resolves (was `NullInjectorError: No provider for HttpClient`). Wrapped the `authGuard(...)` calls in `TestBed.runInInjectionContext(...)` because the guard uses `inject()` (was `NG0203`). Spy on `router.createUrlTree` via `spyOn(router, 'createUrlTree')` instead of asserting on the plain stub function (was "Expected a spy, but got Function").
+**Verification:** `cd frontend && CHROME_BIN=/var/lib/flatpak/exports/bin/com.google.Chrome npm test -- --browsers=ChromeHeadlessCI` → `TOTAL: 13 SUCCESS`. `dotnet test` still 15/15. Only the benign `NG0912` Lucide warning remains in the browser console.
+**Known issues / TODO:** `NG0912` Lucide warning (cosmetic). `priority_model.onnx` gitignored. To re-run frontend tests, Chrome must be present and `CHROME_BIN` set (or `ChromeHeadless`/`ChromeHeadlessCI` launcher configured).
+
+## [Gaps] Closed all MVP spec gaps (tests, error handling, validation, docs, Docker) — 2026-07-14
+**Status:** Complete (backend tests pass 15/15; frontend specs type-check; middleware + validation verified live; screenshots captured; Docker added)
+**Context:** User asked to close every remaining gap from the MVP acceptance criteria: automated tests, global exception handling, DTO validation, README screenshots, manual test checklist, and the Docker Compose stretch goal.
+**Changes:**
+- **Backend tests** (`backend/tests/CustomerService.Tests/`): added `Fakes/FakeRepository.cs` (in-memory async-capable `IRepository<T>`), `CaseServiceTests.cs` (create/update/delete/filter + ML auto-suggest + not-found), `PredictorTests.cs` (rule-based + ONNX-fallback), replaced the empty `UnitTest1.cs` placeholder. Added project references + `Microsoft.EntityFrameworkCore` to the test csproj. `dotnet test` → **15 passed**.
+- **Global exception handling** (`backend/src/CustomerService.Api/Middleware/ApiExceptionMiddleware.cs`): catches unhandled exceptions and returns a consistent JSON envelope (`{message, code, status, traceId}`); maps `KeyNotFoundException`→404, `ArgumentException`/`InvalidOperationException`→400, else 500 (no stack trace leaked). Wired in `Program.cs` before auth.
+- **DTO validation** (`*.Dtos`): added `[Required]`/`[StringLength]`/`[EmailAddress]`/`[Range]` to `CreateCaseDto`, `UpdateCaseDto`, `CreateCustomerDto`, `UpdateCustomerDto`, `CreateCallLogDto`. Invalid payloads now return HTTP 400 with a JSON error envelope (verified: missing `subject` → 400).
+- **Frontend tests** (`frontend/src/app/**/*.spec.ts`): added `auth.guard.spec.ts`, `token.interceptor.spec.ts`, `cases/case.service.spec.ts`, `dashboard/dashboard.component.spec.ts`. Added `karma.conf.js` + wired `karmaConfig` into `angular.json` `test` target. All specs type-check via `tsc -p tsconfig.spec.json`. (Note: `ng test` needs a headless Chrome, which is not installed on this machine — specs are written and compile-clean, ready to run where Chrome exists.)
+- **Screenshots** (`docs/screenshots/`): captured `login.png`, `dashboard.png`, `customers.png`, `cases.png`, `case-detail.png` and linked them in `README.md` Screenshots section (replacing the "not yet captured" placeholder).
+- **Manual test checklist** (`docs/MANUAL_TEST_CHECKLIST.md`): auth, customers, cases, dashboard, API/error behavior, and ML checks.
+- **Docker** (`docker-compose.yml`, `backend/Dockerfile` + `.dockerignore`, `frontend/Dockerfile` + `nginx.conf`): one-command stack (SQL Server + API + Angular/Nginx). API defaults to SQL Server in-compose; ONNX model baked into the image. README "Getting Started" gained a Docker section.
+- **README fixes:** removed a stray non-existent `/api/dashboard/trends` row from the API table.
+**Verification:** `dotnet test` 15/15 green; backend restarted on SQLite + ONNX, `POST /api/cases` with missing `subject` → 400 JSON envelope, `GET /api/cases/99999` → 404 JSON envelope; both `:5274` and `:4200` still return 200; frontend `tsc` (app + spec) clean.
+**Known issues / TODO:** `NG0912` Lucide warning (cosmetic, unchanged). `ng test` not runnable here (no Chrome) — specs are compile-verified only. `priority_model.onnx` gitignored (baked into Docker image via COPY).
+
 ## [Seed] Added 7 customers + 8 cases (now 11 customers / 13 cases) — 2026-07-14
 **Status:** Complete (verified via API + dashboard UI)
 **Context:** User asked to expand demo data with 7 more customers and 8 more cases. One customer (Liza Lopez, `customers[4]`) intentionally has **two** cases to demonstrate a customer with multiple cases.
