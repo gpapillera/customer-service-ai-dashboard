@@ -37,8 +37,7 @@ public class Program
             app.UseSwaggerUI();
         }
 
-        app.UseCors("AllowAngularDev");
-        app.UseAuthentication();
+        app.UseCors("AllowAngularDev");        app.UseMiddleware<CustomerService.Api.Middleware.ApiExceptionMiddleware>();        app.UseAuthentication();
         app.UseAuthorization();
         app.MapControllers();
     }

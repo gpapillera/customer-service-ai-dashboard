@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using CustomerService.Domain.Entities;
 
 namespace CustomerService.Application.Dtos;
@@ -6,15 +7,19 @@ namespace CustomerService.Application.Dtos;
 public class CreateCaseDto
 {
     /// <summary>Case subject.</summary>
+    [Required(ErrorMessage = "Subject is required.")]
+    [StringLength(300, ErrorMessage = "Subject must be 300 characters or fewer.")]
     public string Subject { get; set; } = string.Empty;
 
     /// <summary>Case description.</summary>
     public string Description { get; set; } = string.Empty;
 
     /// <summary>Category id.</summary>
+    [Range(1, int.MaxValue, ErrorMessage = "A valid category is required.")]
     public int CategoryId { get; set; }
 
     /// <summary>Customer id.</summary>
+    [Range(1, int.MaxValue, ErrorMessage = "A valid customer is required.")]
     public int CustomerId { get; set; }
 
     /// <summary>Optional assigned agent id.</summary>
@@ -31,18 +36,23 @@ public class CreateCaseDto
 public class UpdateCaseDto
 {
     /// <summary>Case subject.</summary>
+    [Required(ErrorMessage = "Subject is required.")]
+    [StringLength(300, ErrorMessage = "Subject must be 300 characters or fewer.")]
     public string Subject { get; set; } = string.Empty;
 
     /// <summary>Case description.</summary>
     public string Description { get; set; } = string.Empty;
 
     /// <summary>Lifecycle status.</summary>
+    [Required(ErrorMessage = "Status is required.")]
     public CaseStatus Status { get; set; }
 
     /// <summary>Priority (may be manually overridden).</summary>
+    [Required(ErrorMessage = "Priority is required.")]
     public Priority Priority { get; set; }
 
     /// <summary>Category id.</summary>
+    [Range(1, int.MaxValue, ErrorMessage = "A valid category is required.")]
     public int CategoryId { get; set; }
 
     /// <summary>Assigned agent id.</summary>

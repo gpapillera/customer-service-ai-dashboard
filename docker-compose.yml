@@ -1,0 +1,57 @@
+# One-command local stack: SQL Server + ASP.NET Core API + Angular (Nginx).
+#
+# Usage:
+#   docker compose up --build
+#   - API:      http://localhost:8080/swagger
+#   - Frontend: http://localhost:8080  (Nginx proxies /api -> backend)
+#
+# Notes:
+# - The API uses SQL Server by default here (Database__Provider=SqlServer).
+#   To use the SQLite fallback instead, set Database__Provider=Sqlite and
+#   drop the `db` service + its volume reference.
+# - The SA password below is for local demo only. Change it for any real use.
+# - The ONNX model is baked into the backend image at build time.
+
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "SqlServer!2024Dev"
+      MSSQL_PID: "Developer"
+    ports:
+      - "1433:1433"
+    volumes:
+      - mssql-data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      Database__Provider: "SqlServer"
+      ConnectionStrings__SqlServer: "Server=db,1433;Database=CustomerServiceDb;User Id=sa;Password=SqlServer!2024Dev;TrustServerCertificate=True;"
+      ASPNETCORE_ENVIRONMENT: "Development"
+    # No host port mapping: only reachable on the internal docker network
+    # (frontend's Nginx proxies /api -> backend:8080).
+    command: ["dotnet", "CustomerService.Api.dll", "--urls", "http://0.0.0.0:8080"]
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        API_URL: "http://localhost:8080"
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
+
+volumes:
+  mssql-data:

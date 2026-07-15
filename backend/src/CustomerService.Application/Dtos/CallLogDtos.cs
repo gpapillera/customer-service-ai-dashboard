@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using CustomerService.Domain.Entities;
 
 namespace CustomerService.Application.Dtos;
@@ -6,15 +7,19 @@ namespace CustomerService.Application.Dtos;
 public class CreateCallLogDto
 {
     /// <summary>Parent case id.</summary>
+    [Range(1, int.MaxValue, ErrorMessage = "A valid case is required.")]
     public int CaseId { get; set; }
 
     /// <summary>Direction of contact.</summary>
+    [Required(ErrorMessage = "Direction is required.")]
     public CallDirection Direction { get; set; } = CallDirection.Outbound;
 
     /// <summary>Notes.</summary>
+    [Required(ErrorMessage = "Notes are required.")]
     public string Notes { get; set; } = string.Empty;
 
     /// <summary>Call duration in seconds.</summary>
+    [Range(0, int.MaxValue, ErrorMessage = "Duration cannot be negative.")]
     public int DurationSeconds { get; set; }
 }
 

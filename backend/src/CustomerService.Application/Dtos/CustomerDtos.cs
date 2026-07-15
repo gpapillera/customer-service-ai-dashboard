@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using CustomerService.Domain.Entities;
 
 namespace CustomerService.Application.Dtos;
@@ -6,15 +7,22 @@ namespace CustomerService.Application.Dtos;
 public class CreateCustomerDto
 {
     /// <summary>Customer full name.</summary>
+    [Required(ErrorMessage = "Name is required.")]
+    [StringLength(200, ErrorMessage = "Name must be 200 characters or fewer.")]
     public string Name { get; set; } = string.Empty;
 
     /// <summary>Email address.</summary>
+    [Required(ErrorMessage = "Email is required.")]
+    [EmailAddress(ErrorMessage = "A valid email is required.")]
+    [StringLength(200, ErrorMessage = "Email must be 200 characters or fewer.")]
     public string Email { get; set; } = string.Empty;
 
     /// <summary>Optional phone number.</summary>
+    [StringLength(30, ErrorMessage = "Phone must be 30 characters or fewer.")]
     public string? Phone { get; set; }
 
     /// <summary>Optional company name.</summary>
+    [StringLength(150, ErrorMessage = "Company must be 150 characters or fewer.")]
     public string? Company { get; set; }
 
     /// <summary>Optional address.</summary>
@@ -25,6 +33,7 @@ public class CreateCustomerDto
 public class UpdateCustomerDto : CreateCustomerDto
 {
     /// <summary>Customer primary key.</summary>
+    [Range(1, int.MaxValue, ErrorMessage = "A valid id is required.")]
     public int Id { get; set; }
 }
 

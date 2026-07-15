@@ -143,7 +143,13 @@ Full DDL is in [`database/schema.sql`](database/schema.sql).
 
 ## Screenshots
 
-> Screenshots are not yet captured. When added, save them to `docs/screenshots/` and link them here.
+| Login | Dashboard |
+| --- | --- |
+| ![Login](docs/screenshots/login.png) | ![Dashboard](docs/screenshots/dashboard.png) |
+
+| Customers | Cases | Case Detail |
+| --- | --- | --- |
+| ![Customers](docs/screenshots/customers.png) | ![Cases](docs/screenshots/cases.png) | ![Case Detail](docs/screenshots/case-detail.png) |
 
 ---
 
@@ -236,6 +242,22 @@ python train_model.py         # trains and exports ml/models/priority_model.onnx
 `priority_model.onnx` is gitignored — it is loaded automatically from `ml/models/` at backend
 startup (config `ML:ModelPath`). If it is absent, priority prediction falls back to rules.
 
+### 4. Docker (one-command stack)
+
+A `docker-compose.yml` at the repo root spins up SQL Server + the API + the Angular frontend
+(Nginx) together:
+
+```bash
+docker compose up --build
+# Frontend + API: http://localhost:8080  (Nginx proxies /api -> backend)
+# Swagger:            http://localhost:8080/swagger
+```
+
+The API uses SQL Server inside the compose network by default. To run the API with the SQLite
+fallback instead, set `Database__Provider=Sqlite` in `docker-compose.yml` and remove the `db`
+service. The trained ONNX model is baked into the backend image at build time, so AI prediction
+works in-container.
+
 ### Configuration
 
 | Key | Location | Description |
@@ -263,7 +285,6 @@ Full interactive documentation is available via Swagger once the backend is runn
 
 > Full interactive docs: Swagger at `http://localhost:5274/swagger` (Development only).
 > There is **no** `/api/categories` endpoint — categories are a frontend constant.
-| GET | `/api/dashboard/trends` | Weekly/monthly trend data |
 | POST | `/api/ml/predict-priority` | AI priority suggestion |
 
 ---
