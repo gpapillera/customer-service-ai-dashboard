@@ -308,7 +308,9 @@ export class DashboardComponent implements OnInit, AfterViewInit {
               const label = this.getLabelForValue(value);
               const d = DashboardComponent.parseDate(String(label));
               if (!d) return label;
-              return d.getDay() === 0 ? DashboardComponent.fmtShort(d) : '';
+              // Show a tick label on Sundays (0), Tuesdays (2) and Fridays (5).
+              const showDays = [0, 2, 5];
+              return showDays.includes(d.getDay()) ? DashboardComponent.fmtShort(d) : '';
             },
           },
         },

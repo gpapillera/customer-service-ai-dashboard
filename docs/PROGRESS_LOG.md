@@ -2,6 +2,14 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 5 — tweak] Weekly Trend x-axis: show Sundays, Tuesdays & Fridays — 2026-07-17
+**Status:** Complete (verified in browser — axis shows date labels on Sun/Tue/Fri, e.g. "Jun 26", "Jun 28", "Jun 30", "Jul 10", "Jul 12", "Jul 14")
+**Context:** User wanted more date labels on the Weekly Trend x-axis — specifically Sundays, Tuesdays and Fridays (not just Sundays).
+**Changes:**
+- `frontend/src/app/dashboard/dashboard.component.ts` (`lineOptions` → `scales.x.ticks.callback`): replaced the single `d.getDay() === 0` check with a `showDays = [0, 2, 5]` allow-list (Sun=0, Tue=2, Fri=5); a tick label is shown only when the parsed date's day-of-week is in that list, otherwise `''`. Tooltip still shows the full date for every point.
+**Verification:** `npx tsc --noEmit -p tsconfig.app.json` → 0 errors. In Chrome: trend chart x-axis renders date labels on Sundays, Tuesdays and Fridays; non-matching days are blank. (Temporary `window.__trendChart` debug hook used for verification removed before commit.)
+**Known issues / TODO:** `NG0912` Lucide warning (cosmetic). `priority_model.onnx` gitignored.
+
 ## [Phase 5 — fix] Weekly Trend x-axis showed 0–29 instead of dates — 2026-07-17
 **Status:** Fixed (verified in browser — axis now shows only Sunday date labels, e.g. "Jun 28", "Jul 12"; no more numeric indices)
 **Context:** After Phase 5 the trend chart's x-axis rendered the raw data indices `0–29` instead of dates. Root cause: on a Chart.js **category** (line) axis the `ticks.callback` receives the data **index** as `value`, not the label string, so `parseDate(String(value))` returned `null` and the code fell back to returning the number.
