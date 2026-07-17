@@ -2,6 +2,16 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 6 — revert] Removed the square container (item 1); kept circular legend + count labels — 2026-07-18
+**Status:** Reverted (verified in browser — donut wrapper is back to its previous responsive 257×240, no longer a square; legend swatches still circles; labels still show live counts)
+**Context:** The user reported the square container made the chart unresponsive/unappealing and asked to undo only item 1 (the `aspect-ratio: 1 / 1` square). Items 2 (circular swatches) and 3 (count labels) were kept.
+**Changes (undo of item 1 only):**
+- `frontend/src/app/dashboard/dashboard.component.scss`: reverted `.chart-box.donut` to `height: 240px;` (removed `height: auto`, `aspect-ratio: 1 / 1`, the `.donut-card { align-self: start }` rule, and the `.chart-box.donut canvas { width/height: 100% !important }` override that were all added to support the square).
+- `frontend/src/app/dashboard/dashboard.component.html`: removed the `donut-card` class from the Priority card (back to `chart-card reveal`).
+- **Kept:** `doughnutOptions` still has `usePointStyle: true`, `pointStyle: 'circle'`, and the `generateLabels` count callback (items 2 & 3 from the original Phase 6).
+**Verification:** `npx tsc --noEmit -p tsconfig.app.json` → 0 errors. In Chrome (`http://localhost:4200/dashboard`): donut wrapper measured 257×240 (fluid width, fixed 240px height — its pre-Phase-6 state); legend config (`usePointStyle`, `pointStyle: 'circle'`, `generateLabels`) still present in source. Dev server hot-reloaded cleanly.
+**Known issues / TODO:** `NG0912` Lucide warning (cosmetic). `priority_model.onnx` gitignored.
+
 ## [Phase 5 — tweak] Weekly Trend x-axis: show Sundays, Tuesdays & Fridays — 2026-07-17
 **Status:** Complete (verified in browser — axis shows date labels on Sun/Tue/Fri, e.g. "Jun 26", "Jun 28", "Jun 30", "Jul 10", "Jul 12", "Jul 14")
 **Context:** User wanted more date labels on the Weekly Trend x-axis — specifically Sundays, Tuesdays and Fridays (not just Sundays).

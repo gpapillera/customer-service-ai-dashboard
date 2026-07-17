@@ -238,8 +238,9 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     }
     this.entrancePlayed = true;
     refs.forEach((ref) => {
-      const chart = ref.chart;
+      const chart = ref.chart as any;
       if (chart) {
+        if (chart.config && chart.config.type === 'line') (window as any).__trendChart = chart;
         chart.reset();
         chart.update();
       }
@@ -301,16 +302,28 @@ export class DashboardComponent implements OnInit, AfterViewInit {
         x: {
           grid: { display: false },
           ticks: {
+            autoSkip: false,
+            maxRotation: 0,
+            minRotation: 0,
             // Use a regular function so `this` is the scale (which exposes
             // getLabelForValue). On a category axis `value` is the data index
-            // (0..n), not the label, so resolve the real label first.
+            // (0..n), not the label, so resolve the real label first. We then
+            // show only evenly-spaced indices (plus the first/last) so the
+            // date labels are evenly distributed with consistent spacing.
+            // autoSkip is disabled above so Chart.js doesn't drop the ticks
+            // our callback wants to keep.
             callback(this: any, value: any): string {
               const label = this.getLabelForValue(value);
               const d = DashboardComponent.parseDate(String(label));
-              if (!d) return label;
-              // Show a tick label on Sundays (0), Tuesdays (2) and Fridays (5).
-              const showDays = [0, 2, 5];
-              return showDays.includes(d.getDay()) ? DashboardComponent.fmtShort(d) : '';
+              if (!d) return String(label);
+              const labels = this.chart?.data?.labels as unknown[] | undefined;
+              const total = labels ? labels.length : 0;
+              if (total <= 1) return DashboardComponent.fmtShort(d);
+              const target = 7; // ~7 evenly spaced labels
+              const step = Math.ceil((total - 1) / (target - 1));
+              const isEdge = value === 0 || value === total - 1;
+              const isStep = value % step === 0;
+              return isEdge || isStep ? DashboardComponent.fmtShort(d) : '';
             },
           },
         },
@@ -326,7 +339,31 @@ export class DashboardComponent implements OnInit, AfterViewInit {
       cutout: '68%',
       animation: { animateRotate: true, animateScale: true, duration: 900, easing: 'easeOutQuart' },
       plugins: {
-        legend: { display: true, position: 'bottom' },
+        legend: {
+          display: true,
+          position: 'bottom',
+          labels: {
+            usePointStyle: true,
+            pointStyle: 'circle',
+            // Append the actual case count to each priority label, e.g.
+            // "Low (4)". Reads the live dataset values so the counts stay
+            // accurate instead of being hardcoded.
+            generateLabels: (chart: any) => {
+              const dataset = chart.data.datasets[0];
+              const data = (dataset?.data as number[]) ?? [];
+              const labels = (chart.data.labels as string[]) ?? [];
+              const colors = (dataset?.backgroundColor as string[]) ?? [];
+              return labels.map((label, i) => ({
+                text: `${label} (${data[i] ?? 0})`,
+                fillStyle: colors[i],
+                strokeStyle: colors[i],
+                lineWidth: 0,
+                hidden: false,
+                index: i,
+              }));
+            },
+          } as any,
+        },
       },
     };
   }
