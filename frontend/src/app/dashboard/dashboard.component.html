@@ -1,7 +1,7 @@
 <div class="page-header">
   <div class="titles">
     <h1>Dashboard</h1>
-    <p>Support overview and AI-prioritized cases</p>
+    <p>Overview of customer service operations and AI-assisted case management</p>
   </div>
 </div>
 
@@ -11,13 +11,11 @@
   @if (data(); as d) {
     <div class="kpis stagger">
       @for (k of kpis; track k.label) {
-        <mat-card class="cs-lift kpi" appReveal [class]="'tone-' + k.tone">
-          <mat-card-content>
-            <div class="kpi-icon"><cs-icon [name]="k.icon" [size]="26"></cs-icon></div>
-            <div class="kpi-value">{{ k.value }}</div>
-            <div class="kpi-label">{{ k.label }}</div>
-          </mat-card-content>
-        </mat-card>
+        <button type="button" class="kpi-card cs-lift" appReveal [class]="'tone-' + k.tone" (click)="openKpi(k.link)">
+          <div class="kpi-icon"><cs-icon [name]="k.icon" [size]="26"></cs-icon></div>
+          <div class="kpi-value">{{ k.value }}</div>
+          <div class="kpi-label">{{ k.label }}</div>
+        </button>
       }
     </div>
 

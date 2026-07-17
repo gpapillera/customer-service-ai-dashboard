@@ -61,7 +61,11 @@ export class CaseListComponent implements OnInit {
     priority: '' as string,
     categoryId: null as number | null,
     search: '' as string,
+    aiOnly: false,
   });
+
+  /** True when the "Open" pseudo-filter (everything except Closed) is active. */
+  readonly isOpenFilter = signal(false);
 
   ngOnInit(): void {
     // Support deep-link from a customer detail ("View cases").
@@ -75,6 +79,23 @@ export class CaseListComponent implements OnInit {
       this.dataLoading.set(false);
       return;
     }
+
+    // Pre-apply filters coming from dashboard KPI deep-links.
+    const qp = this.route.snapshot.queryParamMap;
+    const status = qp.get('status');
+    const priority = qp.get('priority');
+    const aiOnly = qp.get('aiOnly') === 'true';
+    if (status) {
+      // "Open" is a pseudo-status (everything except Closed) handled client-side.
+      if (status === 'Open') {
+        this.isOpenFilter.set(true);
+      } else {
+        this.filters.update((f) => ({ ...f, status }));
+      }
+    }
+    if (priority) this.filters.update((f) => ({ ...f, priority }));
+    if (aiOnly) this.filters.update((f) => ({ ...f, aiOnly: true }));
+
     this.load();
 
     // Open the create/edit modal when reached via /cases/new or /cases/:id/edit.
@@ -103,23 +124,33 @@ export class CaseListComponent implements OnInit {
   load(): void {
     this.dataLoading.set(true);
     const f = this.filters();
+    // "Open" is a pseudo-status (everything except Closed) — fetch all and
+    // filter client-side so the count matches the dashboard KPI exactly.
+    const serverStatus = this.isOpenFilter() ? undefined : f.status || undefined;
     this.service
       .list({
-        status: f.status || undefined,
+        status: serverStatus,
         priority: f.priority || undefined,
         categoryId: f.categoryId ?? undefined,
       })
       .subscribe({
         next: (list) => {
+          let filtered = list;
+          if (this.isOpenFilter()) {
+            filtered = filtered.filter((c) => c.status !== 'Closed');
+          }
+          if (f.aiOnly) {
+            filtered = filtered.filter((c) => c.priorityAutoSuggested);
+          }
           const term = f.search.trim().toLowerCase();
-          const filtered = term
-            ? list.filter(
-                (c) =>
-                  c.subject.toLowerCase().includes(term) ||
-                  c.description.toLowerCase().includes(term) ||
-                  c.customerName.toLowerCase().includes(term),
-              )
-            : list;
+          if (term) {
+            filtered = filtered.filter(
+              (c) =>
+                c.subject.toLowerCase().includes(term) ||
+                c.description.toLowerCase().includes(term) ||
+                c.customerName.toLowerCase().includes(term),
+            );
+          }
           this.cases.set(filtered);
           this.dataLoading.set(false);
         },
@@ -129,7 +160,21 @@ export class CaseListComponent implements OnInit {
 
   /** Updates a single filter field and reloads. */
   updateFilter(key: keyof ReturnType<typeof this.filters>, value: string | number | null): void {
-    this.filters.update((f) => ({ ...f, [key]: value }));
+    if (key === 'status') {
+      // "Open" is a pseudo-status handled client-side.
+      this.isOpenFilter.set(value === 'Open');
+      if (value !== 'Open') {
+        this.filters.update((f) => ({ ...f, status: value as string }));
+      }
+    } else {
+      this.filters.update((f) => ({ ...f, [key]: value }));
+    }
+    this.load();
+  }
+
+  /** Toggles the AI-only filter (cases where the AI suggested the priority). */
+  toggleAiOnly(): void {
+    this.filters.update((f) => ({ ...f, aiOnly: !f.aiOnly }));
     this.load();
   }
 

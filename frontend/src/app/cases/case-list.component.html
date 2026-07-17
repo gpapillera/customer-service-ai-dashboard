@@ -21,8 +21,9 @@
 
   <mat-form-field appearance="outline" class="f-select">
     <mat-label>All Statuses</mat-label>
-    <mat-select [value]="filters().status" (selectionChange)="updateFilter('status', $event.value)">
+    <mat-select [value]="isOpenFilter() ? 'Open' : filters().status" (selectionChange)="updateFilter('status', $event.value)">
       <mat-option value="">All Statuses</mat-option>
+      <mat-option value="Open">Open</mat-option>
       <mat-option value="New">New</mat-option>
       <mat-option value="InProgress">In Progress</mat-option>
       <mat-option value="Escalated">Escalated</mat-option>
@@ -50,6 +51,16 @@
       }
     </mat-select>
   </mat-form-field>
+
+  <button
+    type="button"
+    class="ai-toggle"
+    [class.active]="filters().aiOnly"
+    (click)="toggleAiOnly()"
+  >
+    <cs-icon name="auto_awesome" [size]="18"></cs-icon>
+    AI Predicted
+  </button>
 </div>
 
 @if (loading()) {

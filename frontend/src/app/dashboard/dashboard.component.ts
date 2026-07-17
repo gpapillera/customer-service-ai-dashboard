@@ -4,7 +4,7 @@ import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatButtonModule } from '@angular/material/button';
-import { RouterLink } from '@angular/router';
+import { RouterLink, Router } from '@angular/router';
 import { BaseChartDirective } from 'ng2-charts';
 import { ChartConfiguration, ChartOptions } from 'chart.js';
 import { RevealDirective } from '../shared/reveal.directive';
@@ -38,6 +38,7 @@ import { Dashboard, RecentCase } from '../shared/models';
 export class DashboardComponent implements OnInit, AfterViewInit {
   private readonly service = inject(DashboardService);
   private readonly routeLoading = inject(RouteLoadingService);
+  private readonly router = inject(Router);
 
   readonly data = signal<Dashboard | null>(null);
   /** Internal data-fetch state. */
@@ -134,13 +135,18 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     const d = this.data();
     if (!d) return [];
     return [
-      { label: 'Total Cases', value: d.totalCases, icon: 'briefcase', tone: 'indigo' },
-      { label: 'Open Cases', value: d.openCases, icon: 'clock', tone: 'blue' },
-      { label: 'High Priority', value: d.highPriorityCases, icon: 'priority_high', tone: 'red' },
-      { label: 'Resolved', value: d.resolvedCases, icon: 'check_circle', tone: 'green' },
-      { label: 'Customers', value: d.totalCustomers, icon: 'people', tone: 'indigo' },
-      { label: 'AI Predicted', value: d.aiPredictedCases, icon: 'auto_awesome', tone: 'purple' },
+      { label: 'Total Cases', value: d.totalCases, icon: 'briefcase', tone: 'indigo', link: '/cases' },
+      { label: 'Open Cases', value: d.openCases, icon: 'clock', tone: 'blue', link: '/cases?status=Open' },
+      { label: 'High Priority', value: d.highPriorityCases, icon: 'priority_high', tone: 'red', link: '/cases?priority=High' },
+      { label: 'Resolved', value: d.resolvedCases, icon: 'check_circle', tone: 'green', link: '/cases?status=Resolved' },
+      { label: 'Customers', value: d.totalCustomers, icon: 'people', tone: 'indigo', link: '/customers' },
+      { label: 'AI Predicted', value: d.aiPredictedCases, icon: 'auto_awesome', tone: 'purple', link: '/cases?aiOnly=true' },
     ];
+  }
+
+  /** Navigate to the page backing a KPI card (with pre-applied filters). */
+  openKpi(link: string): void {
+    this.router.navigateByUrl(link);
   }
 
   /** Recent cases for the bottom list. */

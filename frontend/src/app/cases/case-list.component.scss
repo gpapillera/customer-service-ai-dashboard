@@ -31,6 +31,37 @@
   width: 170px;
 }
 
+/* "AI Predicted" toggle — matches the indigo pill button style. */
+.ai-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  height: 48px;
+  padding: 0 1rem;
+  border: 1px solid var(--cs-border);
+  border-radius: var(--cs-radius-pill);
+  background: var(--cs-surface);
+  color: var(--cs-text-muted);
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.18s var(--cs-ease), color 0.18s var(--cs-ease),
+    border-color 0.18s var(--cs-ease);
+}
+.ai-toggle cs-icon {
+  color: #8b5cf6;
+}
+.ai-toggle:hover {
+  border-color: rgba(139, 92, 246, 0.4);
+  color: #7c3aed;
+}
+.ai-toggle.active {
+  background: #f3e8ff;
+  border-color: #8b5cf6;
+  color: #7c3aed;
+}
+
 .center {
   display: flex;
   justify-content: center;

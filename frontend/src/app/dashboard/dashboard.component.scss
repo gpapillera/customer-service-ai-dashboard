@@ -17,16 +17,21 @@
   .kpis { grid-template-columns: repeat(2, 1fr); }
 }
 
-.kpi {
-  border-radius: var(--cs-radius);
-  box-shadow: var(--cs-shadow);
-  overflow: hidden;
-}
-.kpi mat-card-content {
+.kpi-card {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+  text-align: left;
+  width: 100%;
   padding: 1.1rem 1.25rem;
+  border: 1px solid var(--cs-border);
+  border-radius: var(--cs-radius);
+  background: var(--cs-surface);
+  box-shadow: var(--cs-shadow);
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  overflow: hidden;
 }
 .kpi-icon {
   width: 40px;
@@ -49,11 +54,12 @@
   font-size: 0.85rem;
 }
 
-.tone-indigo .kpi-icon { background: #4f46e5; }
-.tone-blue .kpi-icon { background: #3b82f6; }
-.tone-red .kpi-icon { background: #ef4444; }
-.tone-green .kpi-icon { background: #10b981; }
-.tone-purple .kpi-icon { background: linear-gradient(135deg, #8b5cf6, #6366f1); }
+/* Vibrant icon on a light tinted rounded-square background of the same hue. */
+.tone-indigo .kpi-icon { background: var(--cs-accent-light); color: #4f46e5; }
+.tone-blue .kpi-icon { background: var(--cs-info-bg); color: #3b82f6; }
+.tone-red .kpi-icon { background: var(--cs-danger-bg); color: #ef4444; }
+.tone-green .kpi-icon { background: var(--cs-success-bg); color: #10b981; }
+.tone-purple .kpi-icon { background: #f3e8ff; color: #8b5cf6; }
 
 .charts-row {
   display: grid;

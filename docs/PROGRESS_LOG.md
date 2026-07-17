@@ -2,6 +2,27 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 3] Dashboard: subtitle + 6 KPI cards (tinted icons, hover, clickable, entrance) — 2026-07-17
+**Status:** Complete (verified in browser — subtitle, tinted icons, clickable cards with matching filters, staggered entrance)
+**Context:** Polish the dashboard KPI row: exact subtitle, vibrant icon on light tinted bg (not solid dark tile), hover lift, clickable cards that deep-link to the matching filtered list, and a staggered fade+rise entrance.
+**Changes:**
+- `frontend/src/app/dashboard/dashboard.component.html`:
+  - Subtitle changed to exactly "Overview of customer service operations and AI-assisted case management".
+  - KPI cards are now `<button class="kpi-card cs-lift" appReveal [class]="'tone-'+k.tone" (click)="openKpi(k.link)">` inside the existing `.kpis.stagger` container (kept `appReveal` + `.stagger` for the entrance animation).
+- `frontend/src/app/dashboard/dashboard.component.ts`:
+  - Added `Router` inject + `openKpi(link)` → `router.navigateByUrl(link)`.
+  - `kpis` getter now carries a `link` per card: Total Cases → `/cases`; Open Cases → `/cases?status=Open`; High Priority → `/cases?priority=High`; Resolved → `/cases?status=Resolved`; Customers → `/customers`; AI Predicted → `/cases?aiOnly=true`.
+- `frontend/src/app/dashboard/dashboard.component.scss`: replaced the solid-color `.kpi-icon` tiles with **vibrant icon on light tinted rounded-square bg** per tone — indigo (`#eef2ff`/`#4f46e5`), blue (`#dbeafe`/`#3b82f6`), red (`#fee2e2`/`#ef4444`), green (`#d1fae5`/`#10b981`), purple (`#f3e8ff`/`#8b5cf6`). `.kpi` (mat-card) → `.kpi-card` button (border + surface + shadow, `cursor:pointer`, keeps `.cs-lift` hover lift).
+- `frontend/src/app/cases/case-list.component.ts`:
+  - `ngOnInit` now reads `queryParamMap`: `status`/`priority`/`aiOnly`. **"Open" is a pseudo-status** (backend defines `OpenCases = total - closed`, i.e. everything except `Closed`) handled via a new `isOpenFilter` signal + client-side filter; `priority`/`status` (real) set the filter signal; `aiOnly=true` sets `filters.aiOnly`.
+  - `load()` applies `isOpenFilter` (drop `Closed`) and `aiOnly` (keep `priorityAutoSuggested`) client-side after fetch (dataset is tiny — 13 cases — so client-side filtering is correct here).
+  - `updateFilter('status', 'Open')` sets `isOpenFilter` instead of a server status; added `toggleAiOnly()`.
+  - `filters` signal gained `aiOnly: false`.
+- `frontend/src/app/cases/case-list.component.html`: added an "Open" option to the status `<mat-select>` (value-bound to `isOpenFilter() ? 'Open' : filters().status`) and an "AI Predicted" pill toggle button (`.ai-toggle`, `[class.active]="filters().aiOnly"`, calls `toggleAiOnly()`) so the UI reflects the active deep-link filters.
+- `frontend/src/app/cases/case-list.component.scss`: added `.ai-toggle` (indigo/purple pill, active = `#f3e8ff` bg + `#8b5cf6` border/text) matching the design system.
+**Verification:** `npx tsc --noEmit -p tsconfig.app.json` → 0 errors. In Chrome: subtitle exact; KPI icons are vibrant-on-tint (e.g. indigo `rgb(79,70,229)` on `rgb(238,242,255)`); clicking each card navigates and the list count + filter UI match the KPI — Open→11 (status="Open", no Closed rows), High Priority→5 (priority="High"), Resolved→2 (status="Resolved"), AI Predicted→4 (AI toggle active), Total Cases→13, Customers→/customers. Cards carry `stagger`+`cs-lift`+`reveal` for the entrance animation.
+**Known issues / TODO:** `NG0912` Lucide warning (cosmetic). `priority_model.onnx` gitignored.
+
 ## [Phase 2] Sidebar: persistent active state + collapse toggle + auto-hide — 2026-07-17
 **Status:** Complete (verified in browser — active pill persists, collapse + auto-hide work)
 **Context:** Three sidebar improvements: (1) the active nav highlight disappeared after clicking because `RouterLinkActive` was never imported, so `routerLinkActive="active"` was silently ignored (the `active` class was never applied); (2) add a collapse/expand toggle; (3) auto-hide on narrow screens.
