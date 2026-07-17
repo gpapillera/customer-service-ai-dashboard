@@ -2,6 +2,22 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 1] Login page restyle (Apple-like, design-system aligned) — 2026-07-17
+**Status:** Complete (verified in browser — centered white card, indigo logo block, solid indigo pill submit)
+**Context:** User wanted the login page to match the app's Apple-like design system instead of the default Material card on a dark blue gradient. Iterated on feedback: (1) card was indistinguishable from the light background → strengthened the shadow; (2) card/elements felt too small → enlarged them.
+**Changes (`frontend/src/app/auth/login/`):**
+- `login.component.ts`: imported `CsIconComponent` and added it to `imports` so the headset logo renders.
+- `login.component.html`: replaced the default `mat-card-header` (title/subtitle) with a centered logo block reusing the sidebar brand structure — indigo gradient tile with the `headset` icon, then "ServiceAI" (bold) + "Case Dashboard" (muted), stacked and centered. Added `submit-btn` class to the Sign-in button.
+- `login.component.scss`:
+  - `.login-wrapper` background changed from dark blue gradient to `--cs-bg` (light gray).
+  - `.login-card` now uses `--cs-surface` (white) + `--cs-radius` (16px) + a stronger neutral shadow (`0 12px 32px rgba(15,23,42,0.12)`) + `--cs-border`, so it clearly floats above the background.
+  - Added `.brand-block` / `.brand-logo` / `.brand-text` / `.brand-name` / `.brand-sub` reusing existing tokens (`--cs-accent-gradient`, `--cs-text`, `--cs-text-muted`) to match the sidebar logo.
+  - `.submit-btn` is solid indigo with pill radius (`--cs-radius-pill`) and medium weight — same as "Create Case".
+  - Error banner uses `--cs-danger-bg`; inputs keep Material `appearance="outline"`.
+  - Enlarged for comfort: card `max-width` 380→**440px** + more padding; logo tile 48→**60px** (icon 26→**32px**); brand name 1.25→**1.5rem**, subtitle 0.8→**0.95rem**; form gap 0.75→**1rem** with larger input fields; submit button bigger (`0.7rem 1.5rem`, `1rem` font); error/hint text slightly larger.
+**Verification:** `npx tsc --noEmit -p tsconfig.app.json` → 0 errors. In Chrome (`http://localhost:4200/login`, login `admin`/`Passw0rd!`): light gray background, centered white card with soft shadow, indigo headset logo + "ServiceAI / Case Dashboard", outlined inputs, solid indigo pill "Sign in". Login still works.
+**Known issues / TODO:** None.
+
 ## [Phase 0] Global route-change loading indicator (per-page spinner) — 2026-07-17
 **Status:** Complete (verified in browser — spinner appears on every navigation)
 **Context:** User wanted a loading indicator during route navigation so the app doesn't feel frozen. First attempt was a thin indigo top progress bar, but routes are eager (not lazy) so navigation finished faster than the 150ms delay and the bar never showed; a full-page blur overlay was also rejected as covering the whole page. Final approach: a **centered circle spinner that appears in each page's content area** (below the header / search / filters), shown on **every** navigation — not just first load — with no page blur.

@@ -3,40 +3,107 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%);
+  background: var(--cs-bg);
   padding: 1rem;
 }
 
 .login-card {
   width: 100%;
-  max-width: 380px;
-  padding: 1.5rem;
+  max-width: 440px;
+  padding: 2.75rem 2.5rem;
+  border-radius: var(--cs-radius);
+  background: var(--cs-surface);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
+  border: 1px solid var(--cs-border);
+}
+
+/* Centered logo block, reusing the sidebar brand styling. */
+.brand-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.9rem;
+  margin-bottom: 2rem;
+}
+
+.brand-logo {
+  width: 60px;
+  height: 60px;
+  border-radius: 14px;
+  background: var(--cs-accent-gradient);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.35);
+}
+
+.brand-logo cs-icon {
+  width: 32px;
+  height: 32px;
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.brand-name {
+  font-weight: 700;
+  font-size: 1.5rem;
+  color: var(--cs-text);
+  letter-spacing: -0.01em;
+}
+
+.brand-sub {
+  font-size: 0.95rem;
+  color: var(--cs-text-muted);
 }
 
 .login-form {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  margin-top: 1rem;
+  gap: 1rem;
 }
 
 .full-width {
   width: 100%;
 }
 
+/* Slightly larger form fields to match the bigger card. */
+.login-form mat-form-field {
+  font-size: 1rem;
+}
+
+.login-form mat-form-field .mat-mdc-form-field-infix {
+  padding-top: 0.65rem;
+  padding-bottom: 0.65rem;
+}
+
+/* Solid indigo submit button, matching the "Create Case" style. */
+.submit-btn {
+  margin-top: 0.75rem;
+  border-radius: var(--cs-radius-pill);
+  padding: 0.7rem 1.5rem;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
 .error-banner {
-  background: #fee2e2;
+  background: var(--cs-danger-bg);
   color: #b91c1c;
-  padding: 0.5rem 0.75rem;
-  border-radius: 6px;
-  font-size: 0.875rem;
+  padding: 0.6rem 0.85rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
 }
 
 .hint {
   text-align: center;
-  color: rgba(0, 0, 0, 0.6);
-  font-size: 0.8rem;
-  margin: 0.5rem 0 0;
+  color: var(--cs-text-muted);
+  font-size: 0.9rem;
+  margin: 0.75rem 0 0;
 }
 
 mat-spinner {

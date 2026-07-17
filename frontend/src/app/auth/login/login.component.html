@@ -1,9 +1,12 @@
 <div class="login-wrapper">
   <mat-card class="login-card" appearance="outlined">
-    <mat-card-header>
-      <mat-card-title>Customer Service AI Dashboard</mat-card-title>
-      <mat-card-subtitle>Sign in to continue</mat-card-subtitle>
-    </mat-card-header>
+    <div class="brand-block">
+      <div class="brand-logo"><cs-icon name="headset"></cs-icon></div>
+      <div class="brand-text">
+        <span class="brand-name">ServiceAI</span>
+        <span class="brand-sub">Case Dashboard</span>
+      </div>
+    </div>
 
     <mat-card-content>
       <form [formGroup]="form" (ngSubmit)="submit()" class="login-form">
@@ -31,7 +34,7 @@
           mat-flat-button
           color="primary"
           type="submit"
-          class="full-width"
+          class="full-width submit-btn"
           [disabled]="loading"
         >
           @if (loading) {
