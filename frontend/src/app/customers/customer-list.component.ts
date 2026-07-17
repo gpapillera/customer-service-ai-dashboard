@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -11,6 +11,7 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatDialog } from '@angular/material/dialog';
 import { RevealDirective } from '../shared/reveal.directive';
 import { CsIconComponent } from '../shared/cs-icon.component';
+import { RouteLoadingService } from '../shared/route-loading.service';
 import { CustomerService } from './customer.service';
 import { CustomerFormComponent } from './customer-form.component';
 import { Customer } from '../shared/models';
@@ -41,9 +42,13 @@ import { Customer } from '../shared/models';
 export class CustomerListComponent implements OnInit {
   private readonly service = inject(CustomerService);
   private readonly dialog = inject(MatDialog);
+  private readonly routeLoading = inject(RouteLoadingService);
 
   readonly customers = signal<Customer[]>([]);
-  readonly loading = signal(true);
+  /** Internal data-fetch state. */
+  private readonly dataLoading = signal(true);
+  /** True while the list is loading OR a route navigation is in progress. */
+  readonly loading = computed(() => this.dataLoading() || this.routeLoading.loading());
   readonly searchTerm = signal('');
 
   ngOnInit(): void {
@@ -52,7 +57,7 @@ export class CustomerListComponent implements OnInit {
 
   /** Loads all customers (or searches when a term is present). */
   load(): void {
-    this.loading.set(true);
+    this.dataLoading.set(true);
     const term = this.searchTerm().trim();
     const req = term
       ? this.service.search(term)
@@ -60,9 +65,9 @@ export class CustomerListComponent implements OnInit {
     req.subscribe({
       next: (list) => {
         this.customers.set(list);
-        this.loading.set(false);
+        this.dataLoading.set(false);
       },
-      error: () => this.loading.set(false),
+      error: () => this.dataLoading.set(false),
     });
   }
 

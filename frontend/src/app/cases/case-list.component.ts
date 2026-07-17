@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -12,6 +12,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatDialog } from '@angular/material/dialog';
 import { RevealDirective } from '../shared/reveal.directive';
 import { CsIconComponent } from '../shared/cs-icon.component';
+import { RouteLoadingService } from '../shared/route-loading.service';
 import { CaseService } from './case.service';
 import { CaseFormComponent } from './case-form.component';
 import { Case } from '../shared/models';
@@ -46,9 +47,13 @@ export class CaseListComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly dialog = inject(MatDialog);
+  private readonly routeLoading = inject(RouteLoadingService);
 
   readonly cases = signal<Case[]>([]);
-  readonly loading = signal(true);
+  /** Internal data-fetch state. */
+  private readonly dataLoading = signal(true);
+  /** True while the list is loading OR a route navigation is in progress. */
+  readonly loading = computed(() => this.dataLoading() || this.routeLoading.loading());
   readonly categories = CATEGORIES;
 
   readonly filters = signal({
@@ -67,7 +72,7 @@ export class CaseListComponent implements OnInit {
         .subscribe((all) =>
           this.cases.set(all.filter((c) => c.customerId === Number(customerId))),
         );
-      this.loading.set(false);
+      this.dataLoading.set(false);
       return;
     }
     this.load();
@@ -96,7 +101,7 @@ export class CaseListComponent implements OnInit {
 
   /** Reloads cases using the current filter state. */
   load(): void {
-    this.loading.set(true);
+    this.dataLoading.set(true);
     const f = this.filters();
     this.service
       .list({
@@ -116,9 +121,9 @@ export class CaseListComponent implements OnInit {
               )
             : list;
           this.cases.set(filtered);
-          this.loading.set(false);
+          this.dataLoading.set(false);
         },
-        error: () => this.loading.set(false),
+        error: () => this.dataLoading.set(false),
       });
   }
 

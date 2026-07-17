@@ -2,6 +2,18 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 0] Global route-change loading indicator (per-page spinner) — 2026-07-17
+**Status:** Complete (verified in browser — spinner appears on every navigation)
+**Context:** User wanted a loading indicator during route navigation so the app doesn't feel frozen. First attempt was a thin indigo top progress bar, but routes are eager (not lazy) so navigation finished faster than the 150ms delay and the bar never showed; a full-page blur overlay was also rejected as covering the whole page. Final approach: a **centered circle spinner that appears in each page's content area** (below the header / search / filters), shown on **every** navigation — not just first load — with no page blur.
+**Changes:**
+- New `frontend/src/app/shared/route-loading.service.ts`: root `RouteLoadingService` exposing a `loading` signal driven by `router.events` (shows on `NavigationStart`, hides on `NavigationEnd/Cancel/Error`) with a 350ms minimum display so fast eager routes stay perceptible.
+- `frontend/src/app/dashboard/dashboard.component.ts`: `loading` is now `computed(() => dataLoading() || routeLoading.loading())`; the existing spinner (below the "Dashboard / Support overview…" header) shows on every navigation.
+- `frontend/src/app/customers/customer-list.component.ts`: `loading` is now `computed(() => dataLoading() || routeLoading.loading())`; spinner shows below the search bar on every navigation.
+- `frontend/src/app/cases/case-list.component.ts`: same computed; spinner shows below the search bar + filters on every navigation.
+- Each page keeps its own internal `dataLoading` signal for the actual fetch, so the spinner reflects both "navigating" and "fetching". The `LayoutComponent` overlay/blur was removed entirely.
+**Verification:** `npx tsc --noEmit -p tsconfig.app.json` → 0 errors. In Chrome (`http://localhost:4200`, login `admin`/`Passw0rd!`): clicking between Dashboard / Customers / Cases shows the circle spinner in each page's content area on every switch, with no page blur.
+**Known issues / TODO:** None.
+
 ## [Tests] Frontend specs now run green (13/13) via flatpak Chrome — 2026-07-15
 **Status:** Complete (frontend `ng test` → **13 passed**; backend `dotnet test` → **15 passed**)
 **Context:** User wanted the previously compile-only frontend specs actually executed. This machine had no Chrome, so `ng test` could not run. Installed Google Chrome via Flatpak (`flatpak install flathub com.google.Chrome`) and pointed Karma at it with `CHROME_BIN=/var/lib/flatpak/exports/bin/com.google.Chrome` using the existing `ChromeHeadlessCI` launcher (`--no-sandbox --disable-gpu`). Running the specs surfaced 3 real spec-wiring bugs (not app bugs), which were fixed.

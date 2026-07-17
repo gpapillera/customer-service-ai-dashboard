@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, inject, OnInit, QueryList, signal, ViewChildren } from '@angular/core';
+import { AfterViewInit, Component, computed, inject, OnInit, QueryList, signal, ViewChildren } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
@@ -9,6 +9,7 @@ import { BaseChartDirective } from 'ng2-charts';
 import { ChartConfiguration, ChartOptions } from 'chart.js';
 import { RevealDirective } from '../shared/reveal.directive';
 import { CsIconComponent } from '../shared/cs-icon.component';
+import { RouteLoadingService } from '../shared/route-loading.service';
 import { DashboardService } from './dashboard.service';
 import { Dashboard, RecentCase } from '../shared/models';
 
@@ -36,9 +37,13 @@ import { Dashboard, RecentCase } from '../shared/models';
 })
 export class DashboardComponent implements OnInit, AfterViewInit {
   private readonly service = inject(DashboardService);
+  private readonly routeLoading = inject(RouteLoadingService);
 
   readonly data = signal<Dashboard | null>(null);
-  readonly loading = signal(true);
+  /** Internal data-fetch state. */
+  private readonly dataLoading = signal(true);
+  /** True while the dashboard is loading OR a route navigation is in progress. */
+  readonly loading = computed(() => this.dataLoading() || this.routeLoading.loading());
 
   /** Chart.js directive instances, used to replay the entrance animation. */
   @ViewChildren(BaseChartDirective) private chartRefs!: QueryList<BaseChartDirective>;
@@ -116,11 +121,11 @@ export class DashboardComponent implements OnInit, AfterViewInit {
         this.statusChart.data.datasets[0].data = statusOrder.map((s) => byStatus[s] ?? 0);
         this.statusChart.data.datasets[0].backgroundColor = statusOrder.map((s) => statusColors[s]);
 
-        this.loading.set(false);
+        this.dataLoading.set(false);
         // Replay a clear entrance animation once all four chart canvases exist.
         this.tryPlayEntrance();
       },
-      error: () => this.loading.set(false),
+      error: () => this.dataLoading.set(false),
     });
   }
 
