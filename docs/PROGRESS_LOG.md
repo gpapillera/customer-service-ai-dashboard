@@ -2,6 +2,14 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 5 — fix] Weekly Trend x-axis showed 0–29 instead of dates — 2026-07-17
+**Status:** Fixed (verified in browser — axis now shows only Sunday date labels, e.g. "Jun 28", "Jul 12"; no more numeric indices)
+**Context:** After Phase 5 the trend chart's x-axis rendered the raw data indices `0–29` instead of dates. Root cause: on a Chart.js **category** (line) axis the `ticks.callback` receives the data **index** as `value`, not the label string, so `parseDate(String(value))` returned `null` and the code fell back to returning the number.
+**Changes:**
+- `frontend/src/app/dashboard/dashboard.component.ts` (`lineOptions` → `scales.x.ticks.callback`): rewrote the callback as a regular `function` (so Chart.js binds `this` to the **scale**) and call `this.getLabelForValue(value)` to resolve the real date label before parsing. Date helpers `parseDate`/`fmtShort`/`fmtLong` made `static` (called as `DashboardComponent.parseDate(...)`) so they work inside the callback regardless of `this`. The Sunday-only rule (`getDay() === 0`) and the full-date tooltip (`callbacks.title`) are unchanged.
+**Verification:** `npx tsc --noEmit -p tsconfig.app.json` → 0 errors. In Chrome: trend chart has 30 date labels; x-axis ticks show only the Sundays in range ("Jun 28", "Jul 12") — no numeric `0–29` indices. (A temporary `window.__trendChart` debug hook used for verification was removed before commit.)
+**Known issues / TODO:** `NG0912` Lucide warning (cosmetic). `priority_model.onnx` gitignored.
+
 ## [Phase 5] Weekly Trend chart polish — 2026-07-17
 **Status:** Complete (verified in browser — indigo trending-up icon, thinner line, vertical gradient fill, wider card, Sunday-only axis ticks with full-date tooltips)
 **Context:** Polish the "Cases Created — Weekly Trend" chart: add a trending-up icon to its title, thin the line, replace the flat fill with a vertical indigo→transparent gradient, make the trend card visibly wider than the Priority card in the same row, and show x-axis tick labels only for Sundays while keeping full dates in the tooltip.

@@ -203,7 +203,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   }
 
   /** Parse a 'YYYY-MM-DD' (or ISO) date string into a local Date, or null. */
-  private parseDate(s: string): Date | null {
+  private static parseDate(s: string): Date | null {
     const datePart = s.split('T')[0];
     const parts = datePart.split('-').map(Number);
     if (parts.length < 3 || parts.some((n) => isNaN(n))) return null;
@@ -212,12 +212,12 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   }
 
   /** Short axis label, e.g. "Jul 13". */
-  private fmtShort(d: Date): string {
+  private static fmtShort(d: Date): string {
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   }
 
   /** Long tooltip title, e.g. "Jul 13, 2026". */
-  private fmtLong(d: Date): string {
+  private static fmtLong(d: Date): string {
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   }
 
@@ -291,8 +291,8 @@ export class DashboardComponent implements OnInit, AfterViewInit {
           callbacks: {
             title: (items: any) => {
               const label = items?.[0]?.label;
-              const d = this.parseDate(String(label));
-              return d ? this.fmtLong(d) : label;
+              const d = DashboardComponent.parseDate(String(label));
+              return d ? DashboardComponent.fmtLong(d) : label;
             },
           },
         },
@@ -301,10 +301,14 @@ export class DashboardComponent implements OnInit, AfterViewInit {
         x: {
           grid: { display: false },
           ticks: {
-            callback: (value: any) => {
-              const d = this.parseDate(String(value));
-              if (!d) return value;
-              return d.getDay() === 0 ? this.fmtShort(d) : '';
+            // Use a regular function so `this` is the scale (which exposes
+            // getLabelForValue). On a category axis `value` is the data index
+            // (0..n), not the label, so resolve the real label first.
+            callback(this: any, value: any): string {
+              const label = this.getLabelForValue(value);
+              const d = DashboardComponent.parseDate(String(label));
+              if (!d) return label;
+              return d.getDay() === 0 ? DashboardComponent.fmtShort(d) : '';
             },
           },
         },
