@@ -2,6 +2,23 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 4] Dashboard charts: zoom/overflow fix + clickable charts — 2026-07-17
+**Status:** Complete (verified in browser — no overlap at 150% zoom; all four charts navigate to the matching filtered list)
+**Context:** Two dashboard chart improvements: (1) at 150% browser zoom the four chart cards overlapped because grid children couldn't shrink below the canvas's natural size; (2) make each chart clickable, deep-linking to `/cases` with the same filter mapping as the Phase 3 KPI cards.
+**Changes:**
+- `frontend/src/app/dashboard/dashboard.component.scss`:
+  - `.charts-row` changed from `grid-template-columns: 1fr 1fr` → `minmax(0, 1fr) minmax(0, 1fr)` so cards can shrink below the canvas width at high zoom (single-column stack below 900px kept).
+  - Added `min-width: 0; overflow: hidden` to `.chart-card`; `.chart-box` gained `width: 100%; min-width: 0` with explicit heights (280px / donut 240px) so Chart.js sizes the canvas correctly.
+  - Added a subtle hover lift on `.chart-card` (`.cs-lift`-style transform + `--cs-shadow-hover`) for consistency with the KPI cards.
+- `frontend/src/app/dashboard/dashboard.component.html`: added `(chartClick)="onChartClick('trend'|'priority'|'category'|'status', $event)"` to each `<canvas baseChart>`.
+- `frontend/src/app/dashboard/dashboard.component.ts`:
+  - Added `onChartClick(which, event)` handler: reads `event.active[0].index`, maps it back to the chart's label, and `router.navigate(['/cases'], { queryParams })`. Mapping: Status → `status`; Priority donut → `priority`; Category → `categoryId` (mapped from the category name via the shared `CATEGORIES` constant); Weekly Trend → unfiltered `/cases` (no per-day filtering yet, per spec). Clicks on empty chart area (no `active` element) are ignored.
+  - Imported `CATEGORIES` from `../shared/categories`.
+- `frontend/src/app/shared/categories.ts`: **synced the `CATEGORIES` constant to the backend seed names** (`Billing`, `Shipping`, `Technical`, `Account`, `Product`) — the dashboard category chart labels come from the backend `Category.Name`, so the previous display names (`Shipping / Supply Chain`, etc.) broke the name→id mapping. This also makes the case-list category dropdown match the seed.
+- `frontend/src/app/cases/case-list.component.ts`: `ngOnInit` now also reads `categoryId` from `queryParamMap` and sets `filters.categoryId` (numeric), so chart deep-links with `categoryId` pre-apply the category filter.
+**Verification:** `npx tsc --noEmit -p tsconfig.app.json` → 0 errors. In Chrome (`http://localhost:4200/dashboard`, login `admin`/`Passw0rd!`): at **150% zoom** the four cards lay out in a clean 2×2 grid with no overlap and all canvases keep proper dimensions; clicking Status → `/cases?status=New` (3 found), Priority → `/cases?priority=High`, Category → `/cases?categoryId=3` (Technical, 3 found), Trend → unfiltered `/cases`.
+**Known issues / TODO:** `NG0912` Lucide warning (cosmetic). `priority_model.onnx` gitignored.
+
 ## [Phase 3] Dashboard: subtitle + 6 KPI cards (tinted icons, hover, clickable, entrance) — 2026-07-17
 **Status:** Complete (verified in browser — subtitle, tinted icons, clickable cards with matching filters, staggered entrance)
 **Context:** Polish the dashboard KPI row: exact subtitle, vibrant icon on light tinted bg (not solid dark tile), hover lift, clickable cards that deep-link to the matching filtered list, and a staggered fade+rise entrance.

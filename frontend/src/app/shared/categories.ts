@@ -7,10 +7,10 @@ import { Category } from './models';
  */
 export const CATEGORIES: Category[] = [
   { id: 1, name: 'Billing', description: 'Invoices, payments, refunds' },
-  { id: 2, name: 'Shipping / Supply Chain', description: 'Delivery, tracking, logistics' },
-  { id: 3, name: 'Technical Support', description: 'Bugs, outages, integration' },
+  { id: 2, name: 'Shipping', description: 'Delivery, tracking, logistics' },
+  { id: 3, name: 'Technical', description: 'Bugs, outages, integration' },
   { id: 4, name: 'Account', description: 'Login, profile, access' },
-  { id: 5, name: 'Product Quality', description: 'Features, returns, warranty' },
+  { id: 5, name: 'Product', description: 'Features, returns, warranty' },
 ];
 
 /** Returns a category name by id, or 'Unknown' if not found. */

@@ -12,6 +12,7 @@ import { CsIconComponent } from '../shared/cs-icon.component';
 import { RouteLoadingService } from '../shared/route-loading.service';
 import { DashboardService } from './dashboard.service';
 import { Dashboard, RecentCase } from '../shared/models';
+import { CATEGORIES } from '../shared/categories';
 
 /**
  * Dashboard: 6 KPI cards, weekly trend line, priority donut, horizontal
@@ -147,6 +148,34 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   /** Navigate to the page backing a KPI card (with pre-applied filters). */
   openKpi(link: string): void {
     this.router.navigateByUrl(link);
+  }
+
+  /**
+   * Handles clicks on any dashboard chart. Maps the clicked element's index
+   * back to its label and navigates to /cases with the matching filter —
+   * same mapping as the KPI cards. The Weekly Trend chart has no per-day
+   * filter yet, so any click there goes to unfiltered /cases.
+   */
+  onChartClick(which: 'trend' | 'priority' | 'category' | 'status', event: { event: MouseEvent; active: any[] }): void {
+    const active = event?.active;
+    if (!active || active.length === 0) return;
+    const index = active[0].index;
+    let params: Record<string, string> | undefined;
+    if (which === 'priority') {
+      const label = this.priorityChart.data.labels?.[index];
+      if (label) params = { priority: String(label) };
+    } else if (which === 'status') {
+      const label = this.statusChart.data.labels?.[index];
+      if (label) params = { status: String(label) };
+    } else if (which === 'category') {
+      const label = this.categoryChart.data.labels?.[index];
+      // The case-list category filter is numeric (categoryId), so map the
+      // chart's category name back to its id from the shared constant.
+      const cat = CATEGORIES.find((c) => c.name === label);
+      if (cat) params = { categoryId: String(cat.id) };
+    }
+    // 'trend' → no date filter supported yet; navigate unfiltered.
+    this.router.navigate(['/cases'], { queryParams: params });
   }
 
   /** Recent cases for the bottom list. */

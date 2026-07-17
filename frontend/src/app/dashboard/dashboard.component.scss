@@ -63,17 +63,26 @@
 
 .charts-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 1.25rem;
   margin-bottom: 1.25rem;
 }
 @media (max-width: 900px) {
-  .charts-row { grid-template-columns: 1fr; }
+  .charts-row { grid-template-columns: minmax(0, 1fr); }
 }
 
 .chart-card {
+  /* Allow the card to shrink below the canvas's natural size at high zoom. */
+  min-width: 0;
+  overflow: hidden;
   border-radius: var(--cs-radius);
   box-shadow: var(--cs-shadow);
+  cursor: pointer;
+  transition: transform 0.25s var(--cs-ease), box-shadow 0.25s var(--cs-ease);
+}
+.chart-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--cs-shadow-hover);
 }
 .chart-title {
   margin: 0 0 1rem;
@@ -82,6 +91,9 @@
 }
 .chart-box {
   position: relative;
+  /* Fluid width + explicit height so Chart.js can size the canvas. */
+  width: 100%;
+  min-width: 0;
   height: 280px;
 }
 .chart-box.donut {

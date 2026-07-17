@@ -80,10 +80,11 @@ export class CaseListComponent implements OnInit {
       return;
     }
 
-    // Pre-apply filters coming from dashboard KPI deep-links.
+    // Pre-apply filters coming from dashboard KPI / chart deep-links.
     const qp = this.route.snapshot.queryParamMap;
     const status = qp.get('status');
     const priority = qp.get('priority');
+    const categoryId = qp.get('categoryId');
     const aiOnly = qp.get('aiOnly') === 'true';
     if (status) {
       // "Open" is a pseudo-status (everything except Closed) handled client-side.
@@ -94,6 +95,7 @@ export class CaseListComponent implements OnInit {
       }
     }
     if (priority) this.filters.update((f) => ({ ...f, priority }));
+    if (categoryId) this.filters.update((f) => ({ ...f, categoryId: Number(categoryId) }));
     if (aiOnly) this.filters.update((f) => ({ ...f, aiOnly: true }));
 
     this.load();
