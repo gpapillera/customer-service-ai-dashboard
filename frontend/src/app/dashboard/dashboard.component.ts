@@ -6,7 +6,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatButtonModule } from '@angular/material/button';
 import { RouterLink, Router } from '@angular/router';
 import { BaseChartDirective } from 'ng2-charts';
-import { ChartConfiguration, ChartOptions } from 'chart.js';
+import { ChartConfiguration, ChartOptions, ChartEvent } from 'chart.js';
 import { RevealDirective } from '../shared/reveal.directive';
 import { CsIconComponent } from '../shared/cs-icon.component';
 import { RouteLoadingService } from '../shared/route-loading.service';
@@ -156,7 +156,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
    * same mapping as the KPI cards. The Weekly Trend chart has no per-day
    * filter yet, so any click there goes to unfiltered /cases.
    */
-  onChartClick(which: 'trend' | 'priority' | 'category' | 'status', event: { event: MouseEvent; active: any[] }): void {
+  onChartClick(which: 'trend' | 'priority' | 'category' | 'status', event: { event?: ChartEvent; active?: any[] }): void {
     const active = event?.active;
     if (!active || active.length === 0) return;
     const index = active[0].index;
