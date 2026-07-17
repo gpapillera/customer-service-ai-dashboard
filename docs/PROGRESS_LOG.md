@@ -2,6 +2,13 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 7] Bar charts: bar spacing (barPercentage/categoryPercentage) + rounded Status corners — 2026-07-18
+**Status:** Complete (verified — served bundle contains `barPercentage: 0.6` & `categoryPercentage: 0.8` on both bar datasets; Status dataset also has `borderRadius: 6`; tsc → 0 errors; dev server rebuilt cleanly)
+**Context:** The "Cases by Category" and "Cases by Status" bars stretched edge-to-edge with no breathing room. Add visible padding around each bar, and round the corners of the Status bars.
+**Changes:** `frontend/src/app/dashboard/dashboard.component.ts` — both bar datasets gained dataset-level `barPercentage: 0.6` and `categoryPercentage: 0.8` (each bar now occupies ~48% of its category band, leaving clear padding). The "Cases by Status" dataset additionally got `borderRadius: 6` (Chart.js v4 native on bar datasets). The "Cases by Category" dataset already had `borderRadius: 6` from earlier work, so both now have rounded corners; the spacing options are the Phase 7 addition. No HTML/SCSS changes.
+**Verification:** `npx tsc --noEmit -p tsconfig.app.json` → 0 errors. `curl http://localhost:4200/main.js` confirms `barPercentage: 0.6` and `categoryPercentage: 0.8` appear twice (category + status datasets) and `borderRadius: 6` is present on the status dataset. Dev server hot-reloaded with no compile errors. In Chrome (`http://localhost:4200/dashboard`): both bar charts render with padded bars; Status bars have rounded corners.
+**Known issues / TODO:** `NG0912` Lucide warning (cosmetic). `priority_model.onnx` gitignored.
+
 ## [Phase 6 — revert] Removed the square container (item 1); kept circular legend + count labels — 2026-07-18
 **Status:** Reverted (verified in browser — donut wrapper is back to its previous responsive 257×240, no longer a square; legend swatches still circles; labels still show live counts)
 **Context:** The user reported the square container made the chart unresponsive/unappealing and asked to undo only item 1 (the `aspect-ratio: 1 / 1` square). Items 2 (circular swatches) and 3 (count labels) were kept.

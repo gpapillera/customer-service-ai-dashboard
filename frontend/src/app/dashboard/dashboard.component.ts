@@ -94,13 +94,19 @@ export class DashboardComponent implements OnInit, AfterViewInit {
 
   readonly categoryChart: ChartConfiguration<'bar'> = {
     type: 'bar',
-    data: { labels: [], datasets: [{ data: [], label: 'Cases', backgroundColor: '#4f46e5', borderRadius: 6 }] },
+    data: {
+      labels: [],
+      datasets: [{ data: [], label: 'Cases', backgroundColor: '#4f46e5', borderRadius: 6, barPercentage: 0.6, categoryPercentage: 0.8 }],
+    },
     options: this.barOptions(true),
   };
 
   readonly statusChart: ChartConfiguration<'bar'> = {
     type: 'bar',
-    data: { labels: [], datasets: [{ data: [], backgroundColor: [] }] },
+    data: {
+      labels: [],
+      datasets: [{ data: [], backgroundColor: [], borderRadius: 6, barPercentage: 0.6, categoryPercentage: 0.8 }],
+    },
     options: this.barOptions(false),
   };
 
