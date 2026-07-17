@@ -1,5 +1,5 @@
 <mat-sidenav-container class="shell">
-  <mat-sidenav mode="side" opened class="sidenav">
+  <mat-sidenav [mode]="isHandset() ? 'over' : 'side'" [opened]="opened()" class="sidenav">
     <div class="sidenav-top">
       <div class="brand">
         <div class="brand-logo"><cs-icon name="headset"></cs-icon></div>
@@ -7,10 +7,23 @@
           <span class="brand-name">ServiceAI</span>
           <span class="brand-sub">Case Dashboard</span>
         </div>
+        <button
+          type="button"
+          class="collapse-btn"
+          (click)="toggleSidenav()"
+          [attr.aria-label]="opened() ? 'Collapse sidebar' : 'Expand sidebar'"
+        >
+          <cs-icon [name]="opened() ? 'chevron_left' : 'menu'" [size]="20"></cs-icon>
+        </button>
       </div>
       <nav class="nav">
         @for (link of navLinks; track link.path) {
-          <a class="nav-item" [routerLink]="link.path" routerLinkActive="active">
+          <a
+            class="nav-item"
+            [routerLink]="link.path"
+            routerLinkActive="active"
+            (click)="isHandset() && toggleSidenav()"
+          >
             <cs-icon [name]="link.icon" class="nav-icon"></cs-icon>
             <span class="nav-label">{{ link.label }}</span>
           </a>
@@ -28,7 +41,17 @@
     }
   </mat-sidenav>
 
-  <mat-sidenav-content class="content">
+  <mat-sidenav-content class="content" [class.sidebar-closed]="!opened()">
+    @if (!opened()) {
+      <button
+        type="button"
+        class="floating-toggle"
+        (click)="toggleSidenav()"
+        aria-label="Open sidebar"
+      >
+        <cs-icon name="menu" [size]="20"></cs-icon>
+      </button>
+    }
     <router-outlet></router-outlet>
   </mat-sidenav-content>
 </mat-sidenav-container>

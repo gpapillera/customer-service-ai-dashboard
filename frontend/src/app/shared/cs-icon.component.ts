@@ -28,6 +28,8 @@ import {
   X,
   Mail,
   Phone,
+  ChevronLeft,
+  Menu,
 } from 'lucide-angular/src/icons';
 
 /**
@@ -63,6 +65,8 @@ const ICON_MAP: Record<string, LucideIconData> = {
   close: X,
   mail: Mail,
   phone: Phone,
+  chevron_left: ChevronLeft,
+  menu: Menu,
 };
 
 @Component({

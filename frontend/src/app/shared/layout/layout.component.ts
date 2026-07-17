@@ -1,9 +1,11 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router, RouterLink, RouterOutlet } from '@angular/router';
+import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatIconModule } from '@angular/material/icon';
 import { MatDialog } from '@angular/material/dialog';
+import { BreakpointObserver } from '@angular/cdk/layout';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CsIconComponent } from '../cs-icon.component';
 import { AuthService } from '../../auth/auth.service';
 import { ConfirmDialogComponent } from '../confirm-dialog.component';
@@ -20,6 +22,7 @@ import { ConfirmDialogComponent } from '../confirm-dialog.component';
     CommonModule,
     RouterOutlet,
     RouterLink,
+    RouterLinkActive,
     MatSidenavModule,
     MatIconModule,
     CsIconComponent,
@@ -31,12 +34,41 @@ export class LayoutComponent {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly dialog = inject(MatDialog);
+  private readonly breakpointObserver = inject(BreakpointObserver);
+
+  /** True on narrow viewports (<768px); the sidenav switches to overlay mode. */
+  readonly isHandset = signal(false);
+  /** Whether the sidenav is currently open (user toggle + auto-hide aware). */
+  readonly opened = signal(true);
 
   readonly navLinks = [
     { path: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
     { path: '/customers', label: 'Customers', icon: 'people' },
     { path: '/cases', label: 'Cases', icon: 'confirmation_number' },
   ];
+
+  constructor() {
+    // Start closed on narrow screens (auto-hide), open on desktop.
+    const isNarrow =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(max-width: 767px)').matches;
+    this.isHandset.set(isNarrow);
+    this.opened.set(!isNarrow);
+
+    this.breakpointObserver
+      .observe('(max-width: 767px)')
+      .pipe(takeUntilDestroyed())
+      .subscribe((state) => {
+        this.isHandset.set(state.matches);
+        // Desktop → open, handset → closed (auto-hide on resize).
+        this.opened.set(!state.matches);
+      });
+  }
+
+  /** Collapse/expand the sidenav (works in both side and overlay modes). */
+  toggleSidenav(): void {
+    this.opened.update((v) => !v);
+  }
 
   /** The currently signed-in user (or null). */
   get user() {

@@ -2,6 +2,26 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 2] Sidebar: persistent active state + collapse toggle + auto-hide — 2026-07-17
+**Status:** Complete (verified in browser — active pill persists, collapse + auto-hide work)
+**Context:** Three sidebar improvements: (1) the active nav highlight disappeared after clicking because `RouterLinkActive` was never imported, so `routerLinkActive="active"` was silently ignored (the `active` class was never applied); (2) add a collapse/expand toggle; (3) auto-hide on narrow screens.
+**Changes:**
+- `frontend/src/app/shared/layout/layout.component.ts`:
+  - **Bug fix:** added `RouterLinkActive` to the `import` statement **and** the component `imports` array — this is what makes `routerLinkActive="active"` actually apply the `active` class (root cause of the missing highlight).
+  - Added `BreakpointObserver` (`@angular/cdk/layout`) + `takeUntilDestroyed`. New signals: `isHandset` (true <768px) and `opened` (sidenav open state, default true). Constructor seeds state from `matchMedia('(max-width: 767px)')` and subscribes to the breakpoint so resizing across 768px flips `mode` (`side`↔`over`) and `opened` (open↔closed) automatically. New `toggleSidenav()` flips `opened`.
+- `frontend/src/app/shared/layout/layout.component.html`:
+  - Sidenav now binds `[mode]="isHandset() ? 'over' : 'side'"` and `[opened]="opened()"` (was static `mode="side" opened`).
+  - Added a collapse/expand icon button to the **right of "ServiceAI"** in the header (`chevron_left` when open, `menu` when collapsed) calling `toggleSidenav()`.
+  - Nav links keep `routerLinkActive="active"`; added `(click)="isHandset() && toggleSidenav()"` so tapping a link closes the overlay on mobile.
+  - Added a **floating reopen button** (`menu` icon, fixed top-left) inside `<mat-sidenav-content>` shown only when `!opened()`, so the toggle stays reachable when the sidebar is fully hidden.
+- `frontend/src/app/shared/layout/layout.component.scss`:
+  - `.nav-item:hover` → `.nav-item:not(.active):hover` so hover only affects non-active items; `.nav-item.active` (light-indigo pill + bold indigo) now persists independently of hover.
+  - Added `.collapse-btn` (right of brand) and `.floating-toggle` (fixed, shadowed, hover lift) styles.
+  - `.content` gained a `padding` transition; `.content.sidebar-closed` shifts `padding-left` to `4.5rem` so the floating button never overlaps the page header.
+- `frontend/src/app/shared/cs-icon.component.ts`: added `chevron_left` (ChevronLeft) and `menu` (Menu) Lucide icons to `ICON_MAP`.
+**Verification:** `npx tsc --noEmit -p tsconfig.app.json` → 0 errors. In Chrome (`http://localhost:4200`, login `admin`/`Passw0rd!`): active pill stays on the current route (Dashboard/Customers/Cases) and moves on click; collapse button hides the sidebar and shows the floating reopen button; narrowing below 768px switches to overlay mode + starts closed, reopenable via the same button.
+**Known issues / TODO:** `NG0912` Lucide warning (cosmetic, unchanged). `priority_model.onnx` gitignored.
+
 ## [Phase 1] Login page restyle (Apple-like, design-system aligned) — 2026-07-17
 **Status:** Complete (verified in browser — centered white card, indigo logo block, solid indigo pill submit)
 **Context:** User wanted the login page to match the app's Apple-like design system instead of the default Material card on a dark blue gradient. Iterated on feedback: (1) card was indistinguishable from the light background → strengthened the shadow; (2) card/elements felt too small → enlarged them.
