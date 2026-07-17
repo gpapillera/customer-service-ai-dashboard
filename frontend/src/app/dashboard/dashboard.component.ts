@@ -59,7 +59,16 @@ export class DashboardComponent implements OnInit, AfterViewInit {
         data: [],
         label: 'Cases created',
         borderColor: '#4f46e5',
-        backgroundColor: 'rgba(79, 70, 229, 0.12)',
+        borderWidth: 1.5,
+        backgroundColor: (ctx: any) => {
+          const chart = ctx.chart;
+          const { ctx: c, chartArea } = chart;
+          if (!chartArea) return 'rgba(79, 70, 229, 0.12)';
+          const gradient = c.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+          gradient.addColorStop(0, 'rgba(79, 70, 229, 0.4)');
+          gradient.addColorStop(1, 'rgba(79, 70, 229, 0)');
+          return gradient;
+        },
         fill: true,
         tension: 0.4,
         pointRadius: 0,
@@ -99,7 +108,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     this.service.get().subscribe({
       next: (d) => {
         this.data.set(d);
-        this.trendChart.data.labels = d.trend.map((t) => t.date.slice(5));
+        this.trendChart.data.labels = d.trend.map((t) => t.date);
         this.trendChart.data.datasets[0].data = d.trend.map((t) => t.count);
 
         this.priorityChart.data.datasets[0].data = [
@@ -193,6 +202,25 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     return 'priority-' + p.toLowerCase();
   }
 
+  /** Parse a 'YYYY-MM-DD' (or ISO) date string into a local Date, or null. */
+  private parseDate(s: string): Date | null {
+    const datePart = s.split('T')[0];
+    const parts = datePart.split('-').map(Number);
+    if (parts.length < 3 || parts.some((n) => isNaN(n))) return null;
+    const [y, m, day] = parts;
+    return new Date(y, m - 1, day);
+  }
+
+  /** Short axis label, e.g. "Jul 13". */
+  private fmtShort(d: Date): string {
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+
+  /** Long tooltip title, e.g. "Jul 13, 2026". */
+  private fmtLong(d: Date): string {
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
   /** After the view (and all four chart directives) initialize, replay. */
   ngAfterViewInit(): void {
     this.tryPlayEntrance();
@@ -255,9 +283,31 @@ export class DashboardComponent implements OnInit, AfterViewInit {
           },
         },
       } as any,
-      plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          mode: 'index',
+          intersect: false,
+          callbacks: {
+            title: (items: any) => {
+              const label = items?.[0]?.label;
+              const d = this.parseDate(String(label));
+              return d ? this.fmtLong(d) : label;
+            },
+          },
+        },
+      },
       scales: {
-        x: { grid: { display: false } },
+        x: {
+          grid: { display: false },
+          ticks: {
+            callback: (value: any) => {
+              const d = this.parseDate(String(value));
+              if (!d) return value;
+              return d.getDay() === 0 ? this.fmtShort(d) : '';
+            },
+          },
+        },
         y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: 'rgba(0,0,0,0.05)' } },
       },
     };

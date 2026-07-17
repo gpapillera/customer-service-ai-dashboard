@@ -2,6 +2,23 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 5] Weekly Trend chart polish — 2026-07-17
+**Status:** Complete (verified in browser — indigo trending-up icon, thinner line, vertical gradient fill, wider card, Sunday-only axis ticks with full-date tooltips)
+**Context:** Polish the "Cases Created — Weekly Trend" chart: add a trending-up icon to its title, thin the line, replace the flat fill with a vertical indigo→transparent gradient, make the trend card visibly wider than the Priority card in the same row, and show x-axis tick labels only for Sundays while keeping full dates in the tooltip.
+**Changes:**
+- `frontend/src/app/shared/cs-icon.component.ts`: imported `TrendingUp` from `lucide-angular` and mapped the Material-style name `trending_up` → `TrendingUp` (the app uses bundled Lucide SVGs via `CsIconComponent`, not the Material Icons webfont, so `mat-icon` would render nothing).
+- `frontend/src/app/dashboard/dashboard.component.html`:
+  - First `.charts-row` gained class `trend-row`; its title became `<h2 class="chart-title trend-title"><cs-icon name="trending_up" class="trend-icon"></cs-icon> Cases Created — Weekly Trend</h2>`.
+  - Trend labels now use the full `t.date` (was `t.date.slice(5)`) so the tooltip can show the complete date.
+- `frontend/src/app/dashboard/dashboard.component.ts`:
+  - `trendChart` dataset: `borderWidth` set to `1.5` (thinner line); `backgroundColor` is now a `ctx`-based `createLinearGradient(0, chartArea.top, 0, chartArea.bottom)` with stops `rgba(79,70,229,0.4)` at top → `rgba(79,70,229,0)` at bottom (falls back to a flat color before `chartArea` exists).
+  - `lineOptions()`: x-axis `ticks.callback` returns the short label (`Jul 13`) only when the parsed date's day-of-week is Sunday (0), else `''`; tooltip `callbacks.title` parses the label and returns the long form (`Jul 13, 2026`) for every point regardless of the tick rule. Added private helpers `parseDate`, `fmtShort`, `fmtLong`.
+- `frontend/src/app/dashboard/dashboard.component.scss`:
+  - `.trend-row { grid-template-columns: 1.8fr 1fr; }` (the second `.charts-row` keeps the even split) — trend card renders ~526px vs priority ~292px at desktop width; single-column stack below 900px unchanged.
+  - `.trend-title { display: flex; align-items: center; gap: 0.5rem; }` and `.trend-icon { color: #4f46e5; }` (indigo).
+**Verification:** `npx tsc --noEmit -p tsconfig.app.json` → 0 errors. In Chrome (`http://localhost:4200/dashboard`, login `admin`/`Passw0rd!`): trend card is wider than the Priority card; indigo trending-up icon sits left of the title; line is thin; fill is a vertical gradient; x-axis shows only the 4 Sundays in the 30-day window (`2026-06-21`, `06-28`, `07-05`, `07-12`) while hovering any point shows the full date in the tooltip.
+**Known issues / TODO:** `NG0912` Lucide warning (cosmetic). `priority_model.onnx` gitignored.
+
 ## [Phase 4] Dashboard charts: zoom/overflow fix + clickable charts — 2026-07-17
 **Status:** Complete (verified in browser — no overlap at 150% zoom; all four charts navigate to the matching filtered list)
 **Context:** Two dashboard chart improvements: (1) at 150% browser zoom the four chart cards overlapped because grid children couldn't shrink below the canvas's natural size; (2) make each chart clickable, deep-linking to `/cases` with the same filter mapping as the Phase 3 KPI cards.

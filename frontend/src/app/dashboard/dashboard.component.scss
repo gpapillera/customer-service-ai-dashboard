@@ -67,6 +67,9 @@
   gap: 1.25rem;
   margin-bottom: 1.25rem;
 }
+.trend-row {
+  grid-template-columns: 1.8fr 1fr;
+}
 @media (max-width: 900px) {
   .charts-row { grid-template-columns: minmax(0, 1fr); }
 }
@@ -88,6 +91,14 @@
   margin: 0 0 1rem;
   font-size: 1.05rem;
   font-weight: 600;
+}
+.trend-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.trend-icon {
+  color: #4f46e5;
 }
 .chart-box {
   position: relative;

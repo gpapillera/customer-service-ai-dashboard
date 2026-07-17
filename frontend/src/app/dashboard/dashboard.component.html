@@ -19,10 +19,10 @@
       }
     </div>
 
-    <div class="charts-row">
+    <div class="charts-row trend-row">
       <mat-card class="cs-lift chart-card reveal" appReveal>
         <mat-card-content>
-          <h2 class="chart-title">Cases Created — Weekly Trend</h2>
+          <h2 class="chart-title trend-title"><cs-icon name="trending_up" class="trend-icon"></cs-icon> Cases Created — Weekly Trend</h2>
           <div class="chart-box">
             <canvas baseChart [type]="trendChart.type" [data]="trendChart.data" [options]="trendChart.options" (chartClick)="onChartClick('trend', $event)"></canvas>
           </div>
