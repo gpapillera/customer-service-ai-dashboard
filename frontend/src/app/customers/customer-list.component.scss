@@ -9,9 +9,92 @@
   margin-bottom: 1.25rem;
 }
 
+// Parent container mirroring the Cases SearchFilterToolbar card.
+$white: #ffffff;
+$toolbar-border: #e8edf3;
+$border: #dce6ef;
+$text: #0f172a;
+$placeholder: #94a3b8;
+// Default (unselected) placeholder text — slightly darker than the icon grey,
+// kept at normal weight (matches the Cases toolbar).
+$placeholder-text: #64748b;
+
+.search-toolbar {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 76px;
+  padding: 12px 20px;
+  box-sizing: border-box;
+  background: $white;
+  border: 1px solid $toolbar-border;
+  border-radius: 20px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
 .search-field {
   width: 100%;
-  max-width: 420px;
+  height: 48px;
+  margin: 0;
+  --mdc-outlined-text-field-outline-color: #{$border};
+  --mdc-outlined-text-field-hover-outline-color: #{$border};
+  --mdc-outlined-text-field-focus-outline-color: #{$border};
+  --mdc-outlined-text-field-container-shape: 8px;
+  --mat-form-field-container-text-size: 16px;
+}
+
+.search-field ::ng-deep .mat-mdc-text-field-wrapper {
+  height: 48px;
+}
+.search-field ::ng-deep .mat-mdc-form-field-flex {
+  height: 48px;
+  align-items: center;
+}
+
+// Continuous 1px #DCE6EF border, rounded (no floating-label notch).
+.search-field ::ng-deep .mdc-notched-outline {
+  display: none !important;
+}
+.search-field ::ng-deep .mat-mdc-text-field-wrapper {
+  border: 1px solid $border !important;
+  border-radius: 8px !important;
+  overflow: hidden;
+}
+
+.search-field ::ng-deep .mat-mdc-form-field-infix {
+  padding: 0 0.75rem !important;
+  display: flex;
+  align-items: center;
+  min-height: 0;
+}
+
+.search-field ::ng-deep input.mat-mdc-input-element {
+  font-size: 16px !important;
+  font-weight: 400;
+  color: $placeholder-text;
+}
+
+.search-field ::ng-deep input::placeholder {
+  color: $placeholder-text !important;
+  opacity: 1 !important;
+}
+
+.search-field ::ng-deep .mat-mdc-form-field-subscript-wrapper {
+  display: none;
+}
+
+.prefix-icon {
+  color: $placeholder;
+  width: 20px;
+  height: 20px;
+  margin-left: 0.85rem;
+  margin-right: 0.75rem;
+}
+
+/* "+ New customer" — rectangular with moderate rounded corners (~8px),
+   matching the Cases page "New Case" button. */
+.new-customer-btn {
+  border-radius: 8px !important;
 }
 
 .center {

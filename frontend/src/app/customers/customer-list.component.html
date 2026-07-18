@@ -1,20 +1,22 @@
 <div class="page-head">
   <h1 class="page-title">Customers</h1>
-  <button mat-flat-button color="primary" (click)="openNew()">
+  <button mat-flat-button color="primary" class="new-customer-btn" (click)="openNew()">
     <cs-icon name="add"></cs-icon> New customer
   </button>
 </div>
 
 <div class="search-bar">
-  <mat-form-field appearance="outline" class="search-field">
-    <cs-icon name="search" class="prefix-icon"></cs-icon>
-    <input
-      matInput
-      placeholder="Search by name, email or phone"
-      [ngModel]="searchTerm()"
-      (ngModelChange)="onSearch($event)"
-    />
-  </mat-form-field>
+  <div class="search-toolbar">
+    <mat-form-field appearance="outline" class="search-field">
+      <cs-icon name="search" matPrefix class="prefix-icon"></cs-icon>
+      <input
+        matInput
+        placeholder="Search by name, email or phone"
+        [ngModel]="searchTerm()"
+        (ngModelChange)="onSearch($event)"
+      />
+    </mat-form-field>
+  </div>
 </div>
 
 @if (loading()) {
