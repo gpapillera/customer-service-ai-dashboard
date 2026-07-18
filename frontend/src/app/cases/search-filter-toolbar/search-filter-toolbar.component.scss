@@ -1,0 +1,119 @@
+// Material Design 3-inspired search + filter toolbar.
+$white: #ffffff;
+$toolbar-border: #e8edf3;
+$border: #dce6ef;
+$text: #111827;
+$placeholder: #94a3b8;
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  height: 76px;
+  padding: 12px 20px;
+  box-sizing: border-box;
+  background: $white;
+  border: 1px solid $toolbar-border;
+  border-radius: 20px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+// All four controls share a 48px height + 1px #DCE6EF border + rounded corners.
+.toolbar mat-form-field {
+  height: 48px;
+  margin: 0;
+  --mdc-outlined-text-field-outline-color: #{$border};
+  --mdc-outlined-text-field-hover-outline-color: #{$border};
+  --mdc-outlined-text-field-focus-outline-color: #{$border};
+  --mdc-outlined-text-field-container-shape: 8px;
+  --mat-form-field-container-text-size: 16px;
+}
+
+.toolbar ::ng-deep .mat-mdc-text-field-wrapper {
+  height: 48px;
+}
+.toolbar ::ng-deep .mat-mdc-form-field-flex {
+  height: 48px;
+  align-items: center;
+}
+
+// Continuous 1px #DCE6EF border, rounded (no floating-label notch).
+// Hide Material's notched outline entirely and draw a single clean border on
+// the wrapper — this avoids the "double curve" seams the notch pieces create.
+.toolbar ::ng-deep .mdc-notched-outline {
+  display: none !important;
+}
+.toolbar ::ng-deep .mat-mdc-text-field-wrapper {
+  border: 1px solid $border !important;
+  border-radius: 8px !important;
+  overflow: hidden;
+}
+
+.toolbar ::ng-deep .mat-mdc-form-field-infix {
+  padding: 0 0.75rem !important;
+  display: flex;
+  align-items: center;
+  min-height: 0;
+}
+
+.toolbar ::ng-deep input.mat-mdc-input-element,
+.toolbar ::ng-deep .mat-mdc-select-value-text {
+  font-size: 16px !important;
+  font-weight: 500;
+  color: $text;
+}
+
+// Search placeholder + default "All …" select placeholder read #94A3B8.
+.toolbar ::ng-deep input.mat-mdc-input-element::placeholder {
+  color: $placeholder !important;
+  opacity: 1 !important;
+}
+.toolbar ::ng-deep .mat-mdc-select.mat-mdc-select-empty .mat-mdc-select-value-text,
+.toolbar ::ng-deep .mat-mdc-select-placeholder {
+  color: $placeholder !important;
+}
+
+.toolbar ::ng-deep .mat-mdc-form-field-subscript-wrapper {
+  display: none;
+}
+
+// Search field: takes the majority of the row, but yields to the dropdowns.
+.f-search {
+  flex: 3 1 240px;
+  min-width: 200px;
+}
+
+// Dropdowns: grow + shrink from a 160px basis so the full label stays
+// readable on wide screens (no "All Stat…" truncation).
+.f-select {
+  flex: 1 1 160px;
+  min-width: 160px;
+}
+
+// Search magnifier — #94A3B8, left-aligned, vertically centered, with a
+// little breathing room from the field's left outline.
+.toolbar .prefix-icon {
+  color: $placeholder;
+  width: 20px;
+  height: 20px;
+  margin-left: 0.35rem;
+  margin-right: 0.5rem;
+}
+
+// Tablet: search grows, dropdowns keep their width (flex rules already do this).
+// Mobile: stack vertically with 12px spacing.
+@media (max-width: 640px) {
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    height: auto;
+    gap: 12px;
+    padding: 16px;
+  }
+  .f-search,
+  .f-select {
+    flex: 1 1 auto;
+    width: 100%;
+  }
+}

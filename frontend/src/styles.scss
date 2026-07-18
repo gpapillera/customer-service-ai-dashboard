@@ -155,24 +155,25 @@ body {
   display: inline-block;
 }
 
-/* Priority pills */
-.cs-pill.priority-low { background: var(--cs-success-bg); color: #047857; }
+/* Priority pills — transparent fill with a super-thin outline in the same
+   hue as the text (mirrors the dashboard icon tones). */
+.cs-pill.priority-low { background: transparent; color: #047857; border: 1px solid #6ee7b7; }
 .cs-pill.priority-low .cs-dot { background: var(--cs-success); }
-.cs-pill.priority-medium { background: var(--cs-warning-bg); color: #b45309; }
+.cs-pill.priority-medium { background: transparent; color: #b45309; border: 1px solid #fcd34d; }
 .cs-pill.priority-medium .cs-dot { background: var(--cs-warning); }
-.cs-pill.priority-high { background: var(--cs-danger-bg); color: #b91c1c; }
+.cs-pill.priority-high { background: transparent; color: #b91c1c; border: 1px solid #fca5a5; }
 .cs-pill.priority-high .cs-dot { background: var(--cs-danger); }
 
-/* Status pills */
-.cs-pill.status-new { background: var(--cs-info-bg); color: #1d4ed8; }
+/* Status pills — same thin-outline treatment. */
+.cs-pill.status-new { background: transparent; color: #1d4ed8; border: 1px solid #93c5fd; }
 .cs-pill.status-new .cs-dot { background: var(--cs-info); }
-.cs-pill.status-inprogress { background: var(--cs-accent-light); color: var(--cs-accent-strong); }
+.cs-pill.status-inprogress { background: transparent; color: var(--cs-accent-strong); border: 1px solid #c7d2fe; }
 .cs-pill.status-inprogress .cs-dot { background: var(--cs-accent); }
-.cs-pill.status-escalated { background: var(--cs-danger-bg); color: #b91c1c; }
+.cs-pill.status-escalated { background: transparent; color: #b91c1c; border: 1px solid #fca5a5; }
 .cs-pill.status-escalated .cs-dot { background: var(--cs-danger); }
-.cs-pill.status-resolved { background: var(--cs-success-bg); color: #047857; }
+.cs-pill.status-resolved { background: transparent; color: #047857; border: 1px solid #6ee7b7; }
 .cs-pill.status-resolved .cs-dot { background: var(--cs-success); }
-.cs-pill.status-closed { background: var(--cs-neutral-bg); color: #475569; }
+.cs-pill.status-closed { background: transparent; color: #475569; border: 1px solid #cbd5e1; }
 .cs-pill.status-closed .cs-dot { background: var(--cs-neutral); }
 
 /* ---- Shared card + page header patterns ---- */

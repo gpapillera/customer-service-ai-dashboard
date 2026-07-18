@@ -25,74 +25,9 @@
   margin-bottom: 1.25rem;
 }
 /* All four controls share one height + identical border treatment. */
-.filters-card mat-form-field {
-  height: 48px;
-  margin: 0;
-  /* Force Material's outline color to the spec light-gray. */
-  --mdc-outlined-text-field-outline-color: #e2e8f0;
-  --mdc-outlined-text-field-hover-outline-color: #cbd5e1;
-  --mdc-outlined-text-field-focus-outline-color: #cbd5e1;
-  --mdc-outlined-text-field-container-shape: 8px;
-  --mat-form-field-container-text-size: 0.9rem;
-}
-.filters-card ::ng-deep .mat-mdc-text-field-wrapper {
-  height: 48px;
-}
-.filters-card ::ng-deep .mat-mdc-form-field-flex {
-  height: 48px;
-  align-items: center;
-}
-/* Continuous 1px #E2E8F0 border, 8px radius (no floating-label notch). */
-.filters-card ::ng-deep .mat-mdc-notch-piece {
-  border-color: #e2e8f0 !important;
-  border-width: 1px !important;
-}
-.filters-card ::ng-deep .mdc-notched-outline__notch {
-  border-top: none !important;
-}
-.filters-card ::ng-deep .mdc-text-field--outlined,
-.filters-card ::ng-deep .mdc-notched-outline__leading,
-.filters-card ::ng-deep .mdc-notched-outline__trailing {
-  border-radius: 8px !important;
-}
-.filters-card ::ng-deep .mat-mdc-form-field-infix {
-  padding: 0 0.75rem !important;
-  display: flex;
-  align-items: center;
-  min-height: 0;
-}
-.filters-card ::ng-deep input.mat-mdc-input-element,
-.filters-card ::ng-deep .mat-mdc-select-value-text {
-  font-size: 0.9rem !important;
-}
-/* Search placeholder + default "All ..." select placeholder read gray. */
-.filters-card ::ng-deep input.mat-mdc-input-element::placeholder {
-  color: var(--cs-text-muted) !important;
-  opacity: 1 !important;
-}
-.filters-card ::ng-deep .mat-mdc-select.mat-mdc-select-empty .mat-mdc-select-value-text {
-  color: var(--cs-text-muted) !important;
-}
-.filters-card ::ng-deep .mat-mdc-form-field-subscript-wrapper {
-  display: none;
-}
-/* Search input: flexible width, grows/shrinks with the row. */
-.f-search {
-  flex: 1 1 auto;
-  min-width: 200px;
-}
-/* Dropdowns: fixed, equal widths. */
-.f-select {
-  flex: 0 0 180px;
-  width: 180px;
-}
-/* Search magnifier — gray, left-aligned, vertically centered. */
-.filters-card .prefix-icon {
-  color: var(--cs-text-muted);
-  width: 18px;
-  height: 18px;
-  margin-right: 0.5rem;
-}
+/* Row A is now the <app-search-filter-toolbar> component (its own SCSS).
+   The .filters-card / .f-search / .f-select rules below were removed when
+   the inline controls were extracted into that component. */
 
 /* "+ New Case" — rectangular with moderate rounded corners (design spec ~8px). */
 .new-case-btn {

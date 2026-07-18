@@ -5,9 +5,6 @@ import { FormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatSelectModule } from '@angular/material/select';
-import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatDialog } from '@angular/material/dialog';
 import { RevealDirective } from '../shared/reveal.directive';
@@ -17,6 +14,7 @@ import { CaseService } from './case.service';
 import { CaseFormComponent } from './case-form.component';
 import { Case } from '../shared/models';
 import { CATEGORIES } from '../shared/categories';
+import { SearchFilterToolbarComponent } from './search-filter-toolbar/search-filter-toolbar.component';
 
 /**
  * Case list with status / priority / category filters and a free-text search.
@@ -32,12 +30,10 @@ import { CATEGORIES } from '../shared/categories';
     MatCardModule,
     MatButtonModule,
     MatIconModule,
-    MatFormFieldModule,
-    MatSelectModule,
-    MatInputModule,
     MatProgressSpinnerModule,
     RevealDirective,
     CsIconComponent,
+    SearchFilterToolbarComponent,
   ],
   templateUrl: './case-list.component.html',
   styleUrl: './case-list.component.scss',
@@ -55,6 +51,17 @@ export class CaseListComponent implements OnInit {
   /** True while the list is loading OR a route navigation is in progress. */
   readonly loading = computed(() => this.dataLoading() || this.routeLoading.loading());
   readonly categories = CATEGORIES;
+  /** Status / priority option lists for the search-filter toolbar. */
+  readonly statuses = ['Open', 'New', 'InProgress', 'Escalated', 'Resolved', 'Closed'];
+  readonly priorities = ['Low', 'Medium', 'High'];
+  /** Category names passed to the toolbar (kept in sync with CATEGORIES). */
+  readonly categoryNames = CATEGORIES.map((c) => c.name);
+
+  /** Initial toolbar values (for query-param pre-fill). Empty = "All …". */
+  toolbarSearch = '';
+  toolbarStatus = '';
+  toolbarPriority = '';
+  toolbarCategory = '';
 
   readonly filters = signal({
     status: '' as string,
@@ -107,9 +114,17 @@ export class CaseListComponent implements OnInit {
       } else {
         this.filters.update((f) => ({ ...f, status }));
       }
+      this.toolbarStatus = status;
     }
-    if (priority) this.filters.update((f) => ({ ...f, priority }));
-    if (categoryId) this.filters.update((f) => ({ ...f, categoryId: Number(categoryId) }));
+    if (priority) {
+      this.filters.update((f) => ({ ...f, priority }));
+      this.toolbarPriority = priority;
+    }
+    if (categoryId) {
+      this.filters.update((f) => ({ ...f, categoryId: Number(categoryId) }));
+      const cat = this.categories.find((c) => c.id === Number(categoryId));
+      this.toolbarCategory = cat?.name ?? '';
+    }
     if (aiOnly) this.filters.update((f) => ({ ...f, aiOnly: true }));
 
     this.load();
@@ -194,15 +209,47 @@ export class CaseListComponent implements OnInit {
     this.load();
   }
 
+  /** Toolbar (Row A) handlers — feed values into the existing filter state. */
+  onSearchChanged(value: string): void {
+    this.toolbarSearch = value;
+    this.filters.update((f) => ({ ...f, search: value }));
+    this.load();
+  }
+  onStatusChanged(value: string): void {
+    // "Open" is a pseudo-status handled client-side.
+    this.isOpenFilter.set(value === 'Open');
+    this.toolbarStatus = value;
+    if (value !== 'Open') {
+      this.filters.update((f) => ({ ...f, status: value }));
+    }
+    this.load();
+  }
+  onPriorityChanged(value: string): void {
+    this.toolbarPriority = value;
+    this.filters.update((f) => ({ ...f, priority: value }));
+    this.load();
+  }
+  onCategoryChanged(value: string): void {
+    this.toolbarCategory = value;
+    const cat = this.categories.find((c) => c.name === value);
+    this.filters.update((f) => ({ ...f, categoryId: cat ? cat.id : null }));
+    this.load();
+  }
+
   /** Clears a single active filter chip and reloads. */
   clearFilter(chip: { key: string; label: string }): void {
     if (chip.key === 'status') {
       this.isOpenFilter.set(false);
       this.filters.update((f) => ({ ...f, status: '' }));
+      this.toolbarStatus = '';
     } else if (chip.key === 'aiOnly') {
       this.filters.update((f) => ({ ...f, aiOnly: false }));
-    } else {
-      this.filters.update((f) => ({ ...f, [chip.key]: chip.key === 'categoryId' ? null : '' }));
+    } else if (chip.key === 'priority') {
+      this.filters.update((f) => ({ ...f, priority: '' }));
+      this.toolbarPriority = '';
+    } else if (chip.key === 'categoryId') {
+      this.filters.update((f) => ({ ...f, categoryId: null }));
+      this.toolbarCategory = '';
     }
     this.load();
   }

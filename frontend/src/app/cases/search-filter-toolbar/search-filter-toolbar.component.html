@@ -1,0 +1,47 @@
+<form class="toolbar" [formGroup]="form" aria-label="Search and filter cases">
+  <mat-form-field appearance="outline" class="f-search">
+    <cs-icon name="search" matPrefix class="prefix-icon"></cs-icon>
+    <input
+      matInput
+      formControlName="search"
+      placeholder="Search by title or customer..."
+      aria-label="Search by title or customer"
+    />
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" class="f-select">
+    <mat-select
+      formControlName="status"
+      placeholder="Status"
+      aria-label="Filter by status"
+    >
+      @for (s of statuses; track s) {
+        <mat-option [value]="s">{{ s }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" class="f-select">
+    <mat-select
+      formControlName="priority"
+      placeholder="Priority"
+      aria-label="Filter by priority"
+    >
+      @for (p of priorities; track p) {
+        <mat-option [value]="p">{{ p }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" class="f-select">
+    <mat-select
+      formControlName="category"
+      placeholder="Category"
+      aria-label="Filter by category"
+    >
+      @for (c of categories; track c) {
+        <mat-option [value]="c">{{ c }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+</form>
