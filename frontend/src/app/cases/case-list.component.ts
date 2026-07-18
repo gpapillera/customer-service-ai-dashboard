@@ -67,6 +67,21 @@ export class CaseListComponent implements OnInit {
   /** True when the "Open" pseudo-filter (everything except Closed) is active. */
   readonly isOpenFilter = signal(false);
 
+  /** Active filters rendered as removable chips in the filter row. */
+  readonly activeChips = computed<{ key: string; label: string }[]>(() => {
+    const f = this.filters();
+    const chips: { key: string; label: string }[] = [];
+    if (this.isOpenFilter()) chips.push({ key: 'status', label: 'Open' });
+    else if (f.status) chips.push({ key: 'status', label: f.status });
+    if (f.priority) chips.push({ key: 'priority', label: f.priority });
+    if (f.categoryId != null) {
+      const cat = this.categories.find((c) => c.id === f.categoryId);
+      chips.push({ key: 'categoryId', label: cat?.name ?? 'Category' });
+    }
+    if (f.aiOnly) chips.push({ key: 'aiOnly', label: 'AI Predicted' });
+    return chips;
+  });
+
   ngOnInit(): void {
     // Support deep-link from a customer detail ("View cases").
     const customerId = this.route.snapshot.queryParamMap.get('customerId');
@@ -177,6 +192,19 @@ export class CaseListComponent implements OnInit {
   /** Toggles the AI-only filter (cases where the AI suggested the priority). */
   toggleAiOnly(): void {
     this.filters.update((f) => ({ ...f, aiOnly: !f.aiOnly }));
+    this.load();
+  }
+
+  /** Clears a single active filter chip and reloads. */
+  clearFilter(chip: { key: string; label: string }): void {
+    if (chip.key === 'status') {
+      this.isOpenFilter.set(false);
+      this.filters.update((f) => ({ ...f, status: '' }));
+    } else if (chip.key === 'aiOnly') {
+      this.filters.update((f) => ({ ...f, aiOnly: false }));
+    } else {
+      this.filters.update((f) => ({ ...f, [chip.key]: chip.key === 'categoryId' ? null : '' }));
+    }
     this.load();
   }
 
