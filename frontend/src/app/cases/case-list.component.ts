@@ -78,7 +78,6 @@ export class CaseListComponent implements OnInit {
       const cat = this.categories.find((c) => c.id === f.categoryId);
       chips.push({ key: 'categoryId', label: cat?.name ?? 'Category' });
     }
-    if (f.aiOnly) chips.push({ key: 'aiOnly', label: 'AI Predicted' });
     return chips;
   });
 

@@ -45,12 +45,22 @@
       }
     </mat-select>
   </mat-form-field>
+</div>
+
+<div class="filters-row-2">
+  <button
+    type="button"
+    class="ai-toggle"
+    [class.active]="filters().aiOnly"
+    (click)="toggleAiOnly()"
+    [attr.aria-pressed]="filters().aiOnly"
+  >
+    <cs-icon name="auto_awesome" [size]="16"></cs-icon>
+    <span>AI Predicted</span>
+  </button>
 
   @for (chip of activeChips(); track chip.key) {
     <button type="button" class="filter-chip" (click)="clearFilter(chip)">
-      @if (chip.key === 'aiOnly') {
-        <cs-icon name="auto_awesome" [size]="14"></cs-icon>
-      }
       <span class="chip-label">{{ chip.label }}</span>
       <cs-icon name="close" [size]="14" class="chip-x"></cs-icon>
     </button>
