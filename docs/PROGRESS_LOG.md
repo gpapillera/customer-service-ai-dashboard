@@ -2,6 +2,13 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Fix 3] Known-issues TODO: dev servers running for live data — 2026-07-19
+**Status:** Complete (verified — backend `:5274` and frontend `:4200` both listening; authed `GET /api/cases` returns 13 seeded rows; `GET /api/dashboard` returns live KPIs; not yet pushed)
+**Context:** Third item of the original `### Known issues / TODO` list: "Dev servers (backend `:5274`, frontend `:4200`) must be running for live data." Confirmed both are up (frontend HTTP 200; backend HTTP 401 on unauthed `/api/cases` = auth enforced, then 200 with a valid admin JWT). The earlier missing-model fallback instance was shut down; the live backend (pid 24865) loads the ONNX model from repo `ml/models/`. No code change required — this was a runtime/verification task.
+**Changes:** None (verification only). Documented the running state so the TODO list is fully closed.
+**Verification:** `ss -ltnp` shows `:4200` (ng serve) and `:5274` (CustomerService) listening. `curl` with admin JWT: `/api/cases` → 13 rows; `/api/dashboard` → `{"totalCases":13,"openCases":11,"highPriorityCases":5,"aiPredictedCases":4,...}`. Frontend `http://localhost:4200` returns HTTP 200.
+**Known issues / TODO:** All three original Known-issues items are now resolved (Fix 1 NG0912, Fix 2 ONNX source, Fix 3 dev servers). Next up: README `## Roadmap` items (e.g. sentiment analysis replacing keyword flags).
+
 ## [Fix 2] priority_model.onnx: stop silent fallback — resolve model path + surface source in UI — 2026-07-18
 **Status:** Complete (verified in browser + API — model now loads from repo `ml/models/` regardless of CWD; `source` field reports "Onnx" vs "RuleBased"; UI shows "ML model" / "rule-based fallback" badge; startup logs a clear warning when missing; backend build 0 errors; 15/15 tests pass; committed locally — `0ae5f5e`, not yet pushed to origin)
 **Context:** Known issue: `priority_model.onnx` is gitignored (per AGENTS.md: regenerate, don't commit), and prediction **silently** fell back to rules when absent. Investigation found a deeper bug: `ML:ModelPath` was a relative path (`ml/models/priority_model.onnx`) resolved against the process working directory. When the API runs from `backend/`, it looked in `backend/ml/models/...` (which does not exist) — so even with the model present at repo-root `ml/models/`, the API never found it and always used the silent rule fallback. The fix makes the model discoverable and the fallback explicit/observable.
