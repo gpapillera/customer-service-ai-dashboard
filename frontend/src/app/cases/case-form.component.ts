@@ -71,6 +71,8 @@ export class CaseFormComponent implements OnInit {
   readonly loading = signal(false);
   readonly saving = signal(false);
   readonly suggestedPriority = signal<string | null>(null);
+  /** Which engine produced the suggestion: 'Onnx' (ML model) or 'RuleBased' (fallback). */
+  readonly suggestedSource = signal<string | null>(null);
   readonly predicting = signal(false);
   readonly error = signal<string | null>(null);
   readonly deleting = signal(false);
@@ -137,6 +139,7 @@ export class CaseFormComponent implements OnInit {
     }).subscribe({
       next: (res) => {
         this.suggestedPriority.set(res.priority);
+        this.suggestedSource.set(res.source ?? null);
         this.form.patchValue({ priority: res.priority as Case['priority'] });
         this.predicting.set(false);
       },

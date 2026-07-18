@@ -64,6 +64,15 @@
           <div class="ai-result">
             Suggested:
             <span class="cs-pill" [class]="priorityClass(p)"><span class="cs-dot"></span>{{ p }}</span>
+            @if (suggestedSource() === 'RuleBased') {
+              <span class="ai-source ai-source--fallback" title="The ONNX model is missing, so a deterministic rule-based fallback was used. Run ml/train_model.py to enable the ML model.">
+                rule-based fallback
+              </span>
+            } @else if (suggestedSource() === 'Onnx') {
+              <span class="ai-source ai-source--model" title="Predicted by the trained ONNX model (ml/models/priority_model.onnx).">
+                ML model
+              </span>
+            }
           </div>
         }
       </div>

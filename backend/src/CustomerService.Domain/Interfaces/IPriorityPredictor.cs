@@ -21,6 +21,18 @@ public class PriorityFeatures
 }
 
 /// <summary>
+/// Identifies which engine produced a <see cref="PriorityPredictionResult"/>.
+/// </summary>
+public enum PriorityModelSource
+{
+    /// <summary>The ONNX model trained by the Python pipeline (ml/train_model.py).</summary>
+    Onnx,
+
+    /// <summary>The deterministic, dependency-free rule-based fallback used when no ONNX model is present.</summary>
+    RuleBased,
+}
+
+/// <summary>
 /// A priority prediction together with a short, human-readable explanation
 /// of why that level was chosen (built from the input features).
 /// </summary>
@@ -31,6 +43,13 @@ public class PriorityPredictionResult
 
     /// <summary>Plain-English reason for the suggestion (1–2 sentences).</summary>
     public string Reason { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Which engine produced this prediction. Lets callers distinguish a real
+    /// ML suggestion from the rule-based fallback (e.g. when the ONNX model is
+    /// absent) so the fallback is never silent.
+    /// </summary>
+    public PriorityModelSource Source { get; init; } = PriorityModelSource.RuleBased;
 }
 
 /// <summary>

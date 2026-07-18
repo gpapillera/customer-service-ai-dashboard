@@ -59,6 +59,29 @@
   margin-top: 0.5rem;
   font-size: 0.9rem;
   color: var(--cs-text);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.ai-source {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+.ai-source--model {
+  color: #7c3aed;
+  background: #f3e8ff;
+  border-color: #e9d5ff;
+}
+.ai-source--fallback {
+  color: #92400e;
+  background: #fef3c7;
+  border-color: #fde68a;
 }
 
 .final-priority {

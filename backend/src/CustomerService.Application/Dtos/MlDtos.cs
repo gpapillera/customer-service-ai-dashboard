@@ -24,4 +24,11 @@ public class PredictPriorityResponse
 
     /// <summary>Plain-English reason for the suggestion.</summary>
     public string Reason { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Which engine produced the prediction: "Onnx" for the trained ML model,
+    /// or "RuleBased" for the deterministic fallback (used when the ONNX model
+    /// is absent). Lets the UI show whether a real model suggestion was used.
+    /// </summary>
+    public string Source { get; set; } = string.Empty;
 }

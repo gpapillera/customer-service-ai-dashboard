@@ -61,7 +61,7 @@ export class CaseService {
     categoryId: number;
     customerId: number;
     description: string;
-  }): Observable<{ priority: string; reason: string }> {
+  }): Observable<{ priority: string; reason: string; source: string }> {
     const keywords = [
       'urgent', 'asap', 'immediately', 'broken', 'error', 'fail', 'failed',
       'complaint', 'angry', 'furious', 'unacceptable', 'refund', 'chargeback',
@@ -70,7 +70,7 @@ export class CaseService {
     const hasKeyword = keywords.some((k) =>
       req.description.toLowerCase().includes(k),
     );
-    return this.http.post<{ priority: string; reason: string }>(
+    return this.http.post<{ priority: string; reason: string; source: string }>(
       '/api/ml/predict-priority',
       {
         categoryId: req.categoryId,

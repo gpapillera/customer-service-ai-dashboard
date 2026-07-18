@@ -77,6 +77,7 @@ public class OnnxPriorityPredictor : IPriorityPredictor, IDisposable
         {
             Priority = priority,
             Reason = BuildReason(features, priority, output),
+            Source = PriorityModelSource.Onnx,
         };
     }
 

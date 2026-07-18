@@ -1,3 +1,4 @@
+using System.IO;
 using System.Text;
 using CustomerService.Application.Interfaces;
 using CustomerService.Application.Services;
@@ -72,10 +73,31 @@ public class Program
         builder.Services.AddScoped<IAuthService, AuthService>();
         builder.Services.AddScoped<IDashboardService, DashboardService>();
 
-        builder.Services.AddSingleton<IPriorityPredictor>(_ =>
+        builder.Services.AddSingleton<IPriorityPredictor>(serviceProvider =>
         {
-            var modelPath = config["ML:ModelPath"];
-            return new OnnxPriorityPredictor(modelPath);
+            var configuredPath = config["ML:ModelPath"];
+            var logger = serviceProvider.GetRequiredService<ILogger<OnnxPriorityPredictor>>();
+            // The configured path may be relative to the current working directory
+            // (which varies by how the app is launched). Resolve it against the
+            // content root, and also try the repo/solution root (the model lives at
+            // <repo>/ml/models/priority_model.onnx) so the model is found regardless
+            // of where the API process is started from.
+            var resolvedPath = ResolveModelPath(configuredPath, builder.Environment.ContentRootPath);
+            var predictor = new OnnxPriorityPredictor(resolvedPath);
+            if (string.IsNullOrWhiteSpace(resolvedPath) || !File.Exists(resolvedPath))
+            {
+                logger.LogWarning(
+                    "Priority model not found (looked for '{ConfiguredPath}', resolved to '{ResolvedPath}'). " +
+                    "The API will use the deterministic rule-based fallback for priority suggestions. " +
+                    "To enable the ML model, run the Python training pipeline (ml/train_model.py) which " +
+                    "exports ml/models/priority_model.onnx.",
+                    configuredPath ?? "(unset)", resolvedPath ?? "(unset)");
+            }
+            else
+            {
+                logger.LogInformation("Priority model loaded from '{ModelPath}'. ML-based priority suggestions enabled.", resolvedPath);
+            }
+            return predictor;
         });
 
         var jwtKey = config["Jwt:Key"] ?? "dev-insecure-key-change-me-1234567890";
@@ -141,5 +163,45 @@ public class Program
         var ctx = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         ctx.Database.EnsureCreated();
         SeedDataInitializer.Initialize(ctx);
+    }
+
+    /// <summary>
+    /// Resolves the ONNX model path so it is found regardless of the process
+    /// working directory. Tries, in order: the configured path as-is, relative
+    /// to the content root, and relative to the solution/repo root (the model
+    /// lives at &lt;repo&gt;/ml/models/priority_model.onnx). Returns the first
+    /// existing path, or the content-root-relative path when none exist (so the
+    /// caller can log a clear "not found" message).
+    /// </summary>
+    private static string? ResolveModelPath(string? configuredPath, string contentRoot)
+    {
+        if (string.IsNullOrWhiteSpace(configuredPath))
+        {
+            return null;
+        }
+
+        var candidates = new List<string> { configuredPath! };
+        if (!Path.IsPathRooted(configuredPath))
+        {
+            candidates.Add(Path.Combine(contentRoot, configuredPath));
+            // Walk up from the content root looking for an "ml/models" folder
+            // (content root is typically <repo>/backend/src/CustomerService.Api).
+            var dir = new DirectoryInfo(contentRoot);
+            while (dir != null)
+            {
+                var repoCandidate = Path.Combine(dir.FullName, configuredPath);
+                if (!candidates.Contains(repoCandidate))
+                {
+                    candidates.Add(repoCandidate);
+                }
+                if (Directory.Exists(Path.Combine(dir.FullName, "ml")))
+                {
+                    break;
+                }
+                dir = dir.Parent;
+            }
+        }
+
+        return candidates.FirstOrDefault(File.Exists);
     }
 }
