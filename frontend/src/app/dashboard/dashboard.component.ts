@@ -96,7 +96,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     type: 'bar',
     data: {
       labels: [],
-      datasets: [{ data: [], label: 'Cases', backgroundColor: '#4f46e5', borderRadius: 6, barPercentage: 0.6, categoryPercentage: 0.8 }],
+      datasets: [{ data: [], label: 'Cases', backgroundColor: '#4f46e5', borderRadius: 6, barPercentage: 0.7, categoryPercentage: 0.85 }],
     },
     options: this.barOptions(true),
   };
@@ -105,7 +105,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     type: 'bar',
     data: {
       labels: [],
-      datasets: [{ data: [], backgroundColor: [], borderRadius: 6, barPercentage: 0.6, categoryPercentage: 0.8 }],
+      datasets: [{ data: [], backgroundColor: [], borderRadius: 6, barPercentage: 0.7, categoryPercentage: 0.85 }],
     },
     options: this.barOptions(false),
   };
