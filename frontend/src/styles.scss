@@ -202,10 +202,6 @@ body {
   color: var(--cs-text-muted);
   font-size: 0.95rem;
 }
-.pill-btn {
-  border-radius: var(--cs-radius-pill) !important;
-}
-
 /* ---- Modal dialogs: give the content breathing room ----
    The form components render flush against the dialog edges, so add padding
    around the dialog surface and a little extra below the header. */

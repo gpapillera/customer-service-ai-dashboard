@@ -39,7 +39,9 @@ public class CaseService : ICaseService
     public async Task<IReadOnlyList<CaseDto>> GetAllAsync(
         CaseStatus? status, Priority? priority, int? categoryId, DateTime? from, DateTime? to)
     {
-        var q = _cases.Query();
+        IQueryable<Case> q = _cases.Query()
+            .Include(c => c.Customer)
+            .Include(c => c.Category);
         if (status.HasValue) q = q.Where(c => c.Status == status.Value);
         if (priority.HasValue) q = q.Where(c => c.Priority == priority.Value);
         if (categoryId.HasValue) q = q.Where(c => c.CategoryId == categoryId.Value);
@@ -54,7 +56,10 @@ public class CaseService : ICaseService
     /// <inheritdoc/>
     public async Task<CaseDto?> GetByIdAsync(int id)
     {
-        var c = await _cases.Query().FirstOrDefaultAsync(x => x.Id == id);
+        var c = await _cases.Query()
+            .Include(c => c.Customer)
+            .Include(c => c.Category)
+            .FirstOrDefaultAsync(x => x.Id == id);
         return c is null ? null : ToDto(c);
     }
 

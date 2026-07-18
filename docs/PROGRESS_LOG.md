@@ -2,6 +2,18 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 8] Cases page: unified filter card, title weight, CUSTOMER/CATEGORY bug fix, rectangular New Case button — 2026-07-18
+**Status:** Complete (verified in browser — CUSTOMER/CATEGORY columns populated; filters in one bordered card with flex-wrap; title weight 500; New Case button radius 8px; tsc → 0 errors; backend builds; pushed)
+**Context:** Polish the Cases list. Items: (1) unify search + 3 dropdowns + AI toggle into one responsive bordered card; (2) reduce case-title weight to medium; (3) REAL BUG — CUSTOMER and CATEGORY columns were blank for every row; (4) change "+ New Case" from pill to rectangular (~8px radius) per design spec.
+**Root cause of the blank columns:** `CaseService.GetAllAsync` (and `GetByIdAsync`) called `_cases.Query()` which is `AsNoTracking()` with **no `Include`** for the `Customer`/`Category` navigation properties. EF Core has no lazy loading here, so `c.Customer`/`c.Category` were null and `ToDto` emitted empty `CustomerName`/`CategoryName`. The frontend already bound `c.customerName`/`c.categoryName` correctly — the data was simply never populated (this also affected the case detail page).
+**Changes:**
+- `backend/src/CustomerService.Application/Services/CaseService.cs` — `GetAllAsync` and `GetByIdAsync` now `.Include(c => c.Customer).Include(c => c.Category)` on the query (typed `IQueryable<Case>` to satisfy the `IIncludableQueryable` → `IQueryable` reassignment). This populates `CustomerName`/`CategoryName` (and `AssignedToUserName`) server-side — consistent with how the codebase already resolves related names in DTOs. No frontend lookup map needed.
+- `frontend/src/app/cases/case-list.component.html` — wrapped the search input + 3 `mat-select` dropdowns + AI toggle in a single `<div class="filters-card cs-card">`; renamed the New Case button class `pill-btn` → `new-case-btn`.
+- `frontend/src/app/cases/case-list.component.scss` — `.filters-card` is `display:flex; flex-wrap:wrap; gap:0.75rem; padding:0.85rem 1rem`. Search `flex:1 1 240px; min-width:200px`; dropdowns `flex:0 1 180px; min-width:150px`; AI toggle `flex:0 0 auto`. `.cell-title` font-weight `600` → `500`. Added `.new-case-btn { border-radius: 8px !important; }`.
+- `frontend/src/styles.scss` — removed the now-unused `.pill-btn { border-radius: var(--cs-radius-pill) !important; }` rule.
+**Verification:** Backend `dotnet build` → 0 errors. `curl /api/cases` now returns e.g. `"customerName":"Liza Lopez","categoryName":"Account"`. Frontend `tsc --noEmit` → 0 errors. In Chrome (`/cases`): CUSTOMER/CATEGORY columns show names; filters in one bordered card (computed `display:flex; flex-wrap:wrap; border:0.8px solid; radius:16px`); title weight computed `500`; New Case button computed `border-radius:8px`.
+**Known issues / TODO:** `NG0912` Lucide warning (cosmetic). `priority_model.onnx` gitignored.
+
 ## [Phase 7.1] Bar charts: thickness tweak (barPercentage 0.7, categoryPercentage 0.85) — 2026-07-18
 **Status:** Complete (verified — served bundle contains `barPercentage: 0.7` & `categoryPercentage: 0.85` on both bar datasets; tsc → 0 errors; pushed `d5ead0c`)
 **Context:** After Phase 7 set `0.6 / 0.8` (and a brief `0.8 / 0.9` trial), the bars looked too thin. Bump thickness slightly while keeping visible padding.

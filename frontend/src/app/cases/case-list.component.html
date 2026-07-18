@@ -3,12 +3,12 @@
     <h1>Cases</h1>
     <p>{{ cases().length }} cases found</p>
   </div>
-  <button mat-flat-button color="primary" class="pill-btn" (click)="openNew()">
+  <button mat-flat-button color="primary" class="new-case-btn" (click)="openNew()">
     <cs-icon name="add"></cs-icon> New Case
   </button>
 </div>
 
-<div class="filters">
+<div class="filters-card cs-card">
   <mat-form-field appearance="outline" class="f-search">
     <cs-icon name="search" class="prefix-icon"></cs-icon>
     <input
