@@ -1,6 +1,7 @@
 using CustomerService.Application.Dtos;
 using CustomerService.Domain.Entities;
 using CustomerService.Domain.Interfaces;
+using CustomerService.ML;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -28,12 +29,13 @@ public class MlController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     public ActionResult<PredictPriorityResponse> PredictPriority([FromBody] PredictPriorityRequest request)
     {
+        var sentiment = RuleBasedPriorityPredictor.SentimentScore(request.Description);
         var result = _predictor.PredictWithReason(new PriorityFeatures
         {
             CategoryId = request.CategoryId,
             PriorCaseCount = request.PriorCaseCount,
             DaysSinceLastContact = request.DaysSinceLastContact,
-            HasComplaintKeyword = request.HasComplaintKeyword,
+            Sentiment = sentiment,
         });
         return Ok(new PredictPriorityResponse
         {

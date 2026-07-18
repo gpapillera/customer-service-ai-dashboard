@@ -39,10 +39,12 @@ tool, not an automated triage authority.
 | 0 | `categoryId` | float | Encoded category id (1=Billing … 7=Uncategorized) |
 | 1 | `priorCaseCount` | float | Number of prior cases from this customer |
 | 2 | `daysSinceLastContact` | float | Days since the customer's last contact |
-| 3 | `hasComplaintKeyword` | float | 1.0 if description contains an urgency keyword, else 0.0 |
+| 3 | `sentiment` | float | Sentiment score in [-1, 1] derived from the description (negative = complaint/urgency, positive = satisfaction) |
 
-The keyword list mirrors `RuleBasedPriorityPredictor.ComplaintKeywords`
-(urgent, asap, broken, refund, escalate, critical, outage, etc.).
+The score is computed by a lexicon-based analyzer (`sentiment_score` in
+`ml/train_model.py`, mirrored by `RuleBasedPriorityPredictor.SentimentScore` in
+C#). It replaces the old binary `hasComplaintKeyword` flag so the model sees a
+continuous urgency signal instead of a 0/1 switch.
 
 ---
 

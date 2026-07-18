@@ -112,10 +112,11 @@ Controlled by `Database:Provider` in `appsettings.json` / env var `Database__Pro
 
 ### ML wiring
 - `CaseService.CreateAsync` calls `IPriorityPredictor.Predict(features)` where
-  `features = [categoryId, priorCaseCount, daysSinceLastContact, hasComplaintKeyword]`.
+  `features = [categoryId, priorCaseCount, daysSinceLastContact, sentiment]`.
 - Output order is `[Low, Medium, High]`; the highest-probability class wins and
   `PriorityAutoSuggested` is set `true`. Agents can override on update.
-- If `priority_model.onnx` is missing, prediction silently falls back to rules.
+- If `priority_model.onnx` is missing, prediction falls back to the rule-based
+  `RuleBasedPriorityPredictor` (which also computes the sentiment score).
 
 ---
 

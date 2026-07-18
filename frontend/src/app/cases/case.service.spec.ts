@@ -92,12 +92,13 @@ describe('CaseService', () => {
     req.flush(null);
   });
 
-  it('detects complaint keywords for the AI preview', () => {
+  it('sends the description for sentiment-based AI preview', () => {
     service
       .predictPriority({ categoryId: 1, customerId: 1, description: 'URGENT refund' })
       .subscribe();
     const req = httpMock.expectOne('/api/ml/predict-priority');
-    expect(req.request.body.hasComplaintKeyword).toBeTrue();
+    expect(req.request.body.description).toBe('URGENT refund');
+    expect(req.request.body.hasComplaintKeyword).toBeUndefined();
     req.flush({ priority: 'High', reason: 'r' });
   });
 });

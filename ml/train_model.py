@@ -8,7 +8,7 @@ multiclass classifier (Decision Tree / Random Forest) that predicts case
 The exported ONNX model expects a 4-feature float input named ``input`` with
 the exact ordering consumed by ``CustomerService.ML.OnnxPriorityPredictor``:
 
-    [categoryId, priorCaseCount, daysSinceLastContact, hasComplaintKeyword]
+    [categoryId, priorCaseCount, daysSinceLastContact, sentiment]
 
 and returns a 3-element probability vector in the order [Low, Medium, High].
 
@@ -42,12 +42,26 @@ CATEGORIES = {
     "Uncategorized": 7,
 }
 
-# Urgency / complaint keywords used both for labeling and feature extraction.
-COMPLAINT_KEYWORDS = [
-    "urgent", "asap", "immediately", "broken", "error", "fail", "failed",
-    "complaint", "angry", "furious", "unacceptable", "refund", "chargeback",
-    "lawsuit", "escalate", "critical", "down", "outage", "lost", "missing",
-]
+# Sentiment lexicons: negative words (urgency/complaints) and positive words
+# (gratitude/satisfaction). Used both for labeling and as the continuous
+# ``sentiment`` feature that replaces the old binary complaint-keyword flag.
+NEGATIVE_LEXICON = {
+    "urgent": 2.0, "asap": 2.0, "immediately": 1.5, "broken": 1.5, "error": 1.5,
+    "fail": 1.5, "failed": 1.5, "complaint": 2.0, "angry": 2.0, "furious": 2.5,
+    "unacceptable": 2.0, "refund": 1.0, "chargeback": 1.5, "lawsuit": 2.5,
+    "escalate": 1.5, "critical": 2.0, "down": 1.0, "outage": 1.5, "lost": 1.0,
+    "missing": 1.0, "terrible": 2.0, "worst": 2.0, "hate": 2.0, "disappointed": 1.5,
+    "frustrated": 1.5, "useless": 1.5, "scam": 2.0, "ripoff": 2.0, "bug": 1.0,
+    "crash": 1.5, "denied": 1.0, "wrong": 0.8, "cancel": 0.5, "problem": 0.5,
+    "issue": 0.3, "slow": 0.5, "late": 0.5, "never": 0.5,
+}
+POSITIVE_LEXICON = {
+    "thank": 1.0, "thanks": 1.0, "appreciate": 1.5, "happy": 1.5, "great": 1.0,
+    "excellent": 1.5, "love": 1.5, "resolved": 1.0, "solved": 1.0, "fixed": 1.0,
+    "good": 0.8, "perfect": 1.5, "satisfied": 1.5, "wonderful": 1.5, "amazing": 1.5,
+    "helpful": 1.0, "please": 0.3, "kind": 1.0, "quickly": 0.5, "works": 0.5,
+    "working": 0.5, "glad": 1.0, "pleased": 1.5,
+}
 
 LABELS = ["Low", "Medium", "High"]
 LABEL_INDEX = {label: i for i, label in enumerate(LABELS)}
@@ -55,21 +69,30 @@ LABEL_INDEX = {label: i for i, label in enumerate(LABELS)}
 RANDOM_SEED = 42
 
 
-def has_complaint_keyword(text: str) -> bool:
-    """Return True if ``text`` contains any complaint/urgency keyword.
+def sentiment_score(text: str) -> float:
+    """Return a sentiment score in [-1, 1] from the complaint/positive lexicons.
+
+    Negative words push the score toward -1 (urgency/complaint); positive words
+    push it toward +1 (gratitude/satisfaction). Neutral text scores 0. This is
+    the continuous signal that replaces the old binary complaint-keyword flag.
 
     Args:
         text: Free-text description or subject.
 
     Returns:
-        True when a keyword is present (case-insensitive).
+        Sentiment in [-1, 1].
     """
     low = (text or "").lower()
-    return any(kw in low for kw in COMPLAINT_KEYWORDS)
+    neg = sum(w for kw, w in NEGATIVE_LEXICON.items() if kw in low)
+    pos = sum(w for kw, w in POSITIVE_LEXICON.items() if kw in low)
+    total = pos + neg
+    if total == 0:
+        return 0.0
+    return (pos - neg) / total
 
 
 def label_rule(category_id: int, prior_case_count: int,
-               days_since_contact: int, has_keyword: bool) -> str:
+               days_since_contact: int, sentiment: float) -> str:
     """Assign a priority label from a transparent rule (the "ground truth").
 
     Mirrors the rule used by the backend's ``RuleBasedPriorityPredictor`` so the
@@ -79,13 +102,13 @@ def label_rule(category_id: int, prior_case_count: int,
         category_id: Encoded category id.
         prior_case_count: Number of prior cases from this customer.
         days_since_contact: Days since the customer's last contact.
-        has_keyword: Whether the description contains a complaint keyword.
+        sentiment: Sentiment score in [-1, 1] (negative = complaint/urgency).
 
     Returns:
         One of "Low", "Medium", "High".
     """
     score = 0
-    if has_keyword:
+    if sentiment < -0.1:  # net-negative / complaint sentiment
         score += 2
     if days_since_contact > 30:
         score += 1
@@ -112,7 +135,7 @@ def generate_synthetic_data(n: int = 3000, seed: int = RANDOM_SEED) -> pd.DataFr
 
     Returns:
         DataFrame with columns: category_id, prior_case_count,
-        days_since_contact, has_keyword (0/1), priority (label).
+        days_since_contact, sentiment (float in [-1, 1]), priority (label).
     """
     rng = np.random.default_rng(seed)
     cat_ids = np.array(list(CATEGORIES.values()))
@@ -121,15 +144,19 @@ def generate_synthetic_data(n: int = 3000, seed: int = RANDOM_SEED) -> pd.DataFr
         category_id = int(rng.choice(cat_ids))
         prior_case_count = int(rng.integers(0, 8))
         days_since_contact = int(rng.integers(0, 120))
-        has_keyword = bool(rng.random() < 0.35)
-        label = label_rule(category_id, prior_case_count, days_since_contact, has_keyword)
+        # ~35% of cases carry negative/complaint sentiment.
+        if rng.random() < 0.35:
+            sentiment = float(rng.uniform(-1.0, -0.1))
+        else:
+            sentiment = float(rng.uniform(-0.1, 1.0))
+        label = label_rule(category_id, prior_case_count, days_since_contact, sentiment)
         rows.append(
-            (category_id, prior_case_count, days_since_contact, int(has_keyword), label)
+            (category_id, prior_case_count, days_since_contact, sentiment, label)
         )
     df = pd.DataFrame(
         rows,
         columns=["category_id", "prior_case_count", "days_since_contact",
-                 "has_keyword", "priority"],
+                 "sentiment", "priority"],
     )
     # Inject label noise so the classifier learns a soft boundary.
     flip_mask = rng.random(n) < 0.08
@@ -146,7 +173,7 @@ def train(df: pd.DataFrame) -> DecisionTreeClassifier:
     Returns:
         A fitted DecisionTreeClassifier.
     """
-    X = df[["category_id", "prior_case_count", "days_since_contact", "has_keyword"]].to_numpy(
+    X = df[["category_id", "prior_case_count", "days_since_contact", "sentiment"]].to_numpy(
         dtype=np.float32
     )
     # Integer labels 0=Low, 1=Medium, 2=High so the exported ONNX probability

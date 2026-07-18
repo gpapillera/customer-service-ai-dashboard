@@ -16,8 +16,8 @@ public class PriorityFeatures
     /// <summary>Days since the customer's last contact (before this case).</summary>
     public int DaysSinceLastContact { get; set; }
 
-    /// <summary>True if the description contains a complaint/urgency keyword.</summary>
-    public bool HasComplaintKeyword { get; set; }
+    /// <summary>Sentiment score of the description in [-1, 1]; negative = complaint/urgency, positive = satisfaction.</summary>
+    public float Sentiment { get; set; }
 }
 
 /// <summary>

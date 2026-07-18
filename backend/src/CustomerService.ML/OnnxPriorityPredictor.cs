@@ -44,13 +44,13 @@ public class OnnxPriorityPredictor : IPriorityPredictor, IDisposable
         }
 
         // Feature vector order must match the Python training pipeline:
-        // [categoryId, priorCaseCount, daysSinceLastContact, hasComplaintKeyword]
+        // [categoryId, priorCaseCount, daysSinceLastContact, sentiment]
         var input = new float[]
         {
             features.CategoryId,
             features.PriorCaseCount,
             features.DaysSinceLastContact,
-            features.HasComplaintKeyword ? 1f : 0f,
+            features.Sentiment,
         };
         var tensor = new DenseTensor<float>(input, new[] { 1, 4 });
         var inputs = new List<NamedOnnxValue>
@@ -85,8 +85,8 @@ public class OnnxPriorityPredictor : IPriorityPredictor, IDisposable
     private string BuildReason(PriorityFeatures features, Priority priority, float[] probs)
     {
         var reasons = new List<string>();
-        if (features.HasComplaintKeyword)
-            reasons.Add("the description contains urgent/complaint keywords");
+        if (features.Sentiment < -0.1f)
+            reasons.Add("the description expresses negative/complaint sentiment");
         if (features.DaysSinceLastContact > 30)
             reasons.Add($"the customer has had no contact for {features.DaysSinceLastContact} days");
         if (features.PriorCaseCount >= 3)

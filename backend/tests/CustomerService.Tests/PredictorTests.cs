@@ -22,11 +22,11 @@ public class PredictorTests
             CategoryId = 1, // Billing
             PriorCaseCount = 0,
             DaysSinceLastContact = 0,
-            HasComplaintKeyword = true, // +2
+            Sentiment = -0.8f, // net-negative -> +2
         });
 
         Assert.Equal(Priority.High, result.Priority);
-        Assert.Contains("urgent/complaint keywords", result.Reason);
+        Assert.Contains("negative/complaint sentiment", result.Reason);
     }
 
     [Fact]
@@ -38,7 +38,7 @@ public class PredictorTests
             CategoryId = 4, // Account
             PriorCaseCount = 0,
             DaysSinceLastContact = 1,
-            HasComplaintKeyword = false,
+            Sentiment = 0.5f, // positive -> no urgency signal
         });
 
         Assert.Equal(Priority.Low, result.Priority);
@@ -53,20 +53,20 @@ public class PredictorTests
             CategoryId = 3,
             PriorCaseCount = 0,
             DaysSinceLastContact = 0,
-            HasComplaintKeyword = true, // +2 -> Medium (>=1, <3)
+            Sentiment = -0.5f, // net-negative -> +2 -> Medium (>=1, <3)
         });
 
         Assert.Equal(Priority.Medium, result.Priority);
     }
 
     [Fact]
-    public void RuleBased_ContainsComplaintKeyword_DetectsKnownWords()
+    public void RuleBased_SentimentScore_NegativeForComplaints()
     {
-        Assert.True(RuleBasedPriorityPredictor.ContainsComplaintKeyword("this is URGENT please help"));
-        Assert.True(RuleBasedPriorityPredictor.ContainsComplaintKeyword("I want a refund"));
-        Assert.False(RuleBasedPriorityPredictor.ContainsComplaintKeyword("just a general question"));
-        Assert.False(RuleBasedPriorityPredictor.ContainsComplaintKeyword(null));
-        Assert.False(RuleBasedPriorityPredictor.ContainsComplaintKeyword(""));
+        Assert.True(RuleBasedPriorityPredictor.SentimentScore("this is URGENT please help") < 0);
+        Assert.True(RuleBasedPriorityPredictor.SentimentScore("I want a refund") < 0);
+        Assert.True(RuleBasedPriorityPredictor.SentimentScore("thank you, very satisfied") > 0);
+        Assert.Equal(0f, RuleBasedPriorityPredictor.SentimentScore(null));
+        Assert.Equal(0f, RuleBasedPriorityPredictor.SentimentScore(""));
     }
 
     [Fact]
@@ -81,7 +81,7 @@ public class PredictorTests
             CategoryId = 1,
             PriorCaseCount = 0,
             DaysSinceLastContact = 0,
-            HasComplaintKeyword = true,
+            Sentiment = -0.8f,
         });
 
         Assert.Equal(Priority.High, result.Priority);
@@ -96,7 +96,7 @@ public class PredictorTests
             CategoryId = 4,
             PriorCaseCount = 0,
             DaysSinceLastContact = 1,
-            HasComplaintKeyword = false,
+            Sentiment = 0.5f,
         }));
     }
 }

@@ -12,8 +12,8 @@ public class PredictPriorityRequest
     /// <summary>Days since the customer's last contact (before this case).</summary>
     public int DaysSinceLastContact { get; set; }
 
-    /// <summary>True if the description contains a complaint/urgency keyword.</summary>
-    public bool HasComplaintKeyword { get; set; }
+    /// <summary>Case description; the backend derives a sentiment score from it.</summary>
+    public string? Description { get; set; }
 }
 
 /// <summary>Priority prediction preview returned by the ML endpoint.</summary>

@@ -10,11 +10,30 @@ namespace CustomerService.ML;
 /// </summary>
 public class RuleBasedPriorityPredictor : IPriorityPredictor
 {
-    private static readonly HashSet<string> ComplaintKeywords = new(StringComparer.OrdinalIgnoreCase)
+    /// <summary>Negative (urgency/complaint) words and their weights.</summary>
+    private static readonly Dictionary<string, double> NegativeLexicon = new(StringComparer.OrdinalIgnoreCase)
     {
-        "urgent", "asap", "immediately", "broken", "error", "fail", "failed",
-        "complaint", "angry", "furious", "unacceptable", "refund", "chargeback",
-        "lawsuit", "escalate", "critical", "down", "outage", "lost", "missing",
+        { "urgent", 2.0 }, { "asap", 2.0 }, { "immediately", 1.5 }, { "broken", 1.5 },
+        { "error", 1.5 }, { "fail", 1.5 }, { "failed", 1.5 }, { "complaint", 2.0 },
+        { "angry", 2.0 }, { "furious", 2.5 }, { "unacceptable", 2.0 }, { "refund", 1.0 },
+        { "chargeback", 1.5 }, { "lawsuit", 2.5 }, { "escalate", 1.5 }, { "critical", 2.0 },
+        { "down", 1.0 }, { "outage", 1.5 }, { "lost", 1.0 }, { "missing", 1.0 },
+        { "terrible", 2.0 }, { "worst", 2.0 }, { "hate", 2.0 }, { "disappointed", 1.5 },
+        { "frustrated", 1.5 }, { "useless", 1.5 }, { "scam", 2.0 }, { "ripoff", 2.0 },
+        { "bug", 1.0 }, { "crash", 1.5 }, { "denied", 1.0 }, { "wrong", 0.8 },
+        { "cancel", 0.5 }, { "problem", 0.5 }, { "issue", 0.3 }, { "slow", 0.5 },
+        { "late", 0.5 }, { "never", 0.5 },
+    };
+
+    /// <summary>Positive (gratitude/satisfaction) words and their weights.</summary>
+    private static readonly Dictionary<string, double> PositiveLexicon = new(StringComparer.OrdinalIgnoreCase)
+    {
+        { "thank", 1.0 }, { "thanks", 1.0 }, { "appreciate", 1.5 }, { "happy", 1.5 },
+        { "great", 1.0 }, { "excellent", 1.5 }, { "love", 1.5 }, { "resolved", 1.0 },
+        { "solved", 1.0 }, { "fixed", 1.0 }, { "good", 0.8 }, { "perfect", 1.5 },
+        { "satisfied", 1.5 }, { "wonderful", 1.5 }, { "amazing", 1.5 }, { "helpful", 1.0 },
+        { "please", 0.3 }, { "kind", 1.0 }, { "quickly", 0.5 }, { "works", 0.5 },
+        { "working", 0.5 }, { "glad", 1.0 }, { "pleased", 1.5 },
     };
 
     /// <inheritdoc/>
@@ -26,10 +45,10 @@ public class RuleBasedPriorityPredictor : IPriorityPredictor
     {
         var score = 0;
         var reasons = new List<string>();
-        if (features.HasComplaintKeyword)
+        if (features.Sentiment < -0.1f)
         {
             score += 2;
-            reasons.Add("the description contains urgent/complaint keywords");
+            reasons.Add("the description expresses negative/complaint sentiment");
         }
         if (features.DaysSinceLastContact > 30)
         {
@@ -64,12 +83,21 @@ public class RuleBasedPriorityPredictor : IPriorityPredictor
         _ => "General",
     };
 
-    /// <summary>Detects complaint/urgency keywords in free text.</summary>
-    /// <param name="text">Text to scan.</param>
-    /// <returns>True if any keyword is present.</returns>
-    public static bool ContainsComplaintKeyword(string? text)
+    /// <summary>Computes a sentiment score in [-1, 1] from the complaint/positive lexicons.</summary>
+    /// <param name="text">Free-text description.</param>
+    /// <returns>
+    /// Negative for complaint/urgency language, positive for gratitude/satisfaction,
+    /// 0 for neutral text. Mirrors the Python <c>sentiment_score</c> used for training.
+    /// </returns>
+    public static float SentimentScore(string? text)
     {
-        if (string.IsNullOrWhiteSpace(text)) return false;
-        return ComplaintKeywords.Any(k => text.Contains(k, StringComparison.OrdinalIgnoreCase));
+        if (string.IsNullOrWhiteSpace(text)) return 0f;
+        var low = text.ToLowerInvariant();
+        double neg = NegativeLexicon.Sum(kv => low.Contains(kv.Key) ? kv.Value : 0);
+        double pos = PositiveLexicon.Sum(kv => low.Contains(kv.Key) ? kv.Value : 0);
+        double total = pos + neg;
+        if (total == 0) return 0f;
+        var score = (pos - neg) / total;
+        return (float)Math.Max(-1.0, Math.Min(1.0, score));
     }
 }

@@ -75,7 +75,7 @@ public class CaseService : ICaseService
         var daysSince = dto.LastContactUtc.HasValue
             ? (int)(DateTime.UtcNow - dto.LastContactUtc.Value).TotalDays
             : 999;
-        var hasKeyword = RuleBasedPriorityPredictor.ContainsComplaintKeyword(dto.Description);
+        var sentiment = RuleBasedPriorityPredictor.SentimentScore(dto.Description);
 
         var prediction = dto.Priority.HasValue
             ? null
@@ -84,7 +84,7 @@ public class CaseService : ICaseService
                 CategoryId = dto.CategoryId,
                 PriorCaseCount = priorCaseCount,
                 DaysSinceLastContact = daysSince,
-                HasComplaintKeyword = hasKeyword,
+                Sentiment = sentiment,
             });
         var priority = dto.Priority ?? prediction!.Priority;
 

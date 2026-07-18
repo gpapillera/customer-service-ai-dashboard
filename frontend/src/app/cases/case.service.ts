@@ -62,21 +62,15 @@ export class CaseService {
     customerId: number;
     description: string;
   }): Observable<{ priority: string; reason: string; source: string }> {
-    const keywords = [
-      'urgent', 'asap', 'immediately', 'broken', 'error', 'fail', 'failed',
-      'complaint', 'angry', 'furious', 'unacceptable', 'refund', 'chargeback',
-      'lawsuit', 'escalate', 'critical', 'down', 'outage', 'lost', 'missing',
-    ];
-    const hasKeyword = keywords.some((k) =>
-      req.description.toLowerCase().includes(k),
-    );
+    // Send the raw description; the backend derives a sentiment score from it
+    // (single source of truth, mirroring the Python training lexicon).
     return this.http.post<{ priority: string; reason: string; source: string }>(
       '/api/ml/predict-priority',
       {
         categoryId: req.categoryId,
         priorCaseCount: 0,
         daysSinceLastContact: 0,
-        hasComplaintKeyword: hasKeyword,
+        description: req.description,
       },
     );
   }

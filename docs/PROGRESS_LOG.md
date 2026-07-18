@@ -2,6 +2,24 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 10] Sentiment analysis on complaint text (replaces keyword flags) — 2026-07-19
+**Status:** Complete (verified — backend build 0 errors; 15/15 tests pass; model retrained to 0.947 accuracy; frontend tsc 0 errors; browser check shows "Suggested: Medium · ML model" from a description; not yet committed)
+**Context:** First item of the README `## Roadmap`: replace the binary `hasComplaintKeyword` flag with a continuous sentiment score derived from the case description. The old feature was a 0/1 switch (keyword present or not); the new one is a lexicon-based score in [-1, 1] (negative = complaint/urgency, positive = satisfaction) so the model sees a graded urgency signal. The scorer is mirrored in Python (`sentiment_score` in `ml/train_model.py`, used for training) and C# (`RuleBasedPriorityPredictor.SentimentScore`, used for inference) — the backend remains the single source of truth; the frontend only sends the raw `description`.
+**Changes:**
+- `ml/train_model.py` — removed `COMPLAINT_KEYWORDS`/`has_complaint_keyword()`; added `NEGATIVE_LEXICON`/`POSITIVE_LEXICON` and `sentiment_score(text)` returning `(pos-neg)/total` clamped to [-1, 1]. `label_rule` now escalates when `sentiment < -0.1`; synthetic data generates a `sentiment` column; `train()` uses it as the 4th feature. Retrained model → 0.947 test accuracy (was 0.93).
+- `backend/src/CustomerService.Domain/Interfaces/IPriorityPredictor.cs` — `PriorityFeatures.HasComplaintKeyword` (bool) → `Sentiment` (float, [-1, 1]).
+- `backend/src/CustomerService.ML/RuleBasedPriorityPredictor.cs` — replaced `ComplaintKeywords`/`ContainsComplaintKeyword` with `NegativeLexicon`/`PositiveLexicon` and `public static float SentimentScore(string?)`. Rule escalates on `Sentiment < -0.1` with reason "the description expresses negative/complaint sentiment".
+- `backend/src/CustomerService.ML/OnnxPriorityPredictor.cs` — 4th input element is now `features.Sentiment`; reason text updated to match.
+- `backend/src/CustomerService.Application/Dtos/MlDtos.cs` — `PredictPriorityRequest.HasComplaintKeyword` (bool) → `Description` (string); backend derives the sentiment score.
+- `backend/src/CustomerService.Api/Controllers/MlController.cs` — `PredictPriority` computes `RuleBasedPriorityPredictor.SentimentScore(request.Description)` and builds features with `Sentiment`.
+- `backend/src/CustomerService.Application/Services/CaseService.cs` — `CreateAsync` computes sentiment via `SentimentScore` instead of the keyword check.
+- `frontend/src/app/cases/case.service.ts` — `predictPriority` sends `{ categoryId, priorCaseCount: 0, daysSinceLastContact: 0, description }` (no keyword array).
+- `backend/tests/CustomerService.Tests/PredictorTests.cs` — replaced the keyword test with `RuleBased_SentimentScore_NegativeForComplaints`; updated escalation/neutral/single-signal tests to use `Sentiment` floats.
+- `frontend/src/app/cases/case.service.spec.ts` — renamed test asserts `body.description` is sent and `body.hasComplaintKeyword` is undefined.
+- Docs: `AGENTS.md`, `docs/MODEL_CARD.md`, `docs/CODE_DOCUMENTATION.md` updated to describe the `sentiment` feature; `ml/train_model.py` docstring fixed.
+**Verification:** `dotnet build CustomerServiceApi.sln` → 0 errors/0 warnings. `dotnet test` → 15/15 pass (incl. new `RuleBased_SentimentScore_NegativeForComplaints`). `python ml/train_model.py` → 0.947 accuracy, `ml/models/priority_model.onnx` regenerated. `npx tsc --noEmit -p tsconfig.app.json` → 0 errors. Browser (admin, New Case dialog): typed a complaint description, selected customer+category, clicked "Get AI suggestion" → "Suggested: Medium · **ML model**" badge. (Note: `ng test`/Karma could not run here — the only Chrome is a flatpak sandbox that Karma can't drive; the equivalent logic is covered by the passing C# tests and the tsc type-check.)
+**Known issues / TODO:** None. Frontend unit tests need a non-flatpak Chrome to run locally (`npm test`). The `.onnx` remains gitignored by design (regenerate via `ml/train_model.py`).
+
 ## [Fix 3] Known-issues TODO: dev servers running for live data — 2026-07-19
 **Status:** Complete (verified — backend `:5274` and frontend `:4200` both listening; authed `GET /api/cases` returns 13 seeded rows; `GET /api/dashboard` returns live KPIs; not yet pushed)
 **Context:** Third item of the original `### Known issues / TODO` list: "Dev servers (backend `:5274`, frontend `:4200`) must be running for live data." Confirmed both are up (frontend HTTP 200; backend HTTP 401 on unauthed `/api/cases` = auth enforced, then 200 with a valid admin JWT). The earlier missing-model fallback instance was shut down; the live backend (pid 24865) loads the ONNX model from repo `ml/models/`. No code change required — this was a runtime/verification task.
