@@ -2,6 +2,13 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 7.1] Bar charts: thickness tweak (barPercentage 0.7, categoryPercentage 0.85) — 2026-07-18
+**Status:** Complete (verified — served bundle contains `barPercentage: 0.7` & `categoryPercentage: 0.85` on both bar datasets; tsc → 0 errors; pushed `d5ead0c`)
+**Context:** After Phase 7 set `0.6 / 0.8` (and a brief `0.8 / 0.9` trial), the bars looked too thin. Bump thickness slightly while keeping visible padding.
+**Changes:** `frontend/src/app/dashboard/dashboard.component.ts` — both bar datasets (`Cases by Category` and `Cases by Status`) updated to `barPercentage: 0.7` and `categoryPercentage: 0.85`. `borderRadius: 6` retained on both. No HTML/SCSS changes.
+**Verification:** `npx tsc --noEmit -p tsconfig.app.json` → 0 errors. `curl http://localhost:4200/main.js` confirms `barPercentage: 0.7` and `categoryPercentage: 0.85` appear twice. Dev server hot-reloaded cleanly.
+**Known issues / TODO:** `NG0912` Lucide warning (cosmetic). `priority_model.onnx` gitignored.
+
 ## [Phase 7] Bar charts: bar spacing (barPercentage/categoryPercentage) + rounded Status corners — 2026-07-18
 **Status:** Complete (verified — served bundle contains `barPercentage: 0.6` & `categoryPercentage: 0.8` on both bar datasets; Status dataset also has `borderRadius: 6`; tsc → 0 errors; dev server rebuilt cleanly)
 **Context:** The "Cases by Category" and "Cases by Status" bars stretched edge-to-edge with no breathing room. Add visible padding around each bar, and round the corners of the Status bars.
