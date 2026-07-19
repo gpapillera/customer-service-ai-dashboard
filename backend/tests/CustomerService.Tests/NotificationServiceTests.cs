@@ -36,12 +36,28 @@ public class NotificationServiceTests
         };
     }
 
+    /// <summary>A stale open case with NO scheduled deadline and no call logs.</summary>
+    private static Case StaleCase(int id, string subject, string customer, int ageDays)
+    {
+        return new Case
+        {
+            Id = id,
+            Subject = subject,
+            Customer = new Customer { Id = 1, Name = customer },
+            Status = CaseStatus.New,
+            CreatedAtUtc = DateTime.UtcNow.AddDays(-ageDays),
+            CallLogs = new List<CallLog>(),
+        };
+    }
+
     [Fact]
     public async Task GenerateOverdueAsync_CreatesOneNotificationPerOverdueCase()
     {
         var (svc, cases, _, sender) = Build();
         cases.AddAsync(OverdueCase(2, "Package not delivered", "Maria Clara", 2)).Wait();
         cases.AddAsync(OverdueCase(6, "Integration webhook failing", "Liza Lopez", 3)).Wait();
+        // A stale open case (no deadline, no follow-up) must also be flagged.
+        cases.AddAsync(StaleCase(13, "Feature request: bulk export", "Mark", 5)).Wait();
         // A resolved case must NOT generate a notification.
         var resolved = OverdueCase(9, "Done", "Nobody", 5);
         resolved.Status = CaseStatus.Resolved;
@@ -49,11 +65,12 @@ public class NotificationServiceTests
 
         var created = await svc.GenerateOverdueAsync();
 
-        Assert.Equal(2, created);
-        Assert.Equal(2, sender.Sent.Count);
+        Assert.Equal(3, created);
+        Assert.Equal(3, sender.Sent.Count);
         Assert.All(sender.Sent, n => Assert.Equal("Overdue follow-up", n.Title));
         Assert.Contains(sender.Sent, n => n.Message.Contains("Package not delivered"));
         Assert.Contains(sender.Sent, n => n.Message.Contains("Integration webhook failing"));
+        Assert.Contains(sender.Sent, n => n.Message.Contains("Feature request: bulk export"));
     }
 
     [Fact]

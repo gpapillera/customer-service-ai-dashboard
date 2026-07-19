@@ -2,6 +2,18 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 17.1] Make overdue detection automatic (SLA + stale) — 2026-07-19
+**Status:** Complete (verified — backend 24/24 tests; browser shows bell "8 unread" + "8 Overdue Follow-ups" KPI; mark-all clears and stays 0; idempotent)
+**Context:** Phase 17 shipped the notification center but the overdue rule only fired when a `FollowUpDueUtc` existed — and nothing ever set it, so only the 2 seed cases were ever flagged. User pointed out open cases with no call logs were ignored. Fix: a single shared `OverduePolicy` so the dashboard, cases filter, and notifications all agree, plus auto-scheduled SLA deadlines on case creation.
+**Changes:**
+- `backend/src/CustomerService.Domain/OverduePolicy.cs` (new) — single source of truth. `NeedsFollowUp`/`DaysOverdue` flag a case when it is open AND either (a) has a past `FollowUpDueUtc` with no follow-up since, or (b) has no deadline and no follow-up for `StaleDays` (3). `ComputeFollowUpDueUtc` derives an SLA deadline from priority (High=1d, Medium=3d, Low=7d).
+- `backend/src/CustomerService.Application/Services/CaseService.cs` — auto-set `FollowUpDueUtc` from SLA on `CreateAsync`; `overdue` filter rewritten to mirror `OverduePolicy` (inline, EF-translatable).
+- `backend/src/CustomerService.Application/Services/NotificationService.cs` — `GenerateOverdueAsync` now uses `OverduePolicy.NeedsFollowUp` over in-memory cases (includes CallLogs) and `DaysOverdue` for the message.
+- `backend/src/CustomerService.Infrastructure/Repositories/DashboardRepository.cs` — `GetOverdueFollowUpsAsync` rewritten to use `OverduePolicy` (scheduled + stale), so dashboard count matches notifications.
+- `backend/tests/CustomerService.Tests/NotificationServiceTests.cs` — added a stale-case assertion (now expects 3: 2 scheduled + 1 stale; resolved still excluded).
+- `backend/tests/CustomerService.Tests/DashboardRepositoryTests.cs` — fixed `ExcludesFutureDeadlines` (future deadline + recent creation is not stale) and added `FlagsStaleOpenCaseWithNoDeadline`.
+- **Note:** SQLite `EnsureCreated()` — deleted the stale `customer_service.db` so the (unchanged) schema regenerated; seed now yields 8 overdue cases (2 scheduled + 6 stale).
+
 ## [Phase 17] In-app notification center for overdue follow-ups — 2026-07-19
 **Status:** Complete (verified — backend 23/23 tests; frontend 13/13 tests; browser shows bell with "2 unread" badge, dropdown lists both overdue cases, "Mark all read" clears the badge, reload keeps it cleared; not yet committed)
 **Context:** Third roadmap item. Scoped by the user to **"Record + in-app center"**: generate a persisted `Notification` per overdue case and surface it in an in-app bell — no external provider. A pluggable `INotificationSender` seam is left for real Email/SMS later. Generation is idempotent (at most one notification per case, even after it is marked read).

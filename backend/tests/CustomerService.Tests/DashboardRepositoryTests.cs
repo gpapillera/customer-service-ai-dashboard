@@ -79,13 +79,34 @@ public class DashboardRepositoryTests
     {
         using var ctx = BuildContext();
         SeedCustomer(ctx, 1);
-        ctx.Cases.Add(MakeCase(1, CaseStatus.InProgress, DateTime.UtcNow.AddDays(3)));
+        // Future deadline AND recently created (not stale) → not overdue.
+        var c = MakeCase(1, CaseStatus.InProgress, DateTime.UtcNow.AddDays(3));
+        c.CreatedAtUtc = DateTime.UtcNow.AddHours(-1);
+        ctx.Cases.Add(c);
         await ctx.SaveChangesAsync();
 
         var repo = new DashboardRepository(ctx);
         var overdue = await repo.GetOverdueFollowUpsAsync();
 
         Assert.Empty(overdue);
+    }
+
+    [Fact]
+    public async Task GetOverdueFollowUpsAsync_FlagsStaleOpenCaseWithNoDeadline()
+    {
+        using var ctx = BuildContext();
+        SeedCustomer(ctx, 1);
+        // Open, no deadline, no follow-up for longer than the stale threshold.
+        var c = MakeCase(1, CaseStatus.New, null);
+        c.CreatedAtUtc = DateTime.UtcNow.AddDays(-5);
+        ctx.Cases.Add(c);
+        await ctx.SaveChangesAsync();
+
+        var repo = new DashboardRepository(ctx);
+        var overdue = await repo.GetOverdueFollowUpsAsync();
+
+        Assert.Single(overdue);
+        Assert.Equal(1, overdue[0].CaseId);
     }
 
     [Fact]

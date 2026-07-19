@@ -1,5 +1,6 @@
 using CustomerService.Application.Dtos;
 using CustomerService.Application.Interfaces;
+using CustomerService.Domain;
 using CustomerService.Domain.Entities;
 using CustomerService.Domain.Interfaces;
 using CustomerService.ML;
@@ -49,12 +50,20 @@ public class CaseService : ICaseService
         if (to.HasValue) q = q.Where(c => c.CreatedAtUtc <= to.Value);
         if (overdue)
         {
-            // Open cases with a past follow-up deadline and no follow-up since the deadline.
+            // Open cases that need a follow-up: either a scheduled deadline was
+            // missed (deadline in the past, no follow-up since), or (no deadline
+            // set) the case has gone StaleDays with no follow-up. Mirrors
+            // OverduePolicy.NeedsFollowUp (kept inline here because EF Core
+            // cannot translate calls to a custom static method).
             var now = DateTime.UtcNow;
-            var openStatuses = new[] { CaseStatus.New, CaseStatus.InProgress, CaseStatus.Escalated };
-            q = q.Where(c => c.FollowUpDueUtc.HasValue && c.FollowUpDueUtc.Value < now)
-                .Where(c => openStatuses.Contains(c.Status))
-                .Where(c => !c.CallLogs.Any(cl => cl.CreatedAtUtc >= c.FollowUpDueUtc.Value));
+            var staleThreshold = now.AddDays(-OverduePolicy.StaleDays);
+            q = q.Where(c => OverduePolicy.OpenStatuses.Contains(c.Status))
+                .Where(c =>
+                    (c.FollowUpDueUtc.HasValue
+                        && c.FollowUpDueUtc.Value < now
+                        && !c.CallLogs.Any(cl => cl.CreatedAtUtc >= c.FollowUpDueUtc.Value))
+                    || (!c.FollowUpDueUtc.HasValue
+                        && !c.CallLogs.Any(cl => cl.CreatedAtUtc >= staleThreshold)));
         }
 
         return await q.OrderByDescending(c => c.CreatedAtUtc)
@@ -97,6 +106,7 @@ public class CaseService : ICaseService
             });
         var priority = dto.Priority ?? prediction!.Priority;
 
+        var createdAt = DateTime.UtcNow;
         var caseEntity = new Case
         {
             Subject = dto.Subject,
@@ -109,7 +119,10 @@ public class CaseService : ICaseService
             PriorityAutoSuggested = !dto.Priority.HasValue,
             PriorityReason = prediction?.Reason,
             LastContactUtc = dto.LastContactUtc,
-            CreatedAtUtc = DateTime.UtcNow,
+            CreatedAtUtc = createdAt,
+            // Auto-schedule a follow-up deadline from the SLA so the case is
+            // tracked for follow-up even when the UI doesn't set one.
+            FollowUpDueUtc = OverduePolicy.ComputeFollowUpDueUtc(priority, null, createdAt),
         };
         await _cases.AddAsync(caseEntity);
         await _cases.SaveChangesAsync();

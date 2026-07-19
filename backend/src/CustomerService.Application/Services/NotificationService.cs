@@ -1,5 +1,6 @@
 using CustomerService.Application.Dtos;
 using CustomerService.Application.Interfaces;
+using CustomerService.Domain;
 using CustomerService.Domain.Entities;
 using CustomerService.Domain.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -35,15 +36,17 @@ public class NotificationService : INotificationService
     public async Task<int> GenerateOverdueAsync()
     {
         var now = DateTime.UtcNow;
-        var openStatuses = new[] { CaseStatus.New, CaseStatus.InProgress, CaseStatus.Escalated };
 
-        // Overdue cases: open, past follow-up deadline, no follow-up since deadline.
-        var overdueCases = await _cases.Query()
+        // Overdue cases: open and needing a follow-up (scheduled deadline missed
+        // OR stale with no follow-up). Uses the shared OverduePolicy so this
+        // matches the dashboard and the cases filter exactly.
+        var allCases = await _cases.Query()
             .Include(c => c.Customer)
-            .Where(c => c.FollowUpDueUtc.HasValue && c.FollowUpDueUtc.Value < now)
-            .Where(c => openStatuses.Contains(c.Status))
-            .Where(c => !c.CallLogs.Any(cl => cl.CreatedAtUtc >= c.FollowUpDueUtc.Value))
+            .Include(c => c.CallLogs)
             .ToListAsync();
+        var overdueCases = allCases
+            .Where(c => OverduePolicy.NeedsFollowUp(c, now))
+            .ToList();
 
         if (overdueCases.Count == 0)
         {
@@ -66,13 +69,7 @@ public class NotificationService : INotificationService
                 continue;
             }
 
-            var due = c.FollowUpDueUtc;
-            if (due is null)
-            {
-                continue;
-            }
-
-            var daysOverdue = (int)Math.Ceiling((now - due.Value).TotalDays);
+            var daysOverdue = OverduePolicy.DaysOverdue(c, now);
             var customerName = c.Customer?.Name ?? "a customer";
             var notification = new Notification
             {

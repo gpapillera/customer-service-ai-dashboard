@@ -1,3 +1,4 @@
+using CustomerService.Domain;
 using CustomerService.Domain.Entities;
 using CustomerService.Domain.Interfaces;
 using CustomerService.Infrastructure.Data;
@@ -58,28 +59,25 @@ public class DashboardRepository : IDashboardRepository
     public async Task<List<OverdueFollowUpSummary>> GetOverdueFollowUpsAsync()
     {
         var now = DateTime.UtcNow;
-        // Open cases with a follow-up deadline in the past.
-        var openStatuses = new[] { CaseStatus.New, CaseStatus.InProgress, CaseStatus.Escalated };
+        // Open cases that need a follow-up (scheduled deadline missed OR stale
+        // with no follow-up). Uses the shared OverduePolicy so this matches the
+        // cases filter and the notification generator exactly.
         var candidates = await _context.Cases
             .Include(c => c.Customer)
             .Include(c => c.AssignedToUser)
             .Include(c => c.CallLogs)
-            .Where(c => c.FollowUpDueUtc.HasValue && c.FollowUpDueUtc.Value < now)
-            .Where(c => openStatuses.Contains(c.Status))
+            .Where(c => OverduePolicy.OpenStatuses.Contains(c.Status))
             .ToListAsync();
 
         var result = new List<OverdueFollowUpSummary>();
         foreach (var c in candidates)
         {
-            var due = c.FollowUpDueUtc!.Value;
-            // Not overdue if a follow-up (call log) happened on/after the deadline.
-            var followedUpSince = c.CallLogs.Any(cl => cl.CreatedAtUtc >= due);
-            if (followedUpSince)
+            if (!OverduePolicy.NeedsFollowUp(c, now))
             {
                 continue;
             }
 
-            var daysOverdue = (int)Math.Ceiling((now - due).TotalDays);
+            var due = c.FollowUpDueUtc ?? now.AddDays(-OverduePolicy.StaleDays);
             result.Add(new OverdueFollowUpSummary
             {
                 CaseId = c.Id,
@@ -88,7 +86,7 @@ public class DashboardRepository : IDashboardRepository
                 AssignedToUserName = c.AssignedToUser?.FullName ?? string.Empty,
                 Priority = c.Priority,
                 FollowUpDueUtc = due,
-                DaysOverdue = daysOverdue < 1 ? 1 : daysOverdue,
+                DaysOverdue = OverduePolicy.DaysOverdue(c, now),
             });
         }
 
