@@ -9,39 +9,41 @@
     />
   </mat-form-field>
 
-  <mat-form-field appearance="outline" class="f-select">
-    <mat-select
-      formControlName="status"
-      placeholder="Status"
-      aria-label="Filter by status"
-    >
-      @for (s of statuses; track s) {
-        <mat-option [value]="s">{{ s }}</mat-option>
-      }
-    </mat-select>
-  </mat-form-field>
+  <div class="filters">
+    <mat-form-field appearance="outline" class="f-select">
+      <mat-select
+        formControlName="status"
+        placeholder="Status"
+        aria-label="Filter by status"
+      >
+        @for (s of statuses; track s) {
+          <mat-option [value]="s">{{ s }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
 
-  <mat-form-field appearance="outline" class="f-select">
-    <mat-select
-      formControlName="priority"
-      placeholder="Priority"
-      aria-label="Filter by priority"
-    >
-      @for (p of priorities; track p) {
-        <mat-option [value]="p">{{ p }}</mat-option>
-      }
-    </mat-select>
-  </mat-form-field>
+    <mat-form-field appearance="outline" class="f-select">
+      <mat-select
+        formControlName="priority"
+        placeholder="Priority"
+        aria-label="Filter by priority"
+      >
+        @for (p of priorities; track p) {
+          <mat-option [value]="p">{{ p }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
 
-  <mat-form-field appearance="outline" class="f-select">
-    <mat-select
-      formControlName="category"
-      placeholder="Category"
-      aria-label="Filter by category"
-    >
-      @for (c of categories; track c) {
-        <mat-option [value]="c">{{ c }}</mat-option>
-      }
-    </mat-select>
-  </mat-form-field>
+    <mat-form-field appearance="outline" class="f-select">
+      <mat-select
+        formControlName="category"
+        placeholder="Category"
+        aria-label="Filter by category"
+      >
+        @for (c of categories; track c) {
+          <mat-option [value]="c">{{ c }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  </div>
 </form>

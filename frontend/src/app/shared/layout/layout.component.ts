@@ -66,8 +66,12 @@ export class LayoutComponent {
       .pipe(takeUntilDestroyed())
       .subscribe((state) => {
         this.isHandset.set(state.matches);
-        // Desktop → open, handset → closed (auto-hide on resize).
-        this.opened.set(!state.matches);
+        // Shrinking to a small screen auto-hides the sidenav (rail shows).
+        // Widening back to desktop must NOT force it open — respect the
+        // user's manual toggle so a hidden sidenav stays hidden.
+        if (state.matches) {
+          this.opened.set(false);
+        }
       });
   }
 
