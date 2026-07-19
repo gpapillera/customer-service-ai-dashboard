@@ -2,6 +2,18 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 11] Frontend unit tests now runnable (system Chrome installed) — 2026-07-19
+**Status:** Complete (verified — `ng test` runs, 13/13 specs pass; documented; not yet committed)
+**Context:** During Phase 10, `ng test` (Karma) could not run because the only Chrome on this machine was a flatpak sandbox that Karma cannot launch/drive. The user installed the official Google Chrome `.deb` (v150.0.7871.128 at `/usr/bin/google-chrome`), which is a normal system binary Karma can exec directly. This unblocks the frontend test suite.
+**Changes:** None to application code. Test command (run from `frontend/`):
+```
+export CHROME_BIN=$(which google-chrome)
+npx ng test --watch=false --browsers=ChromeHeadlessCI
+```
+The `ChromeHeadlessCI` launcher already exists in `karma.conf.js` with `--no-sandbox` (required when running as root). Note: the flatpak Chrome (`flatpak run com.google.Chrome`) does NOT work for Karma — use the system `.deb` or Puppeteer's Chrome-for-Testing instead.
+**Verification:** `npx ng test --watch=false --browsers=ChromeHeadlessCI` → `TOTAL: 13 SUCCESS` (0.621s), including `case.service.spec.ts` which asserts the AI-preview request sends `body.description` and `body.hasComplaintKeyword` is undefined. Frontend coverage of the sentiment change is now confirmed, closing the gap noted in Phase 10.
+**Known issues / TODO:** None. (Optional follow-up: add a one-line "Running frontend tests" note to `frontend/README.md` so the `CHROME_BIN` step is discoverable.)
+
 ## [Phase 10] Sentiment analysis on complaint text (replaces keyword flags) — 2026-07-19
 **Status:** Complete (verified — backend build 0 errors; 15/15 tests pass; model retrained to 0.947 accuracy; frontend tsc 0 errors; browser check shows "Suggested: Medium · ML model" from a description; not yet committed)
 **Context:** First item of the README `## Roadmap`: replace the binary `hasComplaintKeyword` flag with a continuous sentiment score derived from the case description. The old feature was a 0/1 switch (keyword present or not); the new one is a lexicon-based score in [-1, 1] (negative = complaint/urgency, positive = satisfaction) so the model sees a graded urgency signal. The scorer is mirrored in Python (`sentiment_score` in `ml/train_model.py`, used for training) and C# (`RuleBasedPriorityPredictor.SentimentScore`, used for inference) — the backend remains the single source of truth; the frontend only sends the raw `description`.
