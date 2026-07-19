@@ -33,10 +33,10 @@
         </div>
         <div class="modal-actions">
           @if (state.visibleCount() > 0) {
-            <button type="button" class="mark-all" (click)="markAll()">Mark all read</button>
+            <button type="button" class="mark-all mark-all-read" (click)="markAll()">Mark all read</button>
           }
           @if (state.visibleCount() < state.overdue().length) {
-            <button type="button" class="mark-all" (click)="markAllUnread()">Mark all unread</button>
+            <button type="button" class="mark-all mark-all-unread" (click)="markAllUnread()">Mark all unread</button>
           }
           <button type="button" class="close-btn" (click)="close()" aria-label="Close">
             <cs-icon name="x" [size]="18"></cs-icon>

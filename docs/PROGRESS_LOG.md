@@ -2,6 +2,13 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 17.5] Notification pop-up layout: wider + distinguishable header buttons + visible close — 2026-07-19
+**Status:** Complete (verified — frontend build OK; browser: modal header width 558px; "Mark all read" solid indigo, "Mark all unread" neutral outline, close button has a border and turns red on hover)
+**Context:** User feedback on the Phase 17.4 pop-up: (1) the modal was too narrow so the header ("Follow-up needed", count, "Mark all read", "Mark all unread") had no room; (2) the two "mark all" actions were plain accent text with no button chrome, so they weren't distinguishable; (3) the close (X) button was transparent/muted and blended into the background, making it invisible.
+**Changes:**
+- `frontend/src/app/shared/notification-bell.component.scss` — widened `.modal` from 460px → 560px (max-width 94vw). Gave `.mark-all` a real button look (border + padding + radius). Split into `.mark-all-read` (solid `--cs-accent` bg, white text — primary) and `.mark-all-unread` (white bg, muted text, subtle border — neutral/outline, visually distinct). `.close-btn` now has a `1px` border + white bg and turns `--cs-danger` (red) with a white icon on hover, so it's clearly visible.
+- `frontend/src/app/shared/notification-bell.component.html` — the two header buttons now carry distinct classes (`mark-all-read` / `mark-all-unread`) for styling.
+
 ## [Phase 17.4] Per-case read/unread tracking + indigo highlight — 2026-07-19
 **Status:** Complete (verified — frontend build OK; 13/13 tests; browser: opening a case decrements the badge 7→6; "Mark unread" restores it; "Mark all read" → 0; "Mark all unread" restores 7; unread rows show indigo highlight, read rows stay calm)
 **Context:** User: opening an overdue case in the pop-up did **not** decrease the notification number — the old model was all-or-nothing (`readDismissed` boolean hid the whole badge). Requested: (1) the badge should reflect **per-case** read state and decrease as cases are read; (2) an option to mark a case **unread again** so the dot/number stays; (3) a **"mark all unread"** option; (4) an **indigo highlight** on unread cases in the pop-up (matching the nav-tab hover style), with read cases keeping the existing calm style.
