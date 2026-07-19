@@ -41,7 +41,9 @@ export class NotificationStateService {
           assignedToUserName: c.assignedToUserName ?? '',
           priority: c.priority,
           followUpDueUtc: c.followUpDueUtc ?? '',
-          daysOverdue: this.computeDaysOverdue(c.followUpDueUtc),
+          // Use the server-computed value so it matches the dashboard exactly
+          // (avoids client-side timezone drift in the day count).
+          daysOverdue: c.daysOverdue ?? 0,
           detail: c,
         }));
         this.overdue.set(mapped);
@@ -73,14 +75,6 @@ export class NotificationStateService {
 
   private recompute(): void {
     this.visibleCount.set(this.readDismissed() ? 0 : this.overdue().length);
-  }
-
-  private computeDaysOverdue(dueUtc: string | null): number {
-    if (!dueUtc) return 0;
-    const due = new Date(dueUtc).getTime();
-    const now = Date.now();
-    const days = Math.ceil((now - due) / 86_400_000);
-    return days < 1 ? 1 : days;
   }
 
   private loadDismissed(): boolean {

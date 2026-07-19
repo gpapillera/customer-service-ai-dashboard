@@ -2,6 +2,16 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 17.3] Bell polish: priority color + consistent days-overdue — 2026-07-19
+**Status:** Complete (verified — backend 24/24 tests; browser: priority pills colored High(red)/Medium(amber)/Low(green); bell days-overdue now matches the dashboard exactly, e.g. case 6 = 3, case 2 = 2)
+**Context:** Two bell issues: (1) the priority column had no color highlight (the bell used `.item-priority.priority-*` classes but only `.cs-pill.priority-*` was styled, so pills were unstyled); (2) the "days overdue" number in the bell differed from the dashboard list. Root cause of (2): the dashboard computes `daysOverdue` **server-side** via `OverduePolicy.DaysOverdue` (UTC), while the bell recomputed it **client-side** from the UTC timestamp using `new Date(...)` — which the browser interprets in **local** time, shifting the day count (several cases showed "0 d overdue" in the bell vs "3 d" on the dashboard).
+**Changes:**
+- `backend/src/CustomerService.Application/Dtos/CaseDtos.cs` — added `int? DaysOverdue` to `CaseDto`.
+- `backend/src/CustomerService.Application/Services/CaseService.cs` — `ToDto` now sets `DaysOverdue = OverduePolicy.NeedsFollowUp(c) ? OverduePolicy.DaysOverdue(c) : null`, so the cases endpoint and dashboard share the identical server-computed value (no timezone drift).
+- `frontend/src/app/shared/models.ts` — added `daysOverdue: number | null` to `Case`.
+- `frontend/src/app/shared/notification-state.service.ts` — bell now uses the server `c.daysOverdue` instead of recomputing locally; removed the now-unused `computeDaysOverdue` helper.
+- `frontend/src/app/shared/notification-bell.component.scss` — added `.item-priority.priority-high/medium/low` color rules (High = red w/ light-red fill, Medium = amber, Low = green), mirroring the dashboard pill palette.
+
 ## [Phase 17.2] Persistent modal notification center (live list, session read) — 2026-07-19
 **Status:** Complete (verified — frontend build OK; 13/13 tests; browser: bell shows live "7 cases need follow-up" matching the dashboard KPI, modal lists all overdue cases with expandable detail rows, "Mark all read" hides the badge for the session, logout→login brings the badge back for still-overdue cases)
 **Context:** The Phase 17 bell was "useless" — it was built on stored `Notification` rows that were marked permanently `Read` after one click and never returned, even after logout/login. User wanted a genuinely useful center: a modal (like the new-case form) listing every case needing follow-up (title, customer, priority), with click-to-expand detail (category, description, how long it's sat, follow-up log, link to the case), and "Mark all read" that hides the badge for the session but lets notifications **persist** and reappear on next login for cases still overdue.

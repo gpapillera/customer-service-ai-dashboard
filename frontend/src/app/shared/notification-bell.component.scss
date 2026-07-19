@@ -224,6 +224,23 @@
   letter-spacing: 0.03em;
   padding: 0.18rem 0.5rem;
   border-radius: var(--cs-radius-pill);
+  background: transparent;
+}
+
+.item-priority.priority-low {
+  color: #047857;
+  border: 1px solid #6ee7b7;
+}
+
+.item-priority.priority-medium {
+  color: #b45309;
+  border: 1px solid #fcd34d;
+}
+
+.item-priority.priority-high {
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+  background: #fef2f2;
 }
 
 .item-title {

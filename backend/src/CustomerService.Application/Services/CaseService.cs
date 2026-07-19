@@ -173,5 +173,6 @@ public class CaseService : ICaseService
         CreatedAtUtc = c.CreatedAtUtc,
         UpdatedAtUtc = c.UpdatedAtUtc,
         FollowUpDueUtc = c.FollowUpDueUtc,
+        DaysOverdue = OverduePolicy.NeedsFollowUp(c) ? OverduePolicy.DaysOverdue(c) : null,
     };
 }

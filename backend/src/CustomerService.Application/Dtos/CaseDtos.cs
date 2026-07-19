@@ -109,4 +109,12 @@ public class CaseDto
 
     /// <summary>UTC deadline for the next follow-up (null = none scheduled).</summary>
     public DateTime? FollowUpDueUtc { get; set; }
+
+    /// <summary>
+    /// Days past the follow-up reference point (rounded up, minimum 1) when the
+    /// case is overdue; null otherwise. Computed server-side via
+    /// <see cref="OverduePolicy.DaysOverdue"/> so the cases endpoint and the
+    /// dashboard always agree (and avoid timezone drift from client-side math).
+    /// </summary>
+    public int? DaysOverdue { get; set; }
 }

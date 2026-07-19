@@ -54,6 +54,8 @@ export interface Case {
   createdAtUtc: string;
   updatedAtUtc: string | null;
   followUpDueUtc: string | null;
+  /** Days past the follow-up reference point when overdue; null otherwise. */
+  daysOverdue: number | null;
 }
 
 /** Payload for creating a case. */
