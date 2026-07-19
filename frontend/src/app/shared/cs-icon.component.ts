@@ -1,4 +1,4 @@
-import { Component, Input, OnInit } from '@angular/core';
+import { Component, Input, OnChanges, OnInit, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { type LucideIconData } from 'lucide-angular';
@@ -107,7 +107,7 @@ const ICON_MAP: Record<string, LucideIconData> = {
     `,
   ],
 })
-export class CsIconComponent implements OnInit {
+export class CsIconComponent implements OnInit, OnChanges {
   /** Material-style ligature name, e.g. "add", "edit". */
   @Input() name = '';
   /** Pixel size of the icon (default 20). */
@@ -123,6 +123,18 @@ export class CsIconComponent implements OnInit {
   constructor(private readonly sanitizer: DomSanitizer) {}
 
   ngOnInit(): void {
+    this.render();
+  }
+
+  /** Re-render whenever an input (e.g. the icon `name`) changes, so the
+      SVG updates instead of staying frozen on its first-rendered icon. */
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['name'] || changes['size'] || changes['strokeWidth']) {
+      this.render();
+    }
+  }
+
+  private render(): void {
     const icon = ICON_MAP[this.name];
     if (!icon) {
       this.svgHtml = undefined;

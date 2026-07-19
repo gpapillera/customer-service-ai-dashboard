@@ -177,9 +177,18 @@
   padding-left: 4.5rem;
 }
 
+/* On small screens the sidenav is an overlay (it doesn't take layout space),
+   so when it closes we must NOT animate the content padding — doing so makes
+   the page visibly "push" right after the wide sidenav finishes hiding. The
+   rail appears instantly and the page is already correctly positioned. */
+.content.instant-shift {
+  transition: none;
+}
+
 /* Collapsed icon rail shown only while the sidenav is hidden. It keeps the
-   toggle, the notification bell and the primary nav reachable, and slides in
-   from the left with a clean animation. */
+   toggle, the notification bell and the primary nav reachable. It appears
+   immediately (no keyframe animation that can get stuck) and slides in with a
+   short, deterministic transition so the page is never left blank/pushed. */
 .rail {
   position: fixed;
   top: 0;
@@ -195,18 +204,10 @@
   background: var(--cs-surface);
   border-right: 1px solid var(--cs-border);
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
-  animation: rail-in 0.22s var(--cs-ease);
-}
-
-@keyframes rail-in {
-  from {
-    opacity: 0;
-    transform: translateX(-12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+  opacity: 1;
+  transform: translateX(0);
+  transition: opacity 0.18s var(--cs-ease), transform 0.18s var(--cs-ease);
+  animation: none;
 }
 
 .rail-toggle {

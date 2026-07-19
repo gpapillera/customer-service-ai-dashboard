@@ -42,10 +42,12 @@
     }
   </mat-sidenav>
 
-  <mat-sidenav-content class="content" [class.sidebar-closed]="!opened()">
+  <mat-sidenav-content class="content" [class.sidebar-closed]="!opened()" [class.instant-shift]="isHandset()">
     @if (!opened()) {
       <!-- Collapsed icon rail: keeps the toggle, notifications and primary
-           nav one click away when the sidenav is hidden. -->
+           nav one click away when the sidenav is hidden. It appears
+           immediately (no waiting for the wide sidenav to finish hiding) and
+           slides in via a short transition so the page is never pushed. -->
       <nav class="rail" aria-label="Collapsed navigation">
         <button
           type="button"
