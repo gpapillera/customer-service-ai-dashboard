@@ -44,14 +44,36 @@
 
   <mat-sidenav-content class="content" [class.sidebar-closed]="!opened()">
     @if (!opened()) {
-      <button
-        type="button"
-        class="floating-toggle"
-        (click)="toggleSidenav()"
-        aria-label="Open sidebar"
-      >
-        <cs-icon name="menu" [size]="20"></cs-icon>
-      </button>
+      <!-- Collapsed icon rail: keeps the toggle, notifications and primary
+           nav one click away when the sidenav is hidden. -->
+      <nav class="rail" aria-label="Collapsed navigation">
+        <button
+          type="button"
+          class="rail-toggle"
+          (click)="toggleSidenav()"
+          [attr.aria-label]="isHandset() ? 'Open sidebar' : 'Expand sidebar'"
+        >
+          <cs-icon name="menu" [size]="20"></cs-icon>
+        </button>
+
+        <div class="rail-bell">
+          <app-notification-bell></app-notification-bell>
+        </div>
+
+        <div class="rail-nav">
+          @for (link of navLinks; track link.path) {
+            <a
+              class="rail-item"
+              [routerLink]="link.path"
+              routerLinkActive="active"
+              [attr.aria-label]="link.label"
+              (click)="isHandset() && toggleSidenav()"
+            >
+              <cs-icon [name]="link.icon"></cs-icon>
+            </a>
+          }
+        </div>
+      </nav>
     }
     <router-outlet></router-outlet>
   </mat-sidenav-content>

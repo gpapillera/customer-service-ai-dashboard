@@ -2,6 +2,17 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 18] Collapsed icon rail + page-header brand logo + app tab title/favicon — 2026-07-19
+**Status:** Complete (verified — frontend build OK; browser: collapsing the sidenav shows a left icon rail with toggle → notification bell → Dashboard/Customers/Cases (all functional); page-header logo appears on Dashboard/Customers/Cases with a fade/scale-in; tab title is "Customer Service" with a new headset SVG favicon)
+**Context:** User requests: (1) when the sidenav is hidden, show an icon rail under the toggle with the notification bell and the Dashboard/Customers/Cases icons, keeping all functionality identical to the expanded sidenav; (2) place the ServiceAI logo beside the page title on the Dashboard, Customers, and Cases pages; (3) add a clean animation when moving the logo/icons; (4) change the browser tab title from "CustomerServiceDashboard" to "Customer Service" and replace the Angular favicon with the project logo.
+**Changes:**
+- `frontend/src/app/shared/layout/layout.component.html` — replaced the single floating reopen button with a `.rail` nav (shown only when `!opened()`): `.rail-toggle` (expand), `.rail-bell` (notification bell), `.rail-nav` (Dashboard/Customers/Cases icon links, `routerLinkActive="active"`). Same click handlers as the sidenav (handset auto-closes).
+- `frontend/src/app/shared/layout/layout.component.scss` — added `.rail` (fixed left, 64px, slides in via `rail-in` keyframe), `.rail-toggle`, `.rail-bell`, `.rail-nav`, `.rail-item` (hover/active mirror the sidenav nav styling). Removed the old `.floating-toggle` rules.
+- `frontend/src/styles.scss` — added shared `.page-brand` / `.page-brand-logo` + `brand-in` keyframe (fade + scale-in) so the logo beside a page title animates consistently across pages.
+- `frontend/src/app/dashboard/dashboard.component.html`, `frontend/src/app/customers/customer-list.component.html`, `frontend/src/app/cases/case-list.component.html` — wrapped the `<h1>` in a `.page-brand` with the headset logo mark.
+- `frontend/src/index.html` — title → "Customer Service"; favicon link → `favicon.svg`.
+- `frontend/public/favicon.svg` (new) — indigo-gradient rounded-square with a white headset glyph (matches the sidenav brand logo).
+
 ## [Phase 17.6] Fix pop-up close button: missing icon + faint outline — 2026-07-19
 **Status:** Complete (verified — frontend build OK; browser: close button now renders the X icon (`hasSvg: true`) with a clear slate border `rgb(203,213,225)` and dark text)
 **Context:** User: the close (X) button had a hover color but no visible icon, and its outline was indistinguishable from the background. Root cause: the template used `<cs-icon name="x">`, but the icon map only defines `close` (→ Lucide `X`) — so `x` resolved to "unknown" and rendered nothing. The border used `--cs-border` (`rgba(0,0,0,0.06)`), which is nearly invisible on the surface.

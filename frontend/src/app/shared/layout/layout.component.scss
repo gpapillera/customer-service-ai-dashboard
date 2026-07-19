@@ -168,13 +168,39 @@
   padding-left: 4.5rem;
 }
 
-/* Floating reopen button shown only while the sidenav is collapsed, so the
-   toggle stays reachable even when the sidebar is fully hidden. */
-.floating-toggle {
+/* Collapsed icon rail shown only while the sidenav is hidden. It keeps the
+   toggle, the notification bell and the primary nav reachable, and slides in
+   from the left with a clean animation. */
+.rail {
   position: fixed;
-  top: 1.25rem;
-  left: 1.25rem;
+  top: 0;
+  left: 0;
+  bottom: 0;
   z-index: 30;
+  width: 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem 0;
+  background: var(--cs-surface);
+  border-right: 1px solid var(--cs-border);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  animation: rail-in 0.22s var(--cs-ease);
+}
+
+@keyframes rail-in {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.rail-toggle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -185,14 +211,51 @@
   border-radius: 10px;
   color: var(--cs-accent);
   cursor: pointer;
-  box-shadow: var(--cs-shadow-hover);
   transition: background 0.18s var(--cs-ease), color 0.18s var(--cs-ease),
     transform 0.18s var(--cs-ease);
 }
 
-.floating-toggle:hover {
+.rail-toggle:hover {
   background: var(--cs-accent-light);
   transform: translateY(-1px);
+}
+
+.rail-bell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rail-nav {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+}
+
+.rail-item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 11px;
+  color: var(--cs-text-muted);
+  text-decoration: none;
+  transition: background 0.18s var(--cs-ease), color 0.18s var(--cs-ease),
+    transform 0.18s var(--cs-ease);
+}
+
+.rail-item:not(.active):hover {
+  background: rgba(79, 70, 229, 0.06);
+  color: var(--cs-accent);
+  transform: translateY(-1px);
+}
+
+.rail-item.active {
+  background: var(--cs-accent-light);
+  color: var(--cs-accent-strong);
 }
 
 .nav {

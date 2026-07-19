@@ -204,6 +204,36 @@ body {
   color: var(--cs-text-muted);
   font-size: 0.95rem;
 }
+/* Brand logo mark placed beside a page title (Dashboard / Customers / Cases).
+   Fades + scales in for a clean, "alive" entrance. */
+.page-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  animation: brand-in 0.3s var(--cs-ease);
+}
+.page-brand-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--cs-accent-gradient);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.35);
+  flex: 0 0 auto;
+}
+@keyframes brand-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
 /* ---- Modal dialogs: give the content breathing room ----
    The form components render flush against the dialog edges, so add padding
    around the dialog surface and a little extra below the header. */
