@@ -35,6 +35,9 @@
           @if (state.visibleCount() > 0) {
             <button type="button" class="mark-all" (click)="markAll()">Mark all read</button>
           }
+          @if (state.visibleCount() < state.overdue().length) {
+            <button type="button" class="mark-all" (click)="markAllUnread()">Mark all unread</button>
+          }
           <button type="button" class="close-btn" (click)="close()" aria-label="Close">
             <cs-icon name="x" [size]="18"></cs-icon>
           </button>
@@ -51,7 +54,7 @@
       } @else {
         <ul class="list">
           @for (item of state.overdue(); track item.caseId) {
-            <li class="item" [class.expanded]="isExpanded(item.caseId)">
+            <li class="item" [class.expanded]="isExpanded(item.caseId)" [class.unread]="!isRead(item.caseId)">
               <button
                 type="button"
                 class="item-head"
@@ -107,6 +110,17 @@
                   </div>
 
                   <div class="detail-actions">
+                    @if (isRead(item.caseId)) {
+                      <button type="button" class="read-toggle" (click)="markUnread(item)">
+                        <cs-icon name="mail" [size]="16"></cs-icon>
+                        Mark unread
+                      </button>
+                    } @else {
+                      <button type="button" class="read-toggle" (click)="markRead(item)">
+                        <cs-icon name="mail_open" [size]="16"></cs-icon>
+                        Mark read
+                      </button>
+                    }
                     <button type="button" class="open-btn" (click)="openCase(item)">
                       <cs-icon name="external_link" [size]="16"></cs-icon>
                       Open in Cases

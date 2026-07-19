@@ -59,6 +59,8 @@ export class NotificationBellComponent implements OnInit {
       return;
     }
     this.expandedId.set(item.caseId);
+    // Opening a case acknowledges it: the badge count decreases.
+    this.state.markRead(item.caseId);
     this.loadingDetail.set(true);
     this.logs.set([]);
     this.state.loadDetail(item.caseId).subscribe({
@@ -75,9 +77,29 @@ export class NotificationBellComponent implements OnInit {
     return this.expandedId() === id;
   }
 
-  /** Dismisses the badge for this session. */
+  /** True when the case has been acknowledged this session. */
+  isRead(id: number): boolean {
+    return this.state.isRead(id);
+  }
+
+  /** Marks a single case read (badge count decreases). */
+  markRead(item: OverdueCase): void {
+    this.state.markRead(item.caseId);
+  }
+
+  /** Marks a single case unread again (highlight + count return). */
+  markUnread(item: OverdueCase): void {
+    this.state.markUnread(item.caseId);
+  }
+
+  /** Marks every listed case read (badge → 0). */
   markAll(): void {
-    this.state.dismissAll();
+    this.state.markAllRead();
+  }
+
+  /** Marks every case unread again (badge returns to full count). */
+  markAllUnread(): void {
+    this.state.markAllUnread();
   }
 
   /** Opens the full case detail page and closes the modal. */

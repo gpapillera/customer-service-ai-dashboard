@@ -212,8 +212,33 @@
   background: var(--cs-bg);
 }
 
-.item.expanded .item-head {
+/* Unread cases get the indigo highlight (matches the nav-tab hover style). */
+.item.unread .item-head {
   background: var(--cs-accent-light);
+  box-shadow: inset 3px 0 0 var(--cs-accent);
+}
+
+/* A small dot marks unread rows at a glance. */
+.item.unread .item-head .item-title {
+  position: relative;
+  padding-left: 0.85rem;
+}
+
+.item.unread .item-head .item-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--cs-accent);
+}
+
+/* Read cases keep the calm, default style. */
+.item:not(.unread) .item-head {
+  background: transparent;
 }
 
 .item-priority {
@@ -404,6 +429,28 @@
   transform: translateY(-1px);
 }
 
+.read-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid var(--cs-border);
+  background: var(--cs-surface);
+  color: var(--cs-text-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.45rem 0.8rem;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.18s var(--cs-ease), box-shadow 0.18s var(--cs-ease),
+    transform 0.18s var(--cs-ease);
+}
+
+.read-toggle:hover {
+  background: var(--cs-bg);
+  box-shadow: var(--cs-shadow-hover);
+  transform: translateY(-1px);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .modal,
   .modal-backdrop,
@@ -414,7 +461,8 @@
   }
   .bell-btn,
   .item-head,
-  .open-btn {
+  .open-btn,
+  .read-toggle {
     transition: none;
   }
 }

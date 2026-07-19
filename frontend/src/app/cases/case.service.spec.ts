@@ -55,6 +55,7 @@ describe('CaseService', () => {
       createdAtUtc: '2024-01-01T00:00:00Z',
       updatedAtUtc: null,
       followUpDueUtc: null,
+      daysOverdue: null,
     };
     service.get(7).subscribe((c) => expect(c.id).toBe(7));
     const req = httpMock.expectOne('/api/cases/7');
