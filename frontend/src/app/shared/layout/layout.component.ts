@@ -9,6 +9,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CsIconComponent } from '../cs-icon.component';
 import { AuthService } from '../../auth/auth.service';
 import { ConfirmDialogComponent } from '../confirm-dialog.component';
+import { NotificationBellComponent } from '../notification-bell.component';
 
 /**
  * Application shell: a white sidenav with navigation (active = light indigo
@@ -26,6 +27,7 @@ import { ConfirmDialogComponent } from '../confirm-dialog.component';
     MatSidenavModule,
     MatIconModule,
     CsIconComponent,
+    NotificationBellComponent,
   ],
   templateUrl: './layout.component.html',
   styleUrl: './layout.component.scss',

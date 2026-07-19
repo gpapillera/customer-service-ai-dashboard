@@ -15,6 +15,7 @@
         >
           <cs-icon [name]="opened() ? 'chevron_left' : 'menu'" [size]="20"></cs-icon>
         </button>
+        <app-notification-bell></app-notification-bell>
       </div>
       <nav class="nav">
         @for (link of navLinks; track link.path) {

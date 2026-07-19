@@ -1,0 +1,65 @@
+<div class="bell-wrap">
+  <button
+    type="button"
+    class="bell-btn"
+    [class.has-unread]="notifications.unreadCount() > 0"
+    (click)="toggle()"
+    [attr.aria-label]="
+      notifications.unreadCount() > 0
+        ? notifications.unreadCount() + ' unread notifications'
+        : 'Notifications'
+    "
+    [attr.aria-expanded]="open()"
+  >
+    <cs-icon
+      [name]="notifications.unreadCount() > 0 ? 'notifications_active' : 'notifications'"
+      [size]="20"
+    ></cs-icon>
+    @if (notifications.unreadCount() > 0) {
+      <span class="badge">{{ notifications.unreadCount() > 9 ? '9+' : notifications.unreadCount() }}</span>
+    }
+  </button>
+
+  @if (open()) {
+    <div class="backdrop" (click)="close()"></div>
+    <div class="panel cs-lift" role="menu">
+      <div class="panel-head">
+        <span class="panel-title">Notifications</span>
+        @if (notifications.unreadCount() > 0) {
+          <button type="button" class="mark-all" (click)="markAll()">Mark all read</button>
+        }
+      </div>
+
+      @if (items().length === 0) {
+        <div class="empty">
+          <cs-icon name="inbox" [size]="28"></cs-icon>
+          <span>You're all caught up</span>
+        </div>
+      } @else {
+        <ul class="list">
+          @for (item of items(); track item.id) {
+            <li
+              class="item"
+              [class.unread]="item.status === 'Unread'"
+              role="menuitem"
+              tabindex="0"
+              (click)="openItem(item)"
+              (keydown.enter)="openItem(item)"
+            >
+              <div class="item-icon">
+                <cs-icon name="schedule" [size]="18"></cs-icon>
+              </div>
+              <div class="item-body">
+                <div class="item-title">{{ item.title }}</div>
+                <div class="item-msg">{{ item.message }}</div>
+              </div>
+              @if (item.status === 'Unread') {
+                <span class="dot" aria-hidden="true"></span>
+              }
+            </li>
+          }
+        </ul>
+      }
+    </div>
+  }
+</div>

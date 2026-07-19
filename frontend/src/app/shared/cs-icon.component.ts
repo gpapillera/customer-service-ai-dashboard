@@ -33,6 +33,8 @@ import {
   Phone,
   ChevronLeft,
   Menu,
+  Bell,
+  BellRing,
 } from 'lucide-angular/src/icons';
 
 /**
@@ -72,6 +74,8 @@ const ICON_MAP: Record<string, LucideIconData> = {
   phone: Phone,
   chevron_left: ChevronLeft,
   menu: Menu,
+  notifications: Bell,
+  notifications_active: BellRing,
 };
 
 @Component({

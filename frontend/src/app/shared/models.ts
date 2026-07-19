@@ -155,3 +155,21 @@ export interface Dashboard {
   overdueFollowUps: number;
   overdueFollowUpsList: OverdueFollowUp[];
 }
+
+/** A notification shown in the in-app notification center. */
+export interface Notification {
+  id: number;
+  title: string;
+  message: string;
+  channel: 'InApp' | 'Email' | 'Sms';
+  status: 'Unread' | 'Read';
+  createdAtUtc: string;
+  link: string | null;
+  caseId: number | null;
+}
+
+/** Summary for the bell badge (unread count + recent preview). */
+export interface NotificationSummary {
+  unreadCount: number;
+  recent: Notification[];
+}

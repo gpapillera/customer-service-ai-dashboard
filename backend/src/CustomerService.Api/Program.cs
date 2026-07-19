@@ -73,6 +73,9 @@ public class Program
         builder.Services.AddScoped<IAuthService, AuthService>();
         builder.Services.AddScoped<IDashboardService, DashboardService>();
 
+        builder.Services.AddScoped<INotificationSender, InAppNotificationSender>();
+        builder.Services.AddScoped<INotificationService, NotificationService>();
+
         builder.Services.AddSingleton<IPriorityPredictor>(serviceProvider =>
         {
             var configuredPath = config["ML:ModelPath"];

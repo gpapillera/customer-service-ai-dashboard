@@ -2,6 +2,27 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 17] In-app notification center for overdue follow-ups — 2026-07-19
+**Status:** Complete (verified — backend 23/23 tests; frontend 13/13 tests; browser shows bell with "2 unread" badge, dropdown lists both overdue cases, "Mark all read" clears the badge, reload keeps it cleared; not yet committed)
+**Context:** Third roadmap item. Scoped by the user to **"Record + in-app center"**: generate a persisted `Notification` per overdue case and surface it in an in-app bell — no external provider. A pluggable `INotificationSender` seam is left for real Email/SMS later. Generation is idempotent (at most one notification per case, even after it is marked read).
+**Changes:**
+- `backend/src/CustomerService.Domain/Entities/Notification.cs` (new) — `Notification` entity + `NotificationChannel` (InApp/Email/Sms) + `NotificationStatus` (Unread/Read) enums.
+- `backend/src/CustomerService.Infrastructure/Data/AppDbContext.cs` — added `DbSet<Notification>` + mapping (Title/Message required, FK to Case with `SetNull` so notifications survive case deletion).
+- `backend/src/CustomerService.Application/Dtos/NotificationDtos.cs` (new) — `NotificationDto` + `NotificationSummaryDto` (unread count + recent).
+- `backend/src/CustomerService.Application/Interfaces/INotificationSender.cs` (new) — pluggable delivery contract.
+- `backend/src/CustomerService.Application/Interfaces/INotificationService.cs` (new) — generate / list / summary / mark-read / mark-all-read.
+- `backend/src/CustomerService.Application/Services/InAppNotificationSender.cs` (new) — persists a `Notification` row (the only sender used by the demo).
+- `backend/src/CustomerService.Application/Services/NotificationService.cs` (new) — scans overdue cases (same rule as dashboard), creates one in-app notification per overdue case that does not already have a `Notification` row (read or unread), and serves the list/summary/mark-read.
+- `backend/src/CustomerService.Api/Controllers/NotificationsController.cs` (new) — `GET /api/notifications/summary`, `GET /api/notifications`, `POST /api/notifications/{id}/read`, `POST /api/notifications/read-all`. Summary/list trigger generation on demand (no background worker needed for the demo).
+- `backend/src/CustomerService.Api/Program.cs` — registered `INotificationSender` + `INotificationService` as scoped.
+- `frontend/src/app/shared/models.ts` — added `Notification` + `NotificationSummary` models.
+- `frontend/src/app/shared/notification.service.ts` (new) — `NotificationService` (reused name, providedIn root) with `unreadCount` signal + summary/list/markRead/markAllRead.
+- `frontend/src/app/shared/notification-bell.component.ts/.html/.scss` (new) — bell button with unread badge, dropdown of recent notifications, "Mark all read", click-to-deep-link to the case. Uses `cs-icon` (`notifications`/`notifications_active`/`schedule`/`inbox`) + design tokens; respects `prefers-reduced-motion`.
+- `frontend/src/app/shared/cs-icon.component.ts` — mapped `notifications` → Lucide `Bell` and `notifications_active` → `BellRing`.
+- `frontend/src/app/shared/layout/layout.component.html/.ts` — mounted `<app-notification-bell>` in the sidenav brand row; imported the component.
+- `backend/tests/CustomerService.Tests/NotificationServiceTests.cs` (new) — 3 tests: one-per-overdue-case generation (resolved case excluded), idempotent de-duplication, and mark-read/mark-all-read lifecycle.
+- **Note:** SQLite uses `EnsureCreated()` (no migrations), so the stale `customer_service.db` had to be deleted once to pick up the new `Notifications` table.
+
 ## [Phase 16] Revert KPI grid + fully remove overdue chip — 2026-07-19
 **Status:** Complete (verified — Cases page shows no Overdue chip, only the toggle; KPI grid reverted to fixed `repeat(7,1fr)` + breakpoints; not yet committed)
 **Context:** User rejected the centered/fluid KPI change and pointed out the "Overdue" chip was still rendering (Phase 15 only removed the `clearFilter` branch, not the chip push in `activeChips`, so the chip showed but was unclickable). Reverted both.

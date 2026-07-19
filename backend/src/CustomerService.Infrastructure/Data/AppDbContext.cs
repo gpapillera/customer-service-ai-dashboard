@@ -30,6 +30,9 @@ public class AppDbContext : DbContext
     /// <summary>Call / follow-up logs.</summary>
     public DbSet<CallLog> CallLogs => Set<CallLog>();
 
+    /// <summary>System notifications (e.g. overdue follow-up alerts).</summary>
+    public DbSet<Notification> Notifications => Set<Notification>();
+
     /// <summary>
     /// Configures the model: relationships, constraints, and value
     /// normalization (e.g. lowercase email) at the database level.
@@ -78,6 +81,17 @@ public class AppDbContext : DbContext
             e.HasKey(l => l.Id);
             e.HasOne(l => l.Case!).WithMany(c => c.CallLogs)
                 .HasForeignKey(l => l.CaseId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<Notification>(e =>
+        {
+            e.HasKey(n => n.Id);
+            e.Property(n => n.Title).IsRequired().HasMaxLength(200);
+            e.Property(n => n.Message).IsRequired().HasMaxLength(1000);
+            e.Property(n => n.Link).HasMaxLength(200);
+            // Notifications reference a case but must survive case deletion.
+            e.HasOne<Case>().WithMany().HasForeignKey(n => n.CaseId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
     }
 }
