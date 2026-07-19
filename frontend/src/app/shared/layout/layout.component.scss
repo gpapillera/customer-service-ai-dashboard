@@ -16,6 +16,15 @@
   color: #fff;
   flex: 0 0 auto;
   box-shadow: 0 4px 12px rgba(79, 70, 229, 0.35);
+  transition: transform 0.28s var(--cs-ease), opacity 0.28s var(--cs-ease);
+}
+
+/* When the sidenav collapses, the brand logo shrinks away cleanly so it can
+   re-appear (enlarged) on the page headers. */
+.brand.brand-collapsed .brand-logo {
+  transform: scale(0.4);
+  opacity: 0;
+  pointer-events: none;
 }
 
 .brand-logo cs-icon {

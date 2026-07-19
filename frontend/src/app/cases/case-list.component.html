@@ -2,9 +2,11 @@
   <div class="titles">
     <div class="page-brand">
       <span class="page-brand-logo"><cs-icon name="headset"></cs-icon></span>
-      <h1>Cases</h1>
+      <div class="page-brand-text">
+        <h1>Cases</h1>
+        <p>{{ cases().length }} cases found</p>
+      </div>
     </div>
-    <p>{{ cases().length }} cases found</p>
   </div>
   <button mat-flat-button color="primary" class="new-case-btn" (click)="openNew()">
     <cs-icon name="add"></cs-icon> New Case

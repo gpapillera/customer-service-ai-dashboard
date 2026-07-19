@@ -2,6 +2,19 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 19] Favicon in tab + brand shrink/enlarge animation + page description alignment — 2026-07-19
+**Status:** Complete (verified — frontend build OK; browser: favicon renders in the tab; collapsing the sidenav shrinks the brand logo away and the page-header logo enlarges in; descriptions align under each title; Customers shows "N customers")
+**Context:** User requests: (1) the brand logo was not showing in the browser tab; (2) when the toggle is pressed the nav-side brand logo should hide with a clean shrink animation, then re-appear on the pages with an enlarge animation; (3) on the Dashboard page, align the description text under the "Dashboard" title; (4) the Customers title was not aligned to the brand logo like Dashboard — fix it and add a description of how many customers the data has (like the Cases page); (5) on the Cases page, align the "N cases found" description to its title.
+**Changes:**
+- `frontend/public/favicon.svg` — already present; the dev server (started before the file existed) was not serving it (HTTP 404). Restarted `ng serve` so the new public asset is picked up — now served as HTTP 200 and rendered in the tab. (No file change needed; this was a stale-dev-server issue.)
+- `frontend/src/styles.scss` — restructured the page-brand into two columns: `.page-brand` (logo + `.page-brand-text`) with the `<h1>` and `<p>` inside `.page-brand-text`, so the description always aligns directly under the title text (no magic-number indentation). Enhanced the `brand-in` keyframe from a subtle `translateY(-6px) scale(0.96)` to a clearer enlarge `scale(0.82) → scale(1)` with opacity fade.
+- `frontend/src/app/dashboard/dashboard.component.html` — moved the description `<p>` inside a new `.page-brand-text` block beside the logo (aligned under "Dashboard").
+- `frontend/src/app/cases/case-list.component.html` — moved `{{ cases().length }} cases found` inside `.page-brand-text` (aligned under "Cases").
+- `frontend/src/app/customers/customer-list.component.html` — moved the title into `.page-brand-text` and added `<p>{{ customers().length }} customers</p>` (matches the Cases pattern).
+- `frontend/src/app/customers/customer-list.component.scss` — `.page-head` alignment changed from `center` → `flex-start` so the two-line brand block (title + count) aligns at the top like Dashboard/Cases.
+- `frontend/src/app/shared/layout/layout.component.html` — `.brand` now binds `[class.brand-collapsed]="!opened()"`.
+- `frontend/src/app/shared/layout/layout.component.scss` — `.brand-logo` gained a `transform`/`opacity` transition; `.brand.brand-collapsed .brand-logo` shrinks to `scale(0.4)` + `opacity: 0` for a clean shrink-away when the sidenav collapses.
+
 ## [Phase 18] Collapsed icon rail + page-header brand logo + app tab title/favicon — 2026-07-19
 **Status:** Complete (verified — frontend build OK; browser: collapsing the sidenav shows a left icon rail with toggle → notification bell → Dashboard/Customers/Cases (all functional); page-header logo appears on Dashboard/Customers/Cases with a fade/scale-in; tab title is "Customer Service" with a new headset SVG favicon)
 **Context:** User requests: (1) when the sidenav is hidden, show an icon rail under the toggle with the notification bell and the Dashboard/Customers/Cases icons, keeping all functionality identical to the expanded sidenav; (2) place the ServiceAI logo beside the page title on the Dashboard, Customers, and Cases pages; (3) add a clean animation when moving the logo/icons; (4) change the browser tab title from "CustomerServiceDashboard" to "Customer Service" and replace the Angular favicon with the project logo.

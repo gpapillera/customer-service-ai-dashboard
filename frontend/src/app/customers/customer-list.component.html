@@ -1,7 +1,10 @@
 <div class="page-head">
   <div class="page-brand">
     <span class="page-brand-logo"><cs-icon name="headset"></cs-icon></span>
-    <h1 class="page-title">Customers</h1>
+    <div class="page-brand-text">
+      <h1 class="page-title">Customers</h1>
+      <p>{{ customers().length }} customers</p>
+    </div>
   </div>
   <button mat-flat-button color="primary" class="new-customer-btn" (click)="openNew()">
     <cs-icon name="add"></cs-icon> New customer

@@ -192,25 +192,30 @@ body {
   gap: 1rem;
   margin-bottom: 1.5rem;
 }
-.page-header .titles h1 {
+/* Brand logo mark placed beside a page title (Dashboard / Customers / Cases).
+   The logo and the title+description text live in two columns so the
+   description always aligns directly under the title text. */
+.page-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  animation: brand-in 0.32s var(--cs-ease);
+}
+.page-brand-text {
+  display: flex;
+  flex-direction: column;
+}
+.page-brand-text h1 {
   margin: 0;
   font-size: 1.6rem;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--cs-text);
 }
-.page-header .titles p {
+.page-brand-text p {
   margin: 0.25rem 0 0;
   color: var(--cs-text-muted);
   font-size: 0.95rem;
-}
-/* Brand logo mark placed beside a page title (Dashboard / Customers / Cases).
-   Fades + scales in for a clean, "alive" entrance. */
-.page-brand {
-  display: flex;
-  align-items: center;
-  gap: 0.7rem;
-  animation: brand-in 0.3s var(--cs-ease);
 }
 .page-brand-logo {
   display: inline-flex;
@@ -227,11 +232,11 @@ body {
 @keyframes brand-in {
   from {
     opacity: 0;
-    transform: translateY(-6px) scale(0.96);
+    transform: scale(0.82);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: scale(1);
   }
 }
 /* ---- Modal dialogs: give the content breathing room ----
