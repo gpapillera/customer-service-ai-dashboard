@@ -80,6 +80,42 @@
   border-color: #7c3aed;
 }
 
+.overdue-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 48px;
+  padding: 0 0.85rem;
+  border: 1px solid var(--cs-border);
+  border-radius: 8px;
+  background: var(--cs-surface);
+  color: var(--cs-text-muted);
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.18s var(--cs-ease), border-color 0.18s var(--cs-ease),
+    color 0.18s var(--cs-ease);
+}
+.overdue-toggle cs-icon {
+  color: var(--cs-warning-strong);
+}
+.overdue-toggle:hover {
+  border-color: #cbd5e1;
+}
+.overdue-toggle.active {
+  background: var(--cs-warning-bg);
+  border-color: var(--cs-warning-strong);
+  color: var(--cs-warning-strong);
+  font-weight: 700;
+}
+.overdue-toggle.active cs-icon {
+  color: var(--cs-warning-strong);
+}
+.overdue-toggle.active:hover {
+  border-color: var(--cs-warning-strong);
+}
+
 /* Active-filter chip — neutral gray (purple reserved for the AI toggle),
    same border weight / radius as the row-A controls. */
 .filter-chip {

@@ -12,8 +12,9 @@ public interface ICaseService
     /// <param name="categoryId">Optional category filter.</param>
     /// <param name="from">Optional created-from date (UTC).</param>
     /// <param name="to">Optional created-to date (UTC).</param>
+    /// <param name="overdue">When true, only open cases with a past follow-up deadline and no follow-up since.</param>
     /// <returns>Matching cases.</returns>
-    Task<IReadOnlyList<CaseDto>> GetAllAsync(CaseStatus? status, Priority? priority, int? categoryId, DateTime? from, DateTime? to);
+    Task<IReadOnlyList<CaseDto>> GetAllAsync(CaseStatus? status, Priority? priority, int? categoryId, DateTime? from, DateTime? to, bool overdue = false);
 
     /// <summary>Returns a single case by id.</summary>
     /// <param name="id">Case id.</param>

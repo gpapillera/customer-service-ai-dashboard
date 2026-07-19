@@ -90,6 +90,14 @@ public class Case
     /// <summary>UTC timestamp of the customer's last contact before this case (for ML feature).</summary>
     public DateTime? LastContactUtc { get; set; }
 
+    /// <summary>
+    /// UTC deadline by which the next follow-up (call/log) should be completed.
+    /// When this is in the past and the case is still open with no follow-up
+    /// since the deadline, the case is considered to have an overdue follow-up.
+    /// Null means no follow-up is scheduled.
+    /// </summary>
+    public DateTime? FollowUpDueUtc { get; set; }
+
     /// <summary>Navigation property: call / follow-up logs attached to this case.</summary>
     public ICollection<CallLog> CallLogs { get; set; } = new List<CallLog>();
 }

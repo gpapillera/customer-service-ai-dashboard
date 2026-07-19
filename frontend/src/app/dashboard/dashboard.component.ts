@@ -157,6 +157,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
       { label: 'Resolved', value: d.resolvedCases, icon: 'check_circle', tone: 'green', link: '/cases?status=Resolved' },
       { label: 'Customers', value: d.totalCustomers, icon: 'people', tone: 'indigo', link: '/customers' },
       { label: 'AI Predicted', value: d.aiPredictedCases, icon: 'auto_awesome', tone: 'purple', link: '/cases?aiOnly=true' },
+      { label: 'Overdue Follow-ups', value: d.overdueFollowUps, icon: 'schedule', tone: 'amber', link: '/cases?overdue=true' },
     ];
   }
 

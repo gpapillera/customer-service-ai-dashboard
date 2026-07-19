@@ -26,6 +26,7 @@ public class CasesController : ControllerBase
     /// <param name="categoryId">Category filter.</param>
     /// <param name="from">Created-from date (UTC).</param>
     /// <param name="to">Created-to date (UTC).</param>
+    /// <param name="overdue">When true, only open cases with a past follow-up deadline and no follow-up since.</param>
     /// <returns>Matching cases.</returns>
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -34,8 +35,9 @@ public class CasesController : ControllerBase
         [FromQuery] Priority? priority,
         [FromQuery] int? categoryId,
         [FromQuery] DateTime? from,
-        [FromQuery] DateTime? to)
-        => await _service.GetAllAsync(status, priority, categoryId, from, to);
+        [FromQuery] DateTime? to,
+        [FromQuery] bool overdue = false)
+        => await _service.GetAllAsync(status, priority, categoryId, from, to, overdue);
 
     /// <summary>Gets a case by id.</summary>
     /// <param name="id">Case id.</param>

@@ -27,6 +27,18 @@ describe('DashboardComponent', () => {
     trend: [{ date: '2026-07-13', count: 1 }],
     byCategory: [{ category: 'Billing', count: 4 }],
     recentCases: [],
+    overdueFollowUps: 2,
+    overdueFollowUpsList: [
+      {
+        caseId: 1,
+        subject: 'Late follow-up',
+        customerName: 'Acme',
+        assignedToUserName: 'agent',
+        priority: 'High',
+        followUpDueUtc: '2026-07-10T00:00:00Z',
+        daysOverdue: 3,
+      },
+    ],
   };
 
   beforeEach(() => {
@@ -51,6 +63,7 @@ describe('DashboardComponent', () => {
       'Resolved',
       'Customers',
       'AI Predicted',
+      'Overdue Follow-ups',
     ]);
     expect(component.kpis.find((k) => k.label === 'Total Cases')?.value).toBe(13);
   });

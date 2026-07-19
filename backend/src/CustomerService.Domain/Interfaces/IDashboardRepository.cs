@@ -24,6 +24,13 @@ public interface IDashboardRepository
     /// <param name="limit">Maximum number of cases to return.</param>
     /// <returns>A list of recent <see cref="Case"/> entities.</returns>
     Task<IReadOnlyList<Case>> GetRecentCasesAsync(int limit);
+
+    /// <summary>
+    /// Returns open cases whose scheduled follow-up deadline has passed and for
+    /// which no follow-up (call log) has occurred since that deadline.
+    /// </summary>
+    /// <returns>A list of <see cref="OverdueFollowUpSummary"/>, most-overdue first.</returns>
+    Task<List<OverdueFollowUpSummary>> GetOverdueFollowUpsAsync();
 }
 
 /// <summary>Lightweight aggregate returned by <see cref="IDashboardRepository"/>.</summary>
@@ -55,6 +62,12 @@ public class DashboardSummary
 
     /// <summary>Count of cases per priority.</summary>
     public Dictionary<string, int> ByPriority { get; set; } = new();
+
+    /// <summary>Number of open cases whose scheduled follow-up is overdue.</summary>
+    public int OverdueFollowUps { get; set; }
+
+    /// <summary>Details of the overdue follow-ups (for the dashboard list).</summary>
+    public List<OverdueFollowUpSummary> OverdueFollowUpDetails { get; set; } = new();
 }
 
 /// <summary>A date/count pair used in trend charts.</summary>

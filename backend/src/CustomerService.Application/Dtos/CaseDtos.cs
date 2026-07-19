@@ -106,4 +106,7 @@ public class CaseDto
 
     /// <summary>Last updated timestamp (UTC).</summary>
     public DateTime? UpdatedAtUtc { get; set; }
+
+    /// <summary>UTC deadline for the next follow-up (null = none scheduled).</summary>
+    public DateTime? FollowUpDueUtc { get; set; }
 }

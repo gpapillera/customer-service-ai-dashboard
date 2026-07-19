@@ -69,6 +69,7 @@ export class CaseListComponent implements OnInit {
     categoryId: null as number | null,
     search: '' as string,
     aiOnly: false,
+    overdue: false,
   });
 
   /** True when the "Open" pseudo-filter (everything except Closed) is active. */
@@ -107,6 +108,7 @@ export class CaseListComponent implements OnInit {
     const priority = qp.get('priority');
     const categoryId = qp.get('categoryId');
     const aiOnly = qp.get('aiOnly') === 'true';
+    const overdue = qp.get('overdue') === 'true';
     if (status) {
       // "Open" is a pseudo-status (everything except Closed) handled client-side.
       if (status === 'Open') {
@@ -126,6 +128,7 @@ export class CaseListComponent implements OnInit {
       this.toolbarCategory = cat?.name ?? '';
     }
     if (aiOnly) this.filters.update((f) => ({ ...f, aiOnly: true }));
+    if (overdue) this.filters.update((f) => ({ ...f, overdue: true }));
 
     this.load();
 
@@ -163,6 +166,7 @@ export class CaseListComponent implements OnInit {
         status: serverStatus,
         priority: f.priority || undefined,
         categoryId: f.categoryId ?? undefined,
+        overdue: f.overdue || undefined,
       })
       .subscribe({
         next: (list) => {
@@ -206,6 +210,12 @@ export class CaseListComponent implements OnInit {
   /** Toggles the AI-only filter (cases where the AI suggested the priority). */
   toggleAiOnly(): void {
     this.filters.update((f) => ({ ...f, aiOnly: !f.aiOnly }));
+    this.load();
+  }
+
+  /** Toggles the overdue-follow-ups filter (open + past deadline + no follow-up since). */
+  toggleOverdue(): void {
+    this.filters.update((f) => ({ ...f, overdue: !f.overdue }));
     this.load();
   }
 

@@ -37,7 +37,7 @@ public class CaseService : ICaseService
 
     /// <inheritdoc/>
     public async Task<IReadOnlyList<CaseDto>> GetAllAsync(
-        CaseStatus? status, Priority? priority, int? categoryId, DateTime? from, DateTime? to)
+        CaseStatus? status, Priority? priority, int? categoryId, DateTime? from, DateTime? to, bool overdue = false)
     {
         IQueryable<Case> q = _cases.Query()
             .Include(c => c.Customer)
@@ -47,6 +47,15 @@ public class CaseService : ICaseService
         if (categoryId.HasValue) q = q.Where(c => c.CategoryId == categoryId.Value);
         if (from.HasValue) q = q.Where(c => c.CreatedAtUtc >= from.Value);
         if (to.HasValue) q = q.Where(c => c.CreatedAtUtc <= to.Value);
+        if (overdue)
+        {
+            // Open cases with a past follow-up deadline and no follow-up since the deadline.
+            var now = DateTime.UtcNow;
+            var openStatuses = new[] { CaseStatus.New, CaseStatus.InProgress, CaseStatus.Escalated };
+            q = q.Where(c => c.FollowUpDueUtc.HasValue && c.FollowUpDueUtc.Value < now)
+                .Where(c => openStatuses.Contains(c.Status))
+                .Where(c => !c.CallLogs.Any(cl => cl.CreatedAtUtc >= c.FollowUpDueUtc.Value));
+        }
 
         return await q.OrderByDescending(c => c.CreatedAtUtc)
             .Select(c => ToDto(c))
@@ -150,5 +159,6 @@ public class CaseService : ICaseService
         AssignedToUserName = c.AssignedToUser != null ? c.AssignedToUser.FullName : null,
         CreatedAtUtc = c.CreatedAtUtc,
         UpdatedAtUtc = c.UpdatedAtUtc,
+        FollowUpDueUtc = c.FollowUpDueUtc,
     };
 }

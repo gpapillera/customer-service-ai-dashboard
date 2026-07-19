@@ -40,6 +40,37 @@ public class DashboardDto
 
     /// <summary>Case counts per category.</summary>
     public List<CategoryCountDto> ByCategory { get; set; } = new();
+
+    /// <summary>Number of open cases whose scheduled follow-up is overdue.</summary>
+    public int OverdueFollowUps { get; set; }
+
+    /// <summary>Details of the overdue follow-ups (for the dashboard list).</summary>
+    public List<OverdueFollowUpDto> OverdueFollowUpsList { get; set; } = new();
+}
+
+/// <summary>Summary of a case with an overdue follow-up (dashboard list item).</summary>
+public class OverdueFollowUpDto
+{
+    /// <summary>Case id.</summary>
+    public int CaseId { get; set; }
+
+    /// <summary>Case subject.</summary>
+    public string Subject { get; set; } = string.Empty;
+
+    /// <summary>Customer name.</summary>
+    public string CustomerName { get; set; } = string.Empty;
+
+    /// <summary>Assigned agent name (or empty if unassigned).</summary>
+    public string AssignedToUserName { get; set; } = string.Empty;
+
+    /// <summary>Priority of the overdue case.</summary>
+    public Priority Priority { get; set; }
+
+    /// <summary>The follow-up deadline that has passed (UTC, ISO 8601).</summary>
+    public DateTime FollowUpDueUtc { get; set; }
+
+    /// <summary>Number of days past the deadline (minimum 1).</summary>
+    public int DaysOverdue { get; set; }
 }
 
 /// <summary>Date/count pair for trend charts.</summary>

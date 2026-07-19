@@ -53,6 +53,7 @@ export interface Case {
   assignedToUserName: string | null;
   createdAtUtc: string;
   updatedAtUtc: string | null;
+  followUpDueUtc: string | null;
 }
 
 /** Payload for creating a case. */
@@ -126,6 +127,17 @@ export interface RecentCase {
   priorityAutoSuggested: boolean;
 }
 
+/** A case with an overdue follow-up (matches OverdueFollowUpDto). */
+export interface OverdueFollowUp {
+  caseId: number;
+  subject: string;
+  customerName: string;
+  assignedToUserName: string;
+  priority: 'Low' | 'Medium' | 'High';
+  followUpDueUtc: string;
+  daysOverdue: number;
+}
+
 /** Full dashboard payload (matches DashboardDto). */
 export interface Dashboard {
   totalCases: number;
@@ -140,4 +152,6 @@ export interface Dashboard {
   trend: DateCount[];
   byCategory: CategoryCount[];
   recentCases: RecentCase[];
+  overdueFollowUps: number;
+  overdueFollowUpsList: OverdueFollowUp[];
 }

@@ -84,5 +84,33 @@
         </div>
       </mat-card-content>
     </mat-card>
+
+    @if (d.overdueFollowUpsList.length > 0) {
+      <mat-card class="cs-lift overdue-card reveal" appReveal>
+        <mat-card-content>
+          <div class="recent-head">
+            <h2 class="chart-title overdue-title"><cs-icon name="schedule" class="overdue-icon"></cs-icon> Overdue Follow-ups</h2>
+            <a class="view-all" routerLink="/cases">View all cases &rarr;</a>
+          </div>
+          <div class="recent-list">
+            @for (o of d.overdueFollowUpsList; track o.caseId) {
+              <a class="recent-item" [routerLink]="['/cases', o.caseId]">
+                <div class="recent-main">
+                  <span class="recent-title">
+                    @if (o.daysOverdue === 1) { <span class="overdue-badge">1 day overdue</span> }
+                    @else { <span class="overdue-badge">{{ o.daysOverdue }} days overdue</span> }
+                    {{ o.subject }}
+                  </span>
+                  <span class="recent-sub">{{ o.customerName }} · {{ o.assignedToUserName || 'Unassigned' }} · due {{ o.followUpDueUtc | date:'short' }}</span>
+                </div>
+                <div class="recent-pills">
+                  <span class="cs-pill" [class]="priorityClass(o.priority)"><span class="cs-dot"></span>{{ o.priority }}</span>
+                </div>
+              </a>
+            }
+          </div>
+        </mat-card-content>
+      </mat-card>
+    }
   }
 }

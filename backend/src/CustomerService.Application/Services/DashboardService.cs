@@ -45,6 +45,17 @@ public class DashboardService : IDashboardService
                 Category = c.Category,
                 Count = c.Count,
             }).ToList(),
+            OverdueFollowUps = summary.OverdueFollowUps,
+            OverdueFollowUpsList = summary.OverdueFollowUpDetails.Select(o => new OverdueFollowUpDto
+            {
+                CaseId = o.CaseId,
+                Subject = o.Subject,
+                CustomerName = o.CustomerName,
+                AssignedToUserName = o.AssignedToUserName,
+                Priority = o.Priority,
+                FollowUpDueUtc = o.FollowUpDueUtc,
+                DaysOverdue = o.DaysOverdue,
+            }).ToList(),
             RecentCases = recent.Select(c => new RecentCaseDto
             {
                 Id = c.Id,

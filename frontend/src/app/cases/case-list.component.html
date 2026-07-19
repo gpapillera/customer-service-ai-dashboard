@@ -34,6 +34,17 @@
     <span>AI Predicted</span>
   </button>
 
+  <button
+    type="button"
+    class="overdue-toggle"
+    [class.active]="filters().overdue"
+    (click)="toggleOverdue()"
+    [attr.aria-pressed]="filters().overdue"
+  >
+    <cs-icon name="schedule" [size]="16"></cs-icon>
+    <span>Overdue</span>
+  </button>
+
   @for (chip of activeChips(); track chip.key) {
     <button type="button" class="filter-chip" (click)="clearFilter(chip)">
       <span class="chip-label">{{ chip.label }}</span>

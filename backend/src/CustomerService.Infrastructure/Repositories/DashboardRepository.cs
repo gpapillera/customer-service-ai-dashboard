@@ -36,6 +36,8 @@ public class DashboardRepository : IDashboardRepository
 
         var totalCustomers = await _context.Customers.CountAsync();
 
+        var overdue = await GetOverdueFollowUpsAsync();
+
         return new DashboardSummary
         {
             TotalCases = total,
@@ -47,7 +49,52 @@ public class DashboardRepository : IDashboardRepository
             TotalCustomers = totalCustomers,
             ByStatus = byStatus,
             ByPriority = byPriority,
+            OverdueFollowUps = overdue.Count,
+            OverdueFollowUpDetails = overdue,
         };
+    }
+
+    /// <inheritdoc/>
+    public async Task<List<OverdueFollowUpSummary>> GetOverdueFollowUpsAsync()
+    {
+        var now = DateTime.UtcNow;
+        // Open cases with a follow-up deadline in the past.
+        var openStatuses = new[] { CaseStatus.New, CaseStatus.InProgress, CaseStatus.Escalated };
+        var candidates = await _context.Cases
+            .Include(c => c.Customer)
+            .Include(c => c.AssignedToUser)
+            .Include(c => c.CallLogs)
+            .Where(c => c.FollowUpDueUtc.HasValue && c.FollowUpDueUtc.Value < now)
+            .Where(c => openStatuses.Contains(c.Status))
+            .ToListAsync();
+
+        var result = new List<OverdueFollowUpSummary>();
+        foreach (var c in candidates)
+        {
+            var due = c.FollowUpDueUtc!.Value;
+            // Not overdue if a follow-up (call log) happened on/after the deadline.
+            var followedUpSince = c.CallLogs.Any(cl => cl.CreatedAtUtc >= due);
+            if (followedUpSince)
+            {
+                continue;
+            }
+
+            var daysOverdue = (int)Math.Ceiling((now - due).TotalDays);
+            result.Add(new OverdueFollowUpSummary
+            {
+                CaseId = c.Id,
+                Subject = c.Subject,
+                CustomerName = c.Customer?.Name ?? string.Empty,
+                AssignedToUserName = c.AssignedToUser?.FullName ?? string.Empty,
+                Priority = c.Priority,
+                FollowUpDueUtc = due,
+                DaysOverdue = daysOverdue < 1 ? 1 : daysOverdue,
+            });
+        }
+
+        // Most overdue first.
+        result.Sort((a, b) => b.DaysOverdue.CompareTo(a.DaysOverdue));
+        return result;
     }
 
     /// <inheritdoc/>

@@ -6,14 +6,17 @@
 
 .kpis {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(7, 1fr);
   gap: 1rem;
   margin-bottom: 1.25rem;
 }
-@media (max-width: 1100px) {
+@media (max-width: 1200px) {
+  .kpis { grid-template-columns: repeat(4, 1fr); }
+}
+@media (max-width: 760px) {
   .kpis { grid-template-columns: repeat(3, 1fr); }
 }
-@media (max-width: 640px) {
+@media (max-width: 520px) {
   .kpis { grid-template-columns: repeat(2, 1fr); }
 }
 
@@ -60,6 +63,7 @@
 .tone-red .kpi-icon { background: var(--cs-danger-bg); color: #ef4444; }
 .tone-green .kpi-icon { background: var(--cs-success-bg); color: #10b981; }
 .tone-purple .kpi-icon { background: #f3e8ff; color: #8b5cf6; }
+.tone-amber .kpi-icon { background: var(--cs-warning-bg); color: var(--cs-warning-strong); }
 
 .charts-row {
   display: grid;
@@ -157,3 +161,30 @@
 .ai-spark { color: #8b5cf6; width: 16px; height: 16px; flex: 0 0 auto; }
 .recent-sub { color: var(--cs-text-muted); font-size: 0.82rem; }
 .recent-pills { display: flex; gap: 0.5rem; flex: 0 0 auto; }
+
+.tone-amber .kpi-icon { background: var(--cs-warning-bg); color: var(--cs-warning-strong); }
+
+.overdue-card {
+  border-radius: var(--cs-radius);
+  box-shadow: var(--cs-shadow);
+  border: 1px solid var(--cs-warning-bg);
+}
+.overdue-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--cs-warning-strong);
+}
+.overdue-icon { color: var(--cs-warning); }
+.overdue-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.5rem;
+  border-radius: var(--cs-radius-pill);
+  background: var(--cs-warning-bg);
+  color: var(--cs-warning-strong);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  flex: 0 0 auto;
+}

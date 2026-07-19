@@ -2,6 +2,62 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 16] Revert KPI grid + fully remove overdue chip — 2026-07-19
+**Status:** Complete (verified — Cases page shows no Overdue chip, only the toggle; KPI grid reverted to fixed `repeat(7,1fr)` + breakpoints; not yet committed)
+**Context:** User rejected the centered/fluid KPI change and pointed out the "Overdue" chip was still rendering (Phase 15 only removed the `clearFilter` branch, not the chip push in `activeChips`, so the chip showed but was unclickable). Reverted both.
+**Changes:**
+- `frontend/src/app/cases/case-list.component.ts` — removed the `if (f.overdue) chips.push(...)` line from `activeChips` so the Overdue chip is gone entirely (toggle alone controls the filter). The `clearFilter` overdue branch was already removed in Phase 15.
+- `frontend/src/app/dashboard/dashboard.component.scss` — reverted `.kpis`/`.kpi-card` back to the original fixed grid (`repeat(7,1fr)` + 4/3/2 breakpoints; `.kpi-card { width:100% }`).
+
+## [Phase 15] KPI polish follow-ups — drop redundant chip + center wrapped cards — 2026-07-19
+**Status:** Complete (verified in browser — wrapped KPI rows centered at 1280/980/760/560/420px; Cases page shows Overdue toggle with no chip; not yet committed)
+**Context:** User feedback: (a) the "Overdue" removable chip on the Cases page was redundant since the Overdue toggle already shows its active state (toggle off = filter cleared), and (b) KPI cards stretching to fill the row looked bad.
+**Changes:**
+- `frontend/src/app/cases/case-list.component.ts` — removed the `overdue` chip from `activeChips` and the `overdue` branch from `clearFilter` (toggle alone controls the filter, mirroring `aiOnly`).
+- `frontend/src/app/dashboard/dashboard.component.scss` — `.kpis` now `justify-content: center` and `.kpi-card` is `flex: 0 1 170px` (fixed-ish width, no grow) so wrapped rows center instead of stretching edge-to-edge.
+
+## [Phase 14] Overdue KPI → auto-applied "Overdue only" filter — 2026-07-19
+**Status:** Complete (verified — backend 20/20 tests; frontend 13/13 tests; browser shows /cases?overdue=true → "2 cases found" with Overdue toggle active + chip; not yet committed)
+**Context:** User asked the Overdue Follow-ups KPI card to navigate to the Cases page with an auto-applied "overdue only" filter (matching the existing AI Predicted / status / priority deep-link pattern).
+**Changes:**
+- `backend/src/CustomerService.Application/Dtos/CaseDtos.cs` — `CaseDto` gains `FollowUpDueUtc` (so the field is available client-side too).
+- `backend/src/CustomerService.Application/Services/CaseService.cs` — `GetAllAsync` gains `bool overdue = false` param; when true, filters to open cases (New/InProgress/Escalated) with a past `FollowUpDueUtc` and no `CallLog` since the deadline — the exact rule used by the dashboard. `ToDto` maps `FollowUpDueUtc`.
+- `backend/src/CustomerService.Application/Interfaces/ICaseService.cs` — signature updated.
+- `backend/src/CustomerService.Api/Controllers/CasesController.cs` — `GET /api/cases` gains `[FromQuery] bool overdue = false`.
+- `frontend/src/app/shared/models.ts` — `Case` gains `followUpDueUtc: string | null`.
+- `frontend/src/app/cases/case.service.ts` — `list()` sends `overdue=true` when requested.
+- `frontend/src/app/dashboard/dashboard.component.ts` — overdue KPI `link` changed to `/cases?overdue=true`.
+- `frontend/src/app/cases/case-list.component.ts` — reads `overdue` query param, adds `overdue` to `filters` signal, passes it to `load()`, adds `toggleOverdue()`, and an "Overdue" removable chip.
+- `frontend/src/app/cases/case-list.component.html` + `.scss` — new "Overdue" toggle button (amber, mirrors AI Predicted toggle) using `cs-icon name="schedule"`.
+- `frontend/src/app/cases/case.service.spec.ts` — sample `Case` updated with `followUpDueUtc: null`.
+
+## [Phase 13] KPI card polish — overdue icon + fluid grid — 2026-07-19
+**Status:** Complete (verified in browser at 1280/1100/980/820/700/560/420/360px — every row fills, no empty space; not yet committed)
+**Context:** User reported (a) the Overdue Follow-ups KPI card had no icon, and (b) the 7-card KPI grid left empty space on the last row when the screen narrowed.
+**Changes:**
+- `frontend/src/app/shared/cs-icon.component.ts` — mapped `schedule` → Lucide `AlarmClock` (the overdue card already referenced `icon: 'schedule'`, but it was unmapped so nothing rendered). Imported `AlarmClock` from `lucide-angular/src/icons`.
+- `frontend/src/app/dashboard/dashboard.component.scss` — replaced the fixed `grid` (`repeat(7,1fr)` + 3 breakpoints) with a fluid flexbox: `.kpis { display:flex; flex-wrap:wrap; gap:1rem }` and `.kpi-card { flex:1 1 150px; min-width:150px; max-width:100% }`. Cards now stretch to fill every row (including the last partial row), eliminating orphan empty space at any width.
+
+## [Phase 12] Overdue follow-up detection surfaced on the dashboard — 2026-07-19
+**Status:** Complete (verified — backend build 0 errors; 20/20 tests pass; frontend build + 13/13 tests pass; browser check shows "2 Overdue Follow-ups" KPI + list; not yet committed)
+**Context:** Second item of the README `## Roadmap`, implemented as a deliberately narrow slice per user preference: **detect** overdue follow-ups and **surface** them on the dashboard. No notification-sender abstraction (Email/SMS) was built — outbound delivery remains a separate follow-up item. A follow-up is "overdue" when an open case (New/InProgress/Escalated) has a `FollowUpDueUtc` in the past and has had no call-log follow-up since that deadline.
+**Changes:**
+- `backend/src/CustomerService.Domain/Entities/Case.cs` — added nullable `DateTime? FollowUpDueUtc` (UTC deadline for the next follow-up).
+- `backend/src/CustomerService.Domain/Interfaces/OverdueFollowUpSummary.cs` (new) — lightweight summary DTO (CaseId, Subject, CustomerName, AssignedToUserName, Priority, FollowUpDueUtc, DaysOverdue).
+- `backend/src/CustomerService.Domain/Interfaces/IDashboardRepository.cs` — `DashboardSummary` gains `OverdueFollowUps` (int) + `OverdueFollowUpDetails` (List); added `GetOverdueFollowUpsAsync()`.
+- `backend/src/CustomerService.Infrastructure/Repositories/DashboardRepository.cs` — implemented `GetOverdueFollowUpsAsync()` (open + past-deadline + no follow-up-since-deadline; sorts most-overdue first) and wired it into `GetSummaryAsync()`.
+- `backend/src/CustomerService.Application/Dtos/DashboardDtos.cs` — `DashboardDto` gains `OverdueFollowUps` + `OverdueFollowUpsList` (`OverdueFollowUpDto`).
+- `backend/src/CustomerService.Application/Services/DashboardService.cs` — maps summary → DTO.
+- `backend/src/CustomerService.Infrastructure/Data/SeedDataInitializer.cs` — seeded `FollowUpDueUtc` (a few days in the past) on two open cases (case 2 "Package not delivered", case 6 "Integration webhook failing") so the feature is visible on first run.
+- `frontend/src/app/shared/models.ts` — `Dashboard` gains `overdueFollowUps` + `overdueFollowUpsList` (`OverdueFollowUp`); added `OverdueFollowUp` interface.
+- `frontend/src/app/dashboard/dashboard.component.ts` — 7th KPI card "Overdue Follow-ups" (amber tone).
+- `frontend/src/app/dashboard/dashboard.component.html` + `.scss` — new "Overdue Follow-ups" card (amber border) listing each overdue case with a "N days overdue" badge, customer, agent, due date, and priority pill; links to the case.
+- `backend/tests/CustomerService.Tests/DashboardRepositoryTests.cs` (new) — 5 tests for the overdue rule (open+past, excludes closed, excludes future, excludes followed-up-since-deadline, sorts most-overdue first) using EF Core InMemory. Added `Microsoft.EntityFrameworkCore.InMemory` to the test csproj.
+- `frontend/src/app/dashboard/dashboard.component.spec.ts` — sample `Dashboard` updated with the new fields; KPI expectation now 7 cards.
+- Docs: `README.md` roadmap updated (sentiment + overdue detection checked; Email/SMS *sending* left as a follow-up).
+**Verification:** `dotnet build CustomerServiceApi.sln` → 0 errors. `dotnet test` → 20/20 pass (5 new). `npm run build` → 0 errors (1.08 MB initial, under budget). `npx ng test --watch=false --browsers=ChromeHeadlessCI` → 13/13 pass. Browser (admin): dashboard shows "2 Overdue Follow-ups" KPI and an Overdue Follow-ups list with "3 days overdue" / "2 days overdue" badges. `GET /api/dashboard` returns `overdueFollowUps: 2` with both details.
+**Known issues / TODO:** The SQLite dev DB was stale (created before `FollowUpDueUtc` existed) — deleted `backend/src/CustomerService.Api/customer_service.db` so `EnsureCreated()` recreated the schema; reseed regenerates it. Email/SMS *sending* for overdue follow-ups is NOT implemented (detection + dashboard surfacing only). The `.onnx` remains gitignored by design.
+
 ## [Phase 11] Frontend unit tests now runnable (system Chrome installed) — 2026-07-19
 **Status:** Complete (verified — `ng test` runs, 13/13 specs pass; documented; not yet committed)
 **Context:** During Phase 10, `ng test` (Karma) could not run because the only Chrome on this machine was a flatpak sandbox that Karma cannot launch/drive. The user installed the official Google Chrome `.deb` (v150.0.7871.128 at `/usr/bin/google-chrome`), which is a normal system binary Karma can exec directly. This unblocks the frontend test suite.

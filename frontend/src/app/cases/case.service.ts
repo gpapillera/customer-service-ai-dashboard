@@ -20,6 +20,7 @@ export class CaseService {
     categoryId?: number;
     from?: string;
     to?: string;
+    overdue?: boolean;
   } = {}): Observable<Case[]> {
     let params = new HttpParams();
     if (filters.status) params = params.set('status', filters.status);
@@ -28,6 +29,7 @@ export class CaseService {
       params = params.set('categoryId', filters.categoryId.toString());
     if (filters.from) params = params.set('from', filters.from);
     if (filters.to) params = params.set('to', filters.to);
+    if (filters.overdue) params = params.set('overdue', 'true');
     return this.http.get<Case[]>(this.baseUrl, { params });
   }
 
