@@ -2,6 +2,16 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 19.1] Favicon PNG + page-logo visibility tied to sidenav state — 2026-07-19
+**Status:** Complete (verified — frontend build OK; browser: favicon.png served (200) and rendered in tab; page brand logo hidden by default when sidenav is open, appears with enlarge animation only when sidenav is collapsed, shrinks away cleanly when sidenav re-opens)
+**Context:** Follow-up to Phase 19. User: (1) the brand logo still wasn't showing in the tab; (2) the page brand logo should be HIDDEN by default and only appear (enlarge animation) when the sidenav toggle is clicked to collapse the sidenav; (3) when the sidenav is open again, the page logo should hide with a clean shrink animation.
+**Changes:**
+- `frontend/public/favicon.png` (new) — rendered a 64×64 PNG (indigo gradient rounded square + white headset) via PIL so the tab icon renders reliably across browsers (Chrome can fail to paint gradient SVGs in the tab).
+- `frontend/src/index.html` — favicon link now points to `favicon.png` (with `favicon.svg` kept as a fallback `<link>`).
+- `frontend/src/app/dashboard/dashboard.component.ts` / `cases/case-list.component.ts` / `customers/customer-list.component.ts` — each injects `LayoutComponent.opened` as `sidenavOpen` so the page can react to the sidenav state.
+- `frontend/src/app/dashboard/dashboard.component.html` / `cases/case-list.component.html` / `customers/customer-list.component.html` — `.page-brand` now binds `[class.brand-hidden]="sidenavOpen()"` so the logo is hidden while the sidenav is open.
+- `frontend/src/styles.scss` — `.page-brand` no longer animates by default; `.page-brand:not(.brand-hidden)` plays the `brand-in` enlarge keyframe (logo scales 0.4 → 1). `.page-brand.brand-hidden .page-brand-logo` shrinks to `scale(0.4)` + `opacity:0` + `width:0` for a clean shrink-away. `.page-brand-logo` gained a `transform`/`opacity`/`width`/`margin` transition (0.28s) for smooth show/hide. `brand-in` keyframe changed to `scale(0.4) → scale(1)` so only the logo animates (the title text stays put).
+
 ## [Phase 19] Favicon in tab + brand shrink/enlarge animation + page description alignment — 2026-07-19
 **Status:** Complete (verified — frontend build OK; browser: favicon renders in the tab; collapsing the sidenav shrinks the brand logo away and the page-header logo enlarges in; descriptions align under each title; Customers shows "N customers")
 **Context:** User requests: (1) the brand logo was not showing in the browser tab; (2) when the toggle is pressed the nav-side brand logo should hide with a clean shrink animation, then re-appear on the pages with an enlarge animation; (3) on the Dashboard page, align the description text under the "Dashboard" title; (4) the Customers title was not aligned to the brand logo like Dashboard — fix it and add a description of how many customers the data has (like the Cases page); (5) on the Cases page, align the "N cases found" description to its title.

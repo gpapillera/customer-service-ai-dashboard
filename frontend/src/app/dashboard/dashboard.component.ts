@@ -13,6 +13,7 @@ import { RouteLoadingService } from '../shared/route-loading.service';
 import { DashboardService } from './dashboard.service';
 import { Dashboard, RecentCase } from '../shared/models';
 import { CATEGORIES } from '../shared/categories';
+import { LayoutComponent } from '../shared/layout/layout.component';
 
 /**
  * Dashboard: 6 KPI cards, weekly trend line, priority donut, horizontal
@@ -38,6 +39,9 @@ import { CATEGORIES } from '../shared/categories';
 })
 export class DashboardComponent implements OnInit, AfterViewInit {
   private readonly service = inject(DashboardService);
+  /** Sidenav open state (from the app shell) — the page brand logo is shown
+      only when the sidenav is collapsed. */
+  readonly sidenavOpen = inject(LayoutComponent).opened;
   private readonly routeLoading = inject(RouteLoadingService);
   private readonly router = inject(Router);
 

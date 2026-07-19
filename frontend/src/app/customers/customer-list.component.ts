@@ -15,6 +15,7 @@ import { RouteLoadingService } from '../shared/route-loading.service';
 import { CustomerService } from './customer.service';
 import { CustomerFormComponent } from './customer-form.component';
 import { Customer } from '../shared/models';
+import { LayoutComponent } from '../shared/layout/layout.component';
 
 /**
  * Customer list with debounced search and quick actions (view / edit / delete).
@@ -45,6 +46,9 @@ export class CustomerListComponent implements OnInit {
   private readonly routeLoading = inject(RouteLoadingService);
 
   readonly customers = signal<Customer[]>([]);
+  /** Sidenav open state (from the app shell) — the page brand logo is shown
+      only when the sidenav is collapsed. */
+  readonly sidenavOpen = inject(LayoutComponent).opened;
   /** Internal data-fetch state. */
   private readonly dataLoading = signal(true);
   /** True while the list is loading OR a route navigation is in progress. */

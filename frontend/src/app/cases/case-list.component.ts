@@ -15,6 +15,7 @@ import { CaseFormComponent } from './case-form.component';
 import { Case } from '../shared/models';
 import { CATEGORIES } from '../shared/categories';
 import { SearchFilterToolbarComponent } from './search-filter-toolbar/search-filter-toolbar.component';
+import { LayoutComponent } from '../shared/layout/layout.component';
 
 /**
  * Case list with status / priority / category filters and a free-text search.
@@ -43,6 +44,9 @@ export class CaseListComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly dialog = inject(MatDialog);
+  /** Sidenav open state (from the app shell) — the page brand logo is shown
+      only when the sidenav is collapsed. */
+  readonly sidenavOpen = inject(LayoutComponent).opened;
   private readonly routeLoading = inject(RouteLoadingService);
 
   readonly cases = signal<Case[]>([]);
