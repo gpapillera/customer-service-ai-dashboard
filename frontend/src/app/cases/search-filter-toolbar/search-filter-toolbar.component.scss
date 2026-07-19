@@ -10,16 +10,42 @@ $placeholder-text: #64748b;
 
 .toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
   width: 100%;
-  height: 76px;
+  min-height: 76px;
+  height: auto;
   padding: 12px 20px;
   box-sizing: border-box;
   background: $white;
   border: 1px solid $toolbar-border;
   border-radius: 20px;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+// Controls grow/shrink so they share a row on wide screens and wrap cleanly
+// instead of overflowing the parent container on narrow screens.
+.toolbar .f-search {
+  flex: 1 1 240px;
+  min-width: 180px;
+  max-width: 100%;
+}
+.toolbar .f-select {
+  flex: 1 1 160px;
+  min-width: 140px;
+  max-width: 100%;
+}
+
+// Below this width the search bar takes the full first row and the three
+// filters drop to a second row, filling it equally (3-up).
+@media (max-width: 900px) {
+  .toolbar .f-search {
+    flex: 1 1 100%;
+  }
+  .toolbar .f-select {
+    flex: 1 1 calc(33.333% - 12px);
+  }
 }
 
 // All four controls share a 48px height + 1px #DCE6EF border + rounded corners.

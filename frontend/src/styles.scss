@@ -195,22 +195,30 @@ body {
 /* Brand logo mark placed beside a page title (Dashboard / Customers / Cases).
    The logo and the title+description text live in two columns so the
    description always aligns directly under the title text. The logo is shown
-   only when the sidenav is collapsed: it enlarges in on appear and shrinks
-   away cleanly when the sidenav is opened. */
+   only when the sidenav is collapsed. */
 .page-brand {
   display: flex;
   align-items: center;
   gap: 0.7rem;
 }
-.page-brand:not(.brand-hidden) {
-  animation: brand-in 0.32s var(--cs-ease);
-}
+/* Hidden state applies instantly (no animation) so navigating between pages
+   never shows a shrink/enlarge — the logo simply appears/disappears. */
 .page-brand.brand-hidden .page-brand-logo {
   transform: scale(0.4);
   opacity: 0;
   width: 0;
   margin: 0;
   pointer-events: none;
+}
+/* The show/hide transition + enlarge animation run ONLY during an explicit
+   sidenav toggle (the .brand-anim class is set briefly by the shell), never on
+   plain route changes. */
+.page-brand.brand-anim .page-brand-logo {
+  transition: transform 0.28s var(--cs-ease), opacity 0.28s var(--cs-ease),
+    width 0.28s var(--cs-ease), margin 0.28s var(--cs-ease);
+}
+.page-brand.brand-anim:not(.brand-hidden) {
+  animation: brand-in 0.32s var(--cs-ease);
 }
 .page-brand-text {
   display: flex;
@@ -239,8 +247,6 @@ body {
   color: #fff;
   box-shadow: 0 4px 12px rgba(79, 70, 229, 0.35);
   flex: 0 0 auto;
-  transition: transform 0.28s var(--cs-ease), opacity 0.28s var(--cs-ease),
-    width 0.28s var(--cs-ease), margin 0.28s var(--cs-ease);
 }
 @keyframes brand-in {
   from {

@@ -2,6 +2,16 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 19.2] Fix: page-switch shrink animation + toolbar wrap + sidenav backdrop blank — 2026-07-19
+**Status:** Complete (verified — frontend build OK; browser: navigating between pages no longer animates the brand logo; Cases toolbar wraps with search on row 1 and 3 filters 3-up on row 2 (no overlap); sidenav `openedChange` now syncs state so a backdrop click on small screens closes cleanly to the rail instead of a blank page)
+**Context:** Three follow-up fixes: (1) when the sidenav is open, switching pages briefly played the brand-logo shrink transition — it must only animate on an explicit toggle click; (2) the Cases search/filter toolbar had no responsive breakpoint and overlapped its parent container when narrowed; (3) on small screens the sidenav auto-hides, but opening it (overlay + dimmed backdrop) and clicking the backdrop left a blank page with no nav icons — only recoverable by resizing.
+**Changes:**
+- `frontend/src/app/shared/layout/layout.component.ts` — added `brandAnimate` signal (true only for ~340ms after `toggleSidenav()`). Added `onSidenavOpenedChange(open)` that sets `opened` so a backdrop click in overlay mode closes the sidenav and reveals the rail (previously the one-way `[opened]` binding left `opened` true while the panel closed visually, hiding both sidenav and rail → blank page).
+- `frontend/src/app/shared/layout/layout.component.html` — `mat-sidenav` now binds `(openedChange)="onSidenavOpenedChange($event)"`.
+- `frontend/src/app/dashboard/dashboard.component.ts` / `cases/case-list.component.ts` / `customers/customer-list.component.ts` — each exposes `brandAnimate = inject(LayoutComponent).brandAnimate` and binds `[class.brand-anim]="brandAnimate()"` on `.page-brand`.
+- `frontend/src/styles.scss` — the show/hide transition + `brand-in` enlarge animation now apply ONLY under `.page-brand.brand-anim` (i.e. during an explicit toggle); the hidden state (`.page-brand.brand-hidden .page-brand-logo`) applies instantly with no transition, so route changes never animate. Removed the unconditional transition from base `.page-brand-logo`.
+- `frontend/src/app/cases/search-filter-toolbar/search-filter-toolbar.component.scss` — `.toolbar` now `flex-wrap: wrap` with `min-height` (was fixed `height: 76px`). `.f-search` / `.f-select` get `flex` + `min-width` so they share a row on wide screens and wrap instead of overflowing. At `max-width: 900px`, `.f-search` takes the full first row and the three `.f-select` filters drop to a second row filling it 3-up.
+
 ## [Phase 19.1] Favicon PNG + page-logo visibility tied to sidenav state — 2026-07-19
 **Status:** Complete (verified — frontend build OK; browser: favicon.png served (200) and rendered in tab; page brand logo hidden by default when sidenav is open, appears with enlarge animation only when sidenav is collapsed, shrinks away cleanly when sidenav re-opens)
 **Context:** Follow-up to Phase 19. User: (1) the brand logo still wasn't showing in the tab; (2) the page brand logo should be HIDDEN by default and only appear (enlarge animation) when the sidenav toggle is clicked to collapse the sidenav; (3) when the sidenav is open again, the page logo should hide with a clean shrink animation.

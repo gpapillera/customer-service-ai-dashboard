@@ -42,6 +42,8 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   /** Sidenav open state (from the app shell) — the page brand logo is shown
       only when the sidenav is collapsed. */
   readonly sidenavOpen = inject(LayoutComponent).opened;
+  /** True only during an explicit sidenav toggle, so the logo animates then. */
+  readonly brandAnimate = inject(LayoutComponent).brandAnimate;
   private readonly routeLoading = inject(RouteLoadingService);
   private readonly router = inject(Router);
 

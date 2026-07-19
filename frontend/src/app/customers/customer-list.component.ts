@@ -49,6 +49,8 @@ export class CustomerListComponent implements OnInit {
   /** Sidenav open state (from the app shell) — the page brand logo is shown
       only when the sidenav is collapsed. */
   readonly sidenavOpen = inject(LayoutComponent).opened;
+  /** True only during an explicit sidenav toggle, so the logo animates then. */
+  readonly brandAnimate = inject(LayoutComponent).brandAnimate;
   /** Internal data-fetch state. */
   private readonly dataLoading = signal(true);
   /** True while the list is loading OR a route navigation is in progress. */

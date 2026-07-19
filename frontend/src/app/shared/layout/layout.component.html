@@ -1,5 +1,5 @@
 <mat-sidenav-container class="shell">
-  <mat-sidenav [mode]="isHandset() ? 'over' : 'side'" [opened]="opened()" class="sidenav">
+  <mat-sidenav [mode]="isHandset() ? 'over' : 'side'" [opened]="opened()" (openedChange)="onSidenavOpenedChange($event)" class="sidenav">
     <div class="sidenav-top">
       <div class="brand" [class.brand-collapsed]="!opened()">
         <div class="brand-logo"><cs-icon name="headset"></cs-icon></div>

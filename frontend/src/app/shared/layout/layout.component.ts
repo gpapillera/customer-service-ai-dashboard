@@ -42,6 +42,10 @@ export class LayoutComponent {
   readonly isHandset = signal(false);
   /** Whether the sidenav is currently open (user toggle + auto-hide aware). */
   readonly opened = signal(true);
+  /** True only for the brief moment after a user toggles the sidenav, so the
+      page brand logo animates (enlarge/shrink) ONLY on an explicit toggle and
+      never on plain route changes. */
+  readonly brandAnimate = signal(false);
 
   readonly navLinks = [
     { path: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
@@ -70,6 +74,17 @@ export class LayoutComponent {
   /** Collapse/expand the sidenav (works in both side and overlay modes). */
   toggleSidenav(): void {
     this.opened.update((v) => !v);
+    // Flag the brand-logo animation for the duration of the transition so it
+    // only plays on an explicit toggle, not on route changes.
+    this.brandAnimate.set(true);
+    setTimeout(() => this.brandAnimate.set(false), 340);
+  }
+
+  /** Sync the open state when the sidenav is closed via its backdrop (overlay
+      mode on small screens). Without this, a backdrop click closes the panel
+      visually while `opened` stays true, hiding both the sidenav and the rail. */
+  onSidenavOpenedChange(open: boolean): void {
+    this.opened.set(open);
   }
 
   /** The currently signed-in user (or null). */
