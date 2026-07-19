@@ -42,7 +42,15 @@
     }
   </mat-sidenav>
 
-  <mat-sidenav-content class="content" [class.sidebar-closed]="!opened()" [class.instant-shift]="isHandset()">
+  <!-- In desktop (side) mode the content shifts only when the sidenav is
+       collapsed. In handset (overlay) mode the sidenav floats over the page
+       and the thin rail is always present, so the content keeps a constant
+       left padding (the rail width) at all times — it never jumps/pushes when
+       the wide sidenav opens or closes via the backdrop. -->
+  <mat-sidenav-content
+    class="content"
+    [class.sidebar-closed]="!opened() || isHandset()"
+  >
     @if (!opened()) {
       <!-- Collapsed icon rail: keeps the toggle, notifications and primary
            nav one click away when the sidenav is hidden. It appears

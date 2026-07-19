@@ -2,6 +2,13 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 19.5] Fix: sidenav backdrop still pushes page (constant rail padding) — 2026-07-20
+**Status:** Complete (verified in-browser: in handset/overlay mode the content left padding stays a constant 72px whether the wide sidenav is open, closed, or closing via backdrop — the page no longer moves; desktop side-mode still shifts smoothly only when collapsed)
+**Context:** Phase 19.4 removed the content padding *transition* in handset mode, but the user reported the push was still obvious when clicking the dim backdrop (not when toggling). Root cause: even an instant change from 2rem → 4.5rem padding is a visible 40px jump of the whole page the moment the wide sidenav closes. The thin rail is always present in overlay mode, so the page should never move at all.
+**Change:**
+- `frontend/src/app/shared/layout/layout.component.html` — content now gets `[class.sidebar-closed]="!opened() || isHandset()"`. In handset/overlay mode the `sidebar-closed` (4.5rem) padding is applied **constantly**, so opening/closing the wide sidenav never changes the content position. Desktop side-mode keeps the original behavior (shifts only when collapsed).
+- `frontend/src/app/shared/layout/layout.component.scss` — removed the now-unused `.content.instant-shift` rule (constant padding makes it unnecessary); clarified the `.sidebar-closed` comment.
+
 ## [Phase 19.4] Fix: rail appears instantly (no push) + sidenav toggle icon stuck — 2026-07-20
 **Status:** Complete (verified in-browser: on small screens the collapsed rail appears immediately at opacity 1 with no content "push" when the wide sidenav closes via backdrop; the collapse/expand toggle button's icon now switches between chevron_left and menu on every toggle, not just after a refresh)
 **Context:** Two follow-up bugs: (1) On small screens, when the auto-hidden sidenav is toggled open (overlay + dim backdrop) and the dim area is clicked, the thin icon rail appeared only AFTER the wide sidenav finished hiding, visibly pushing the page from left to right — bad UI. (2) The sidenav collapse/expand toggle button sometimes stayed on the hamburger (menu) icon and the chevron_left (collapse) icon would not reappear until a page refresh.

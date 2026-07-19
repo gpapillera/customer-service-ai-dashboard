@@ -171,18 +171,13 @@
   transition: padding 0.2s var(--cs-ease);
 }
 
-/* When the sidenav is collapsed, shift content right so the floating
-   reopen button (fixed top-left) never overlaps the page header. */
+/* When the sidenav is collapsed (desktop) or on small screens (overlay mode,
+   where the thin rail is always present), shift content right so the floating
+   reopen button / rail never overlaps the page header. In overlay mode this
+   padding is constant, so the page never jumps when the wide sidenav opens or
+   closes. */
 .content.sidebar-closed {
   padding-left: 4.5rem;
-}
-
-/* On small screens the sidenav is an overlay (it doesn't take layout space),
-   so when it closes we must NOT animate the content padding — doing so makes
-   the page visibly "push" right after the wide sidenav finishes hiding. The
-   rail appears instantly and the page is already correctly positioned. */
-.content.instant-shift {
-  transition: none;
 }
 
 /* Collapsed icon rail shown only while the sidenav is hidden. It keeps the
