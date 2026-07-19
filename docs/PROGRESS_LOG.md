@@ -2,6 +2,13 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 19.6] Fix: thin rail "pops from left to right" on backdrop close — 2026-07-20
+**Status:** Complete (verified in-browser via Playwright frame-by-frame sampling at 10ms after a backdrop click: rail stays `opacity:1` / `transform: matrix(1,0,0,1,0,0)` with no movement across all frames; sidenav overlay `transition-duration: 0s / none` — no slide-out)
+**Context:** After 19.5 the page no longer jumped, but the user still saw the thin icon rail "pop from left to right" when closing the wide sidenav via the dim backdrop. Two animations were firing on close: (1) the wide sidenav's Material `over`-mode slide-out (transform 0 → -248px, reading as a left-to-right pop), and (2) the thin rail's own `transition: opacity/transform 0.18s`. The rail is always present underneath in overlay mode, so neither animation is needed.
+**Changes:**
+- `frontend/src/app/shared/layout/layout.component.scss` — `.rail`: removed `transition` (now `transition: none`), so the rail appears **instantly** with zero animation. Added `.sidenav.sidenav-overlay` + `.sidenav.sidenav-overlay ::ng-deep .mat-drawer-inner-container` rules forcing `transition: none !important`, killing the wide sidenav's slide-out in overlay (handset) mode.
+- `frontend/src/app/shared/layout/layout.component.html` — `mat-sidenav` now binds `[class.sidenav-overlay]="isHandset()"` so the no-slide rule applies only in overlay mode; desktop `side` mode keeps its normal behavior.
+
 ## [Phase 19.5] Fix: sidenav backdrop still pushes page (constant rail padding) — 2026-07-20
 **Status:** Complete (verified in-browser: in handset/overlay mode the content left padding stays a constant 72px whether the wide sidenav is open, closed, or closing via backdrop — the page no longer moves; desktop side-mode still shifts smoothly only when collapsed)
 **Context:** Phase 19.4 removed the content padding *transition* in handset mode, but the user reported the push was still obvious when clicking the dim backdrop (not when toggling). Root cause: even an instant change from 2rem → 4.5rem padding is a visible 40px jump of the whole page the moment the wide sidenav closes. The thin rail is always present in overlay mode, so the page should never move at all.

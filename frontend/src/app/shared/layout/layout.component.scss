@@ -85,6 +85,17 @@
   overflow: hidden;
 }
 
+/* In overlay (handset) mode the wide sidenav must open/close INSTANTLY so it
+   never slides out from the left and reads as a "pop". The thin rail is always
+   present underneath, so no slide animation is needed. */
+.sidenav.sidenav-overlay {
+  transition: none !important;
+}
+
+.sidenav.sidenav-overlay ::ng-deep .mat-drawer-inner-container {
+  transition: none !important;
+}
+
 .sidenav ::ng-deep .mat-drawer-inner-container {
   display: flex;
   flex-direction: column;
@@ -180,10 +191,9 @@
   padding-left: 4.5rem;
 }
 
-/* Collapsed icon rail shown only while the sidenav is hidden. It keeps the
-   toggle, the notification bell and the primary nav reachable. It appears
-   immediately (no keyframe animation that can get stuck) and slides in with a
-   short, deterministic transition so the page is never left blank/pushed. */
+/* Collapsed icon rail shown only while the sidenav is hidden. It appears
+   INSTANTLY with zero animation/transition so it never "pops" in from the
+   left when the wide sidenav closes (backdrop click or toggle). */
 .rail {
   position: fixed;
   top: 0;
@@ -201,7 +211,7 @@
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
   opacity: 1;
   transform: translateX(0);
-  transition: opacity 0.18s var(--cs-ease), transform 0.18s var(--cs-ease);
+  transition: none;
   animation: none;
 }
 
