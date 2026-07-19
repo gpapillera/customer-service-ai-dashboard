@@ -2,6 +2,13 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 17.6] Fix pop-up close button: missing icon + faint outline — 2026-07-19
+**Status:** Complete (verified — frontend build OK; browser: close button now renders the X icon (`hasSvg: true`) with a clear slate border `rgb(203,213,225)` and dark text)
+**Context:** User: the close (X) button had a hover color but no visible icon, and its outline was indistinguishable from the background. Root cause: the template used `<cs-icon name="x">`, but the icon map only defines `close` (→ Lucide `X`) — so `x` resolved to "unknown" and rendered nothing. The border used `--cs-border` (`rgba(0,0,0,0.06)`), which is nearly invisible on the surface.
+**Changes:**
+- `frontend/src/app/shared/notification-bell.component.html` — close button icon changed from `name="x"` → `name="close"` (valid map key), so the X glyph renders.
+- `frontend/src/app/shared/notification-bell.component.scss` — `.close-btn` border now uses a clear slate `#cbd5e1` (via `--cs-border-strong` fallback) instead of the faint `--cs-border`; text color set to `--cs-text` for contrast. Hover still turns red (`--cs-danger`) with a white icon.
+
 ## [Phase 17.5] Notification pop-up layout: wider + distinguishable header buttons + visible close — 2026-07-19
 **Status:** Complete (verified — frontend build OK; browser: modal header width 558px; "Mark all read" solid indigo, "Mark all unread" neutral outline, close button has a border and turns red on hover)
 **Context:** User feedback on the Phase 17.4 pop-up: (1) the modal was too narrow so the header ("Follow-up needed", count, "Mark all read", "Mark all unread") had no room; (2) the two "mark all" actions were plain accent text with no button chrome, so they weren't distinguishable; (3) the close (X) button was transparent/muted and blended into the background, making it invisible.
