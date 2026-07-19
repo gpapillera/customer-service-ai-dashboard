@@ -1,7 +1,8 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, tap } from 'rxjs';
 import { LoginRequest, LoginResponse } from '../shared/models';
+import { NotificationStateService } from '../shared/notification-state.service';
 
 const TOKEN_KEY = 'cs_token';
 const USER_KEY = 'cs_user';
@@ -25,6 +26,8 @@ export class AuthService {
   /** Reactive signal mirroring the current user for templates. */
   readonly currentUser = signal<LoginResponse | null>(this.loadUser());
 
+  private readonly notifications = inject(NotificationStateService);
+
   constructor(private readonly http: HttpClient) {}
 
   /**
@@ -45,6 +48,9 @@ export class AuthService {
   logout(): void {
     sessionStorage.removeItem(TOKEN_KEY);
     sessionStorage.removeItem(USER_KEY);
+    // Clear the session-scoped "mark all read" state so the badge returns
+    // for any case still overdue on the next login.
+    this.notifications.reset();
     this._currentUser.next(null);
     this.currentUser.set(null);
   }

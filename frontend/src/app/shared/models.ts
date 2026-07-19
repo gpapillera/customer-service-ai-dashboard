@@ -173,3 +173,20 @@ export interface NotificationSummary {
   unreadCount: number;
   recent: Notification[];
 }
+
+/**
+ * A currently-overdue case surfaced in the notification center. Derived live
+ * from the cases API (overdue filter), not from stored notification rows, so
+ * it persists for as long as the case remains overdue.
+ */
+export interface OverdueCase {
+  caseId: number;
+  subject: string;
+  customerName: string;
+  assignedToUserName: string;
+  priority: 'Low' | 'Medium' | 'High';
+  followUpDueUtc: string;
+  daysOverdue: number;
+  /** Full case record (for the expanded detail view). */
+  detail: Case;
+}

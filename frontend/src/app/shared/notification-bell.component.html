@@ -2,59 +2,117 @@
   <button
     type="button"
     class="bell-btn"
-    [class.has-unread]="notifications.unreadCount() > 0"
-    (click)="toggle()"
+    [class.has-unread]="state.visibleCount() > 0"
+    (click)="openModal()"
     [attr.aria-label]="
-      notifications.unreadCount() > 0
-        ? notifications.unreadCount() + ' unread notifications'
+      state.visibleCount() > 0
+        ? state.visibleCount() + ' cases need follow-up'
         : 'Notifications'
     "
     [attr.aria-expanded]="open()"
   >
     <cs-icon
-      [name]="notifications.unreadCount() > 0 ? 'notifications_active' : 'notifications'"
+      [name]="state.visibleCount() > 0 ? 'notifications_active' : 'notifications'"
       [size]="20"
     ></cs-icon>
-    @if (notifications.unreadCount() > 0) {
-      <span class="badge">{{ notifications.unreadCount() > 9 ? '9+' : notifications.unreadCount() }}</span>
+    @if (state.visibleCount() > 0) {
+      <span class="badge">{{ state.visibleCount() > 9 ? '9+' : state.visibleCount() }}</span>
     }
   </button>
 
   @if (open()) {
-    <div class="backdrop" (click)="close()"></div>
-    <div class="panel cs-lift" role="menu">
-      <div class="panel-head">
-        <span class="panel-title">Notifications</span>
-        @if (notifications.unreadCount() > 0) {
-          <button type="button" class="mark-all" (click)="markAll()">Mark all read</button>
-        }
+    <div class="modal-backdrop" (click)="close()"></div>
+    <div class="modal cs-lift" role="dialog" aria-modal="true" aria-label="Follow-up needed">
+      <div class="modal-head">
+        <div class="modal-title">
+          <cs-icon name="schedule" [size]="20"></cs-icon>
+          <span>Follow-up needed</span>
+          @if (state.overdue().length > 0) {
+            <span class="count-pill">{{ state.overdue().length }}</span>
+          }
+        </div>
+        <div class="modal-actions">
+          @if (state.visibleCount() > 0) {
+            <button type="button" class="mark-all" (click)="markAll()">Mark all read</button>
+          }
+          <button type="button" class="close-btn" (click)="close()" aria-label="Close">
+            <cs-icon name="x" [size]="18"></cs-icon>
+          </button>
+        </div>
       </div>
 
-      @if (items().length === 0) {
+      @if (state.loading()) {
+        <div class="empty"><span>Loading…</span></div>
+      } @else if (state.overdue().length === 0) {
         <div class="empty">
           <cs-icon name="inbox" [size]="28"></cs-icon>
           <span>You're all caught up</span>
         </div>
       } @else {
         <ul class="list">
-          @for (item of items(); track item.id) {
-            <li
-              class="item"
-              [class.unread]="item.status === 'Unread'"
-              role="menuitem"
-              tabindex="0"
-              (click)="openItem(item)"
-              (keydown.enter)="openItem(item)"
-            >
-              <div class="item-icon">
-                <cs-icon name="schedule" [size]="18"></cs-icon>
-              </div>
-              <div class="item-body">
-                <div class="item-title">{{ item.title }}</div>
-                <div class="item-msg">{{ item.message }}</div>
-              </div>
-              @if (item.status === 'Unread') {
-                <span class="dot" aria-hidden="true"></span>
+          @for (item of state.overdue(); track item.caseId) {
+            <li class="item" [class.expanded]="isExpanded(item.caseId)">
+              <button
+                type="button"
+                class="item-head"
+                (click)="toggleExpand(item)"
+                [attr.aria-expanded]="isExpanded(item.caseId)"
+              >
+                <span class="item-priority" [class]="priorityClass(item.priority)">
+                  {{ item.priority }}
+                </span>
+                <span class="item-title">{{ item.subject }}</span>
+                <span class="item-customer">{{ item.customerName }}</span>
+                <span class="item-overdue">
+                  {{ item.daysOverdue }}&nbsp;d overdue
+                </span>
+                <cs-icon
+                  class="chev"
+                  [name]="isExpanded(item.caseId) ? 'chevron_up' : 'chevron_down'"
+                  [size]="18"
+                ></cs-icon>
+              </button>
+
+              @if (isExpanded(item.caseId)) {
+                <div class="item-detail">
+                  <div class="facts">
+                    <div><span>Status</span><b [class]="statusClass(item.detail.status)">{{ item.detail.status }}</b></div>
+                    <div><span>Category</span><b>{{ item.detail.categoryName || '—' }}</b></div>
+                    <div><span>Assigned</span><b>{{ item.detail.assignedToUserName || 'Unassigned' }}</b></div>
+                    <div><span>Opened</span><b>{{ formatDate(item.detail.createdAtUtc) }}</b></div>
+                    <div><span>Due</span><b>{{ formatDate(item.followUpDueUtc) }}</b></div>
+                  </div>
+
+                  @if (item.detail.description) {
+                    <p class="desc">{{ item.detail.description }}</p>
+                  }
+
+                  <div class="logs">
+                    <div class="logs-head">Follow-up log</div>
+                    @if (loadingDetail()) {
+                      <span class="logs-empty">Loading…</span>
+                    } @else if (logs().length === 0) {
+                      <span class="logs-empty">No follow-up logged yet</span>
+                    } @else {
+                      <ul>
+                        @for (log of logs(); track log.id) {
+                          <li>
+                            <span class="log-dir">{{ log.direction }}</span>
+                            <span class="log-notes">{{ log.notes }}</span>
+                            <span class="log-date">{{ formatDate(log.createdAtUtc) }}</span>
+                          </li>
+                        }
+                      </ul>
+                    }
+                  </div>
+
+                  <div class="detail-actions">
+                    <button type="button" class="open-btn" (click)="openCase(item)">
+                      <cs-icon name="external_link" [size]="16"></cs-icon>
+                      Open in Cases
+                    </button>
+                  </div>
+                </div>
               }
             </li>
           }
