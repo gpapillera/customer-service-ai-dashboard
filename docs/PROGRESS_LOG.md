@@ -2,6 +2,14 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 20] Docs: DIY.md beginner build guide + inline section refs — 2026-07-20
+**Status:** Complete (committed `d61cc29`; 23 files changed, 795 insertions)
+**Context:** User asked to capture the project's build knowledge as a from-scratch, beginner-friendly guide and to keep code↔doc navigation two-way. Added `docs/DIY.md` (Parts 0–12, verified against actual current source — not memory/MVP_BUILD_PROMPT) and added `DIY.md §N` doc-comments across the referenced files so a reader can jump from code to the relevant guide section. Also ticked the stale README roadmap checkbox for "Docker Compose for one-command local setup" (the `docker-compose.yml` already exists and is documented).
+**Changes:**
+- `docs/DIY.md` (new) — Parts 0–12: tools/env, layered backend, DB+SQLite fallback, entities/enums, JWT auth, customers, cases+toolbar, call logs+notifications, dashboard+charts, backend ML wiring, Python pipeline, app shell/design system, run/test/build. Each Part has senior-dev framing, numbered steps, ⚠️ gotchas, 📍 code pointers, and a "Verified working as of" line.
+- Inline `DIY.md §` comments added to: `Program.cs`, `IRepository.cs`, `SeedDataInitializer.cs`, `Case.cs`, `AuthController.cs`, `auth.service.ts`, `token.interceptor.ts`, `CustomersController.cs`, `CasesController.cs`, `search-filter-toolbar.component.ts`, `CallLogsController.cs`, `InAppNotificationSender.cs`, `DashboardController.cs`, `dashboard.component.ts`, `IPriorityPredictor.cs`, `OnnxPriorityPredictor.cs`, `CaseService.cs`, `train_model.py`, `app.routes.ts`, `layout.component.ts`, `reveal.directive.ts`.
+- `README.md` — roadmap checkbox for Docker Compose flipped `[ ]` → `[x]`.
+
 ## [Phase 19.6] Fix: thin rail "pops from left to right" on backdrop close — 2026-07-20
 **Status:** Complete (verified in-browser via Playwright frame-by-frame sampling at 10ms after a backdrop click: rail stays `opacity:1` / `transform: matrix(1,0,0,1,0,0)` with no movement across all frames; sidenav overlay `transition-duration: 0s / none` — no slide-out)
 **Context:** After 19.5 the page no longer jumped, but the user still saw the thin icon rail "pop from left to right" when closing the wide sidenav via the dim backdrop. Two animations were firing on close: (1) the wide sidenav's Material `over`-mode slide-out (transform 0 → -248px, reading as a left-to-right pop), and (2) the thin rail's own `transition: opacity/transform 0.18s`. The rail is always present underneath in overlay mode, so neither animation is needed.
