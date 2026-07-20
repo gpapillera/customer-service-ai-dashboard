@@ -4,6 +4,7 @@ namespace CustomerService.Domain.Interfaces;
 
 /// <summary>
 /// Features passed to the priority model when scoring a new case.
+/// See docs/DIY.md §9 (backend ML wiring) and §10 (Python training pipeline).
 /// </summary>
 public class PriorityFeatures
 {

@@ -15,6 +15,7 @@ namespace CustomerService.Api;
 /// <summary>
 /// Application entry point and composition root for the Customer Service AI
 /// Dashboard Web API.
+/// See docs/DIY.md §1 (layering), §2 (SQLite fallback + seed), §3 (string enums).
 /// </summary>
 public class Program
 {

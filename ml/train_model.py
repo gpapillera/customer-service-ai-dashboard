@@ -4,6 +4,7 @@ Generates a synthetic, rule-labeled dataset of support cases, trains a small
 multiclass classifier (Decision Tree / Random Forest) that predicts case
 ``Priority`` (Low / Medium / High), evaluates it, and exports the model to ONNX
 (``ml/models/priority_model.onnx``) for inference in the ASP.NET Core backend.
+See docs/DIY.md §10 for the run steps and the feature-order contract.
 
 The exported ONNX model expects a 4-feature float input named ``input`` with
 the exact ordering consumed by ``CustomerService.ML.OnnxPriorityPredictor``:

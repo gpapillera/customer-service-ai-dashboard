@@ -2,6 +2,7 @@ namespace CustomerService.Domain.Entities;
 
 /// <summary>
 /// Lifecycle status of a support case.
+/// See docs/DIY.md §3 — serialized as a string in JSON, never a number.
 /// </summary>
 public enum CaseStatus
 {

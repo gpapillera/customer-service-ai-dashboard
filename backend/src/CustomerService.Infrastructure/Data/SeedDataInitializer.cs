@@ -7,6 +7,7 @@ namespace CustomerService.Infrastructure.Data;
 /// Idempotent seeder: inserts demo categories, users, customers, cases and
 /// call logs only when the database is empty. User passwords are hashed with
 /// BCrypt at seed time.
+/// See docs/DIY.md §2 for the SQLite fallback and idempotent-seed walkthrough.
 /// </summary>
 public static class SeedDataInitializer
 {

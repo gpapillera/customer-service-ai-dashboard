@@ -12,6 +12,7 @@ const USER_KEY = 'cs_user';
  *
  * The JWT is kept in sessionStorage (simple for an MVP; note this is less
  * secure than an httpOnly cookie for production — see README).
+ * See docs/DIY.md §4 for the auth flow this service supports.
  */
 @Injectable({ providedIn: 'root' })
 export class AuthService {

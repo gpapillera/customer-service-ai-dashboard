@@ -5,6 +5,7 @@ namespace CustomerService.Domain.Interfaces;
 /// <summary>
 /// Generic read/write repository contract for entity <typeparamref name="T"/>.
 /// Keeps the Application layer decoupled from EF Core / infrastructure.
+/// See docs/DIY.md §1 for how this fits into the layered backend.
 /// </summary>
 /// <typeparam name="T">Entity type.</typeparam>
 public interface IRepository<T> where T : class

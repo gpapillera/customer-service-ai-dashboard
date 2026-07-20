@@ -14,6 +14,7 @@ import {
  * being flashy.
  *
  * Usage: <div appReveal class="reveal"> ... </div>
+ * See docs/DIY.md §11 for the design-system / motion conventions.
  */
 @Directive({
   selector: '[appReveal]',

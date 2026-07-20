@@ -11,6 +11,7 @@ namespace CustomerService.Application.Services;
 /// <summary>
 /// Implements <see cref="ICaseService"/>. On creation, when no priority is
 /// supplied, the ML predictor suggests one (flagged as auto-suggested).
+/// See docs/DIY.md §9 for the priority-prediction wiring in CreateAsync.
 /// </summary>
 public class CaseService : ICaseService
 {

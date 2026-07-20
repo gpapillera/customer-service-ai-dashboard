@@ -19,6 +19,7 @@ import { LayoutComponent } from '../shared/layout/layout.component';
  * Dashboard: 6 KPI cards, weekly trend line, priority donut, horizontal
  * category bar, status bar chart, and a recent-cases list — all wired to the
  * API.
+ * See docs/DIY.md §8 for the dashboard + Chart.js walkthrough.
  */
 @Component({
   selector: 'app-dashboard',

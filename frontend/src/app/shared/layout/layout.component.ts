@@ -15,6 +15,7 @@ import { NotificationBellComponent } from '../notification-bell.component';
  * Application shell: a white sidenav with navigation (active = light indigo
  * pill) and a Sign Out action pinned at the bottom. All guarded routes render
  * inside the <router-outlet>.
+ * See docs/DIY.md §11 for the shell/layout/design-system walkthrough.
  */
 @Component({
   selector: 'app-layout',

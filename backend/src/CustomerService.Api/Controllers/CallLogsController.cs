@@ -7,6 +7,7 @@ namespace CustomerService.Api.Controllers;
 
 /// <summary>
 /// Endpoints for call / follow-up logs attached to cases.
+/// See docs/DIY.md §7 for the call-log + notification walkthrough.
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]

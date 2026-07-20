@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './auth/auth.guard';
+// See docs/DIY.md §11 for how this route tree wraps guarded routes in LayoutComponent.
 import { LayoutComponent } from './shared/layout/layout.component';
 import { LoginComponent } from './auth/login/login.component';
 import { DashboardComponent } from './dashboard/dashboard.component';

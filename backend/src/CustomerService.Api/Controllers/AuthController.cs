@@ -7,6 +7,7 @@ namespace CustomerService.Api.Controllers;
 
 /// <summary>
 /// Authentication endpoints (JWT issuance).
+/// See docs/DIY.md §4 for the login → token → interceptor → guard flow.
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]

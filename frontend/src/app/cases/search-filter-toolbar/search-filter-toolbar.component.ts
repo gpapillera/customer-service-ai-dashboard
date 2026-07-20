@@ -8,6 +8,7 @@ import { CsIconComponent } from '../../shared/cs-icon.component';
 
 /**
  * Reusable Material 3 search + filter toolbar (Row A of the Cases page).
+ * See docs/DIY.md §6 for how this toolbar drives case-list filtering.
  * Emits each field's value as the user changes it; the parent owns the
  * actual filtering logic. Query-param pre-fill is supported via the
  * `search` / `status` / `priority` / `category` inputs (patched into the form).

@@ -9,6 +9,7 @@ namespace CustomerService.Application.Services;
 /// can be surfaced in the notification center. This is the only sender used by
 /// the demo; Email/SMS senders can be added later behind
 /// <see cref="INotificationSender"/>.
+/// See docs/DIY.md §7 for the notification flow.
 /// </summary>
 public class InAppNotificationSender : INotificationSender
 {

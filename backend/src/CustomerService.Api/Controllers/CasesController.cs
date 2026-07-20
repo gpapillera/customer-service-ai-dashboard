@@ -8,6 +8,7 @@ namespace CustomerService.Api.Controllers;
 
 /// <summary>
 /// CRUD + filtering endpoints for cases. POST auto-suggests priority via ML.
+/// See docs/DIY.md §6 (case UI + filter toolbar) and §9 (ML priority).
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]

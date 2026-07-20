@@ -10,6 +10,7 @@ namespace CustomerService.ML;
 /// training pipeline (ml/train_model.py -> ml/models/priority_model.onnx).
 /// Falls back to <see cref="RuleBasedPriorityPredictor"/> when the model file
 /// is absent so the API always runs.
+/// See docs/DIY.md §9 (backend wiring) and §10 (Python pipeline that builds this model).
 /// </summary>
 public class OnnxPriorityPredictor : IPriorityPredictor, IDisposable
 {

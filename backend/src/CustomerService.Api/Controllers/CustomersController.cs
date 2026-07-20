@@ -7,6 +7,7 @@ namespace CustomerService.Api.Controllers;
 
 /// <summary>
 /// CRUD endpoints for customers, plus name/email/phone search.
+/// See docs/DIY.md §5 for the customer management walkthrough.
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]

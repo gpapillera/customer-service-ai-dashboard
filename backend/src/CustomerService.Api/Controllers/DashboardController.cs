@@ -7,6 +7,7 @@ namespace CustomerService.Api.Controllers;
 
 /// <summary>
 /// Dashboard summary endpoint (KPIs + trends + category breakdown).
+/// See docs/DIY.md §8 for the dashboard + Chart.js walkthrough.
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
