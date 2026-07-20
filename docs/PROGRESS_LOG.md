@@ -2,6 +2,15 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 24] Fix: Blank dashboard — `/api/dashboard` 400 "An item with the same key has already been added. Key: New" — 2026-07-20
+**Status:** Complete (backend build OK; `dotnet test` 31/31 passing; live-verified on SQLite + browser — dashboard renders all cards/charts/recent cases)
+**Context:** User reported "There is no any content showing in the dashboard." Root cause: `DashboardRepository.GetSummaryAsync` built `byStatus`/`byPriority` with `ToDictionaryAsync(g => g.Key.ToString(), ...)`. The `Cases.Status` column had **mixed storage**: EF Core stores the `CaseStatus` enum as integers (`0`=New … `4`=Closed), but a test row (case #14, inserted earlier via raw SQL) had `Status = 'New'` (a string). Both the integer `0` and the string `'New'` serialize to the key `"New"`, so the dictionary threw `ArgumentException: An item with the same key has already been added. Key: New` → 400 → blank dashboard.
+**Fix:**
+- `backend/src/CustomerService.Infrastructure/Repositories/DashboardRepository.cs` — replaced the two `ToDictionaryAsync` calls with a defensive loop that **sums on key collision** (`TryGetValue` + accumulate) instead of throwing. A single malformed row can no longer crash the whole dashboard; aggregates stay correct.
+- Data repair (SQLite live DB `backend/src/CustomerService.Api/customer_service.db`): `UPDATE Cases SET Status=0 WHERE Status='New'` to normalize the stray string row back to the enum integer. (No EF migrations in this project, so the fix is a one-off data correction.)
+**Verification:** `GET /api/dashboard` now returns 200 with `byStatus: {New:5, InProgress:4, Escalated:1, Resolved:2, Closed:2}`, `byPriority: {Low:3, Medium:6, High:5}`, `overdueFollowUps: 9`, 30-day trend, 5 categories, 5 recent cases. Browser at `http://localhost:4200/dashboard` renders all stat cards, charts, and the Recent Cases list.
+**Lesson:** Never insert enum columns via raw SQL with string literals — EF Core serializes enums as integers. Prefer going through the API/seed for test data.
+
 ## [Phase 23] Feature: Unassign UI for cases (explicit unassign + assignee dropdown) — 2026-07-20
 **Status:** Complete (backend build OK; `dotnet test` 31/31 passing; frontend build OK; live-verified on SQLite + browser)
 **Context:** User asked to add a UI for unassigning a case. The prior data-loss fix made `UpdateCaseDto.AssignedToUserId == null` mean "preserve existing assignee", so a distinct signal was needed for an explicit unassign. Also fixed a pre-existing bug where `GetByIdAsync` did not `.Include(c => c.AssignedToUser)`, so `AssignedToUserName` was always null (assignee name invisible in the UI).

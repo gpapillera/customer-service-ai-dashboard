@@ -28,12 +28,25 @@ public class DashboardRepository : IDashboardRepository
         var aiPredicted = await cases.CountAsync(c => c.PriorityAutoSuggested);
         var open = total - closed;
 
-        var byStatus = await cases.GroupBy(c => c.Status)
-            .Select(g => new { g.Key, Count = g.Count() })
-            .ToDictionaryAsync(g => g.Key.ToString(), g => g.Count);
-        var byPriority = await cases.GroupBy(c => c.Priority)
-            .Select(g => new { g.Key, Count = g.Count() })
-            .ToDictionaryAsync(g => g.Key.ToString(), g => g.Count);
+        // Build the status/priority dictionaries defensively: a single
+        // malformed row (e.g. a status stored as text instead of the enum's
+        // integer value) must not crash the whole dashboard. Sum on collision
+        // so the aggregate stays correct instead of throwing on a duplicate key.
+        var byStatus = new Dictionary<string, int>();
+        foreach (var g in await cases.GroupBy(c => c.Status).Select(g => new { g.Key, Count = g.Count() }).ToListAsync())
+        {
+            var key = g.Key.ToString();
+            byStatus.TryGetValue(key, out var existing);
+            byStatus[key] = existing + g.Count;
+        }
+
+        var byPriority = new Dictionary<string, int>();
+        foreach (var g in await cases.GroupBy(c => c.Priority).Select(g => new { g.Key, Count = g.Count() }).ToListAsync())
+        {
+            var key = g.Key.ToString();
+            byPriority.TryGetValue(key, out var existing);
+            byPriority[key] = existing + g.Count;
+        }
 
         var totalCustomers = await _context.Customers.CountAsync();
 
