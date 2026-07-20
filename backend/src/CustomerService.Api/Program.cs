@@ -89,6 +89,12 @@ public class Program
         // senders can take NotificationOptions directly (not just IOptions<>).
         builder.Services.AddScoped(sp =>
             sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<CustomerService.Application.Options.NotificationOptions>>().Value);
+        builder.Services.Configure<CustomerService.Application.Options.EmailOptions>(
+            builder.Configuration.GetSection("Email"));
+        // Register the resolved EmailOptions as a concrete service so the email
+        // sender can take it directly (not just IOptions<>).
+        builder.Services.AddScoped(sp =>
+            sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<CustomerService.Application.Options.EmailOptions>>().Value);
         builder.Services.AddScoped<INotificationService, NotificationService>();
         // Background worker: periodically scans for overdue cases and triggers the
         // agent-facing overdue email. Interval is configurable (Notifications:OverdueCheckIntervalMinutes).
