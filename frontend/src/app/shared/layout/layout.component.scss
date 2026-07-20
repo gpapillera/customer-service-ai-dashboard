@@ -210,7 +210,10 @@
   border-right: 1px solid var(--cs-border);
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
   opacity: 1;
-  transform: translateX(0);
+  /* NOTE: no `transform` here on purpose. A transform would make `.rail` the
+     containing block for `position: fixed` descendants, which breaks the
+     notification-bell modal (it would render relative to this 64px rail instead
+     of the viewport — appearing off-screen when the sidenav is hidden). */
   transition: none;
   animation: none;
 }

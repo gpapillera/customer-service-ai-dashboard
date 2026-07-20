@@ -2,6 +2,13 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 29] Fix: Notification modal renders off-screen when sidenav is hidden — 2026-07-20
+**Status:** Complete (verified in browser via Playwright; frontend `npm run build` OK)
+- **Bug:** When the sidenav was collapsed to the icon rail (`.rail`), clicking the rail's notification bell opened the modal off-screen (modal `x = -248`, backdrop only `63px` wide = rail width).
+- **Root cause:** `.rail { transform: translateX(0); }` made `.rail` the containing block for `position: fixed` descendants (`.modal`, `.modal-backdrop` in `notification-bell.component.scss`), so they positioned relative to the 64px rail instead of the viewport.
+- **Fix:** Removed `transform: translateX(0)` from `.rail` in `frontend/src/app/shared/layout/layout.component.scss` (added a comment explaining why no transform is allowed there).
+- **Verification:** With sidenav hidden, rail bell now shows `modal.x = 288` (centered), `backdrop.w = 1135` (full viewport); sidenav-open bell still centered (`modal.x = 288`). No regression.
+
 ## [Phase 26] Chore: Bump MailKit (clear advisory) + revert test email data — 2026-07-20
 **Status:** Complete (backend build OK, 0 errors; `dotnet list package --vulnerable` → "no vulnerable packages"; `dotnet test` 31/31 passing)
 **Context:** Cleanup after Phase 25. Two items: (1) the live SQLite DB still had every `Users.Email`/`Customers.Email` set to `glnppllr@gmail.com` (the Phase 25 test inbox), and `DevOverrideRecipient` was still pointed at it; (2) `MailKit` 4.7.1.1 carried a moderate-severity advisory (GHSA-9j88-vvj5-vhgr).
