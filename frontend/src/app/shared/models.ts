@@ -105,6 +105,13 @@ export interface Category {
   description: string | null;
 }
 
+/** A lightweight user summary for assignment dropdowns (matches AgentSummary). */
+export interface Agent {
+  id: string;
+  fullName: string;
+  role: 'Admin' | 'Agent';
+}
+
 /** A single point in a dashboard trend series. */
 export interface DateCount {
   date: string;

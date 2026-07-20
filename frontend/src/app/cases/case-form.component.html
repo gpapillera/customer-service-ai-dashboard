@@ -97,6 +97,21 @@
           </mat-select>
         </mat-form-field>
       </div>
+
+      <div class="assignee-row">
+        <mat-form-field appearance="outline" class="assignee-field">
+          <mat-label>Assignee</mat-label>
+          <mat-select formControlName="assignedToUserId">
+            <mat-option [value]="''">Unassigned</mat-option>
+            @for (a of agents(); track a.id) {
+              <mat-option [value]="a.id">{{ a.fullName }} ({{ a.role }})</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <button type="button" class="unassign-btn" mat-stroked-button (click)="unassign()" [disabled]="form.controls.assignedToUserId.value === ''">
+          <cs-icon name="person_remove"></cs-icon> Unassign
+        </button>
+      </div>
     }
 
     @if (!isEdit()) {

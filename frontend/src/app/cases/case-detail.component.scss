@@ -190,6 +190,27 @@
   font-weight: 600;
 }
 
+.assignee-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.assignee-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--cs-text);
+}
+.unassign-btn {
+  color: var(--cs-danger, #ef4444);
+  border-color: rgba(239, 68, 68, 0.4);
+  transition: background 0.2s var(--cs-ease), transform 0.2s var(--cs-ease);
+}
+.unassign-btn:hover:not([disabled]) {
+  background: rgba(239, 68, 68, 0.08);
+  transform: translateY(-1px);
+}
+
 /* status / priority dots */
 .dot-new { background: #3b82f6; }
 .dot-inprogress { background: #4f46e5; }

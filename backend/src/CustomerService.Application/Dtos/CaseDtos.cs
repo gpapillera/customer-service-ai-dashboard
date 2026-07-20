@@ -56,7 +56,17 @@ public class UpdateCaseDto
     public int CategoryId { get; set; }
 
     /// <summary>Assigned agent id.</summary>
+    /// <remarks>
+    /// A <c>null</c> value is treated as "omit" — the existing assignee is
+    /// preserved (the UI always sends null for fields it does not edit). To
+    /// explicitly UNASSIGN a case, send the sentinel
+    /// <see cref="UnassignSentinel"/> (<c>"__unassign__"</c>); the service
+    /// then clears <c>AssignedToUserId</c>.
+    /// </remarks>
     public string? AssignedToUserId { get; set; }
+
+    /// <summary>Sentinel value for <see cref="AssignedToUserId"/> that means "explicitly unassign this case".</summary>
+    public const string UnassignSentinel = "__unassign__";
 }
 
 /// <summary>Read model for a case (with related names).</summary>

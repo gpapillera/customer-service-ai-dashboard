@@ -25,6 +25,27 @@
   gap: 1rem;
 }
 
+.assignee-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+}
+.assignee-field {
+  flex: 1 1 auto;
+}
+.unassign-btn {
+  margin-top: 0.35rem;
+  flex: 0 0 auto;
+  color: var(--cs-danger, #ef4444);
+  border-color: rgba(239, 68, 68, 0.4);
+  transition: background 0.2s var(--cs-ease), transform 0.2s var(--cs-ease);
+}
+.unassign-btn:hover:not([disabled]) {
+  background: rgba(239, 68, 68, 0.08);
+  transform: translateY(-1px);
+}
+
 .ai-box {
   background: var(--cs-accent-light);
   border: 1px solid rgba(79, 70, 229, 0.15);

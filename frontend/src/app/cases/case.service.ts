@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
-import { Case, CreateCase, UpdateCase, Category } from '../shared/models';
+import { Case, CreateCase, UpdateCase, Category, Agent } from '../shared/models';
 import { CATEGORIES } from '../shared/categories';
 
 /**
@@ -80,5 +80,10 @@ export class CaseService {
   /** Lists categories for dropdowns (from the shared seed constant). */
   categories(): Observable<Category[]> {
     return of(CATEGORIES);
+  }
+
+  /** Lists agents/admins for the assignee dropdown (GET /api/users). */
+  agents(): Observable<Agent[]> {
+    return this.http.get<Agent[]>('/api/users');
   }
 }

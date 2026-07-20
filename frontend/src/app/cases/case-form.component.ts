@@ -14,9 +14,12 @@ import { MatDialog, MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from '@angu
 import { CsIconComponent } from '../shared/cs-icon.component';
 import { CaseService } from './case.service';
 import { CustomerService } from '../customers/customer.service';
-import { Case, Customer } from '../shared/models';
+import { Case, Customer, Agent } from '../shared/models';
 import { CATEGORIES } from '../shared/categories';
 import { ConfirmDialogComponent, ConfirmDialogData } from '../shared/confirm-dialog.component';
+
+/** Sentinel sent to the backend to explicitly clear the assignee. */
+const UNASSIGN_SENTINEL = '__unassign__';
 
 /** Dialog data accepted by the case form. */
 export interface CaseFormDialogData {
@@ -67,6 +70,7 @@ export class CaseFormComponent implements OnInit {
 
   readonly categories = CATEGORIES;
   readonly customers = signal<Customer[]>([]);
+  readonly agents = signal<Agent[]>([]);
   readonly isEdit = signal(false);
   readonly loading = signal(false);
   readonly saving = signal(false);
@@ -86,11 +90,13 @@ export class CaseFormComponent implements OnInit {
     customerId: [{ value: null as number | null, disabled: true }, Validators.required],
     status: ['New' as Case['status']],
     priority: ['Medium' as Case['priority']],
+    assignedToUserId: [null as string | null],
     useAiPriority: [true],
   });
 
   ngOnInit(): void {
     this.customerService.list().subscribe((list) => this.customers.set(list));
+    this.caseService.agents().subscribe((list) => this.agents.set(list));
     const id = this.dialogData.caseId ?? this.route.snapshot.paramMap.get('id');
     const presetCustomer = this.route.snapshot.queryParamMap.get('customerId');
     if (presetCustomer) {
@@ -115,6 +121,7 @@ export class CaseFormComponent implements OnInit {
             customerId: c.customerId,
             status: c.status,
             priority: c.priority,
+            assignedToUserId: c.assignedToUserId,
           });
           this.loading.set(false);
         },
@@ -169,7 +176,10 @@ export class CaseFormComponent implements OnInit {
           status: v.status,
           priority: v.priority,
           categoryId: v.categoryId!,
-          assignedToUserId: null,
+          // Explicit unassign -> sentinel; otherwise the selected agent id
+          // (or null when the field was never touched, which preserves the
+          // existing assignee on the backend).
+          assignedToUserId: v.assignedToUserId === '' ? UNASSIGN_SENTINEL : v.assignedToUserId,
         })
         .subscribe({
           next: () => this.dialogRef.close(Number(id)),
@@ -242,6 +252,11 @@ export class CaseFormComponent implements OnInit {
   /** Sets the final priority from the segmented control. */
   setPriority(p: string): void {
     this.form.controls.priority.setValue(p as Case['priority']);
+  }
+
+  /** Marks the case as explicitly unassigned (sends the sentinel on save). */
+  unassign(): void {
+    this.form.controls.assignedToUserId.setValue('');
   }
 
   private fail(): void {

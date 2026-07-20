@@ -82,6 +82,7 @@ public class CaseService : ICaseService
         var c = await _cases.Query()
             .Include(c => c.Customer)
             .Include(c => c.Category)
+            .Include(c => c.AssignedToUser)
             .FirstOrDefaultAsync(x => x.Id == id);
         return c is null ? null : ToDto(c);
     }
@@ -150,15 +151,19 @@ public class CaseService : ICaseService
         caseEntity.Priority = dto.Priority;
         caseEntity.CategoryId = dto.CategoryId;
 
-        // DATA-LOSS FIX: the update DTO sends AssignedToUserId == null
-        // unconditionally from both UI entry points (the "Update Status"
-        // quick-select and the Edit modal). The DTO type is a plain nullable
-        // string, so it cannot tell "field omitted" apart from "explicitly
-        // unassign". There is currently no UI to unassign a case, so we
-        // PRESERVE the existing assignee when the DTO value is null rather
-        // than wiping it. (If an explicit unassign action is added later,
-        // the DTO will need a sentinel/distinct flag to express it.)
-        if (dto.AssignedToUserId is not null)
+        // ASSIGNEE HANDLING: the DTO is a plain nullable string, so it cannot
+        // distinguish "field omitted" from "explicitly unassign". We therefore
+        // use three cases:
+        //  - null            -> preserve the existing assignee (data-loss fix;
+        //                       the quick "Update Status"/"Set Priority" actions
+        //                       send null because they don't touch assignment).
+        //  - UnassignSentinel -> explicitly clear the assignee (the Unassign UI).
+        //  - any other value -> set/reassign to that agent id.
+        if (dto.AssignedToUserId == UpdateCaseDto.UnassignSentinel)
+        {
+            caseEntity.AssignedToUserId = null;
+        }
+        else if (dto.AssignedToUserId is not null)
         {
             caseEntity.AssignedToUserId = dto.AssignedToUserId;
         }

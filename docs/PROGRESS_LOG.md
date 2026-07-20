@@ -2,6 +2,20 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 23] Feature: Unassign UI for cases (explicit unassign + assignee dropdown) — 2026-07-20
+**Status:** Complete (backend build OK; `dotnet test` 31/31 passing; frontend build OK; live-verified on SQLite + browser)
+**Context:** User asked to add a UI for unassigning a case. The prior data-loss fix made `UpdateCaseDto.AssignedToUserId == null` mean "preserve existing assignee", so a distinct signal was needed for an explicit unassign. Also fixed a pre-existing bug where `GetByIdAsync` did not `.Include(c => c.AssignedToUser)`, so `AssignedToUserName` was always null (assignee name invisible in the UI).
+**Changes:**
+- `backend/src/CustomerService.Application/Dtos/CaseDtos.cs` — `UpdateCaseDto.AssignedToUserId` doc clarified; added `UnassignSentinel = "__unassign__"`.
+- `backend/src/CustomerService.Application/Services/CaseService.cs` — `UpdateAsync` now handles three cases: `null` → preserve assignee (data-loss fix), `UnassignSentinel` → clear assignee, any other value → reassign. `GetByIdAsync` now `.Include(c => c.AssignedToUser)` so the name resolves.
+- `backend/src/CustomerService.Api/Controllers/UsersController.cs` (new) — `GET /api/users` returns agents/admins as `AgentSummary` (id, fullName, role) for the assignee dropdown.
+- `frontend/src/app/shared/models.ts` — added `Agent` interface.
+- `frontend/src/app/cases/case.service.ts` — added `agents()` → `GET /api/users`.
+- `frontend/src/app/cases/case-form.component.ts/.html/.scss` — edit mode now has an **Assignee** `<mat-select>` (prefilled from the case, lists agents + "Unassigned") and an **Unassign** button (sets the sentinel). On save, sends the selected agent id or the sentinel.
+- `frontend/src/app/cases/case-detail.component.ts/.html/.scss` — new **Assignee** side card showing the name + an **Unassign** button (calls update with the sentinel); the facts list now shows the Assignee.
+**Live verification (SQLite + browser):** `GET /api/users` returns 3 users; unassign via sentinel clears `assignedToUserId`; a normal `null` update still preserves the assignee (data-loss fix intact); reassign to `agent-002` works; detail page Assignee card shows "Maria Santos" and Unassign clears it (UI + backend confirmed); edit modal Assignee dropdown lists all agents.
+**Note:** A separate pre-existing bug (`DashboardRepository.GetSummaryAsync` throws "An item with the same key has already been added. Key: New", 400 on `/api/dashboard`) is unrelated to this change and was already present; left for a follow-up.
+
 ## [Phase 22] Fix: Email notification business rules (recipient, dedup, background job, resolved trigger, assignee data-loss) — 2026-07-20
 **Status:** Complete (backend build OK; `dotnet test` 31/31 passing; live-verified on SQLite)
 **Context:** Clarify + correct the email rules against the ACTUAL code (not assumptions). Read `EmailNotificationSender`, its trigger, and the `Notification` de-dup before changing anything. Findings: (a) de-dup key was `(CaseId, Channel)` — too broad, would block a resolved-customer email when an overdue-agent email for the same case existed; (b) overdue Email was sent to the **customer** (wrong audience — it's agent-facing); (c) no time-based trigger for overdue (only the on-demand `GET /api/notifications`); (d) no event trigger when a case is Resolved/Closed; (e) `CaseService.UpdateAsync` wiped `AssignedToUserId` whenever the DTO sent `null` (the frontend always sends `null` for that field).

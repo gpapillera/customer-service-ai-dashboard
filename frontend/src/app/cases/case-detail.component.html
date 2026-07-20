@@ -26,6 +26,7 @@
             <dl class="facts">
               <div><dt>Customer</dt><dd><a class="customer-link" [routerLink]="['/customers', c.customerId]">{{ c.customerName }}</a></dd></div>
               <div><dt>Category</dt><dd>{{ c.categoryName }}</dd></div>
+              <div><dt>Assignee</dt><dd>{{ c.assignedToUserName || 'Unassigned' }}</dd></div>
               <div><dt>Created</dt><dd>{{ formatDate(c.createdAtUtc) }}</dd></div>
               @if (c.updatedAtUtc) {
                 <div><dt>Updated</dt><dd>{{ formatDate(c.updatedAtUtc) }}</dd></div>
@@ -137,6 +138,28 @@
                   {{ p }}
                 </button>
               }
+            </div>
+          </mat-card-content>
+        </mat-card>
+
+        <mat-card class="cs-lift side-card reveal" appReveal>
+          <mat-card-content>
+            <h3 class="side-title">Assignee</h3>
+            <div class="assignee-box">
+              <span class="assignee-name">{{ c.assignedToUserName || 'Unassigned' }}</span>
+              <button
+                type="button"
+                class="unassign-btn"
+                mat-stroked-button
+                (click)="unassign()"
+                [disabled]="!c.assignedToUserId || unassigning()"
+              >
+                @if (unassigning()) {
+                  <mat-spinner diameter="18"></mat-spinner>
+                } @else {
+                  <cs-icon name="person_remove"></cs-icon> Unassign
+                }
+              </button>
             </div>
           </mat-card-content>
         </mat-card>

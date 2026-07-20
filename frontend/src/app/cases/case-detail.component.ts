@@ -15,7 +15,7 @@ import { CsIconComponent } from '../shared/cs-icon.component';
 import { CaseService } from './case.service';
 import { CallLogService } from './call-log.service';
 import { CaseFormComponent, CaseFormDialogData } from './case-form.component';
-import { Case, CallLog } from '../shared/models';
+import { Case, CallLog, Agent } from '../shared/models';
 
 /**
  * Case detail: shows the case, its AI-suggested priority, and the call/follow-up
@@ -52,6 +52,9 @@ export class CaseDetailComponent implements OnInit {
   readonly case = signal<Case | null>(null);
   readonly logs = signal<CallLog[]>([]);
   readonly loading = signal(true);
+  /** Sentinel sent to the backend to explicitly clear the assignee. */
+  private readonly unassignSentinel = '__unassign__';
+  readonly unassigning = signal(false);
 
   readonly statuses: Case['status'][] = ['New', 'InProgress', 'Escalated', 'Resolved', 'Closed'];
   readonly priorities: Case['priority'][] = ['Low', 'Medium', 'High'];
@@ -127,6 +130,29 @@ export class CaseDetailComponent implements OnInit {
         assignedToUserId: null,
       })
       .subscribe(() => this.case.set({ ...c, priority, priorityAutoSuggested: false }));
+  }
+
+  /** Explicitly unassigns the case (sends the unassign sentinel). */
+  unassign(): void {
+    const c = this.case();
+    if (!c || !c.assignedToUserId) return;
+    this.unassigning.set(true);
+    this.caseService
+      .update(c.id, {
+        subject: c.subject,
+        description: c.description,
+        status: c.status,
+        priority: c.priority,
+        categoryId: c.categoryId,
+        assignedToUserId: this.unassignSentinel,
+      })
+      .subscribe({
+        next: () => {
+          this.case.set({ ...c, assignedToUserId: null, assignedToUserName: null });
+          this.unassigning.set(false);
+        },
+        error: () => this.unassigning.set(false),
+      });
   }
 
   /** Opens the edit-case modal directly; navigates to Cases List if deleted. */
