@@ -2,6 +2,15 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 26] Chore: Bump MailKit (clear advisory) + revert test email data — 2026-07-20
+**Status:** Complete (backend build OK, 0 errors; `dotnet list package --vulnerable` → "no vulnerable packages"; `dotnet test` 31/31 passing)
+**Context:** Cleanup after Phase 25. Two items: (1) the live SQLite DB still had every `Users.Email`/`Customers.Email` set to `glnppllr@gmail.com` (the Phase 25 test inbox), and `DevOverrideRecipient` was still pointed at it; (2) `MailKit` 4.7.1.1 carried a moderate-severity advisory (GHSA-9j88-vvj5-vhgr).
+**Changes:**
+- `backend/src/CustomerService.Application/CustomerService.Application.csproj` — `MailKit` bumped `4.7.1.1 → 4.17.0` (latest patched 4.x). `dotnet list package --vulnerable` now reports no vulnerable packages; the `NU1902` warning is gone.
+- Live SQLite DB `backend/src/CustomerService.Api/customer_service.db` — reverted test data: `Users` (admin/agent/maria) and the 11 seeded `Customers` restored to their `SeedData.cs` demo addresses (`admin@demo.com`, `agent@demo.com`, `maria@demo.com`, `juan@acme.ph`, …). The 12th customer "Evan" (created during Phase 25 testing, not in seed) was given `evan@acme.ph`. Also cleared the 11 stale outbound `Notifications` rows (Channel 1/2) so future sends use the restored real addresses instead of being blocked by de-dup.
+- `appsettings.Development.json` (`DevOverrideRecipient: glnppllr@gmail.com`) is git-ignored dev-only config — left as-is for local testing; it is never committed. In production `DevOverrideRecipient` should be empty.
+**Verification:** `dotnet build CustomerServiceApi.sln` → 0 Error(s); `dotnet list ... package --vulnerable` → no vulnerable packages; `dotnet test` → 31/31 passed. DB now shows the original demo emails (no `glnppllr@gmail.com` among customers/users).
+
 ## [Phase 25] Feature: Real email sending via Gmail SMTP (MailKit) — 2026-07-20
 **Status:** Complete (backend build OK; `dotnet test` 31/31 passing; live-verified on SQLite + Gmail — overdue-agent and resolved-customer emails actually delivered to the test inbox)
 **Context:** User asked to wire `EmailNotificationSender` up to send REAL emails via Gmail SMTP (MailKit), replacing the log-file-only simulation. Explicitly out of scope: the routing/dedup/trigger logic in `NotificationService`, `OverdueEmailHostedService`, `CaseService.UpdateAsync → NotifyResolvedAsync`, `SmsNotificationSender`, and all frontend — only "make EmailNotificationSender actually send" changed.
