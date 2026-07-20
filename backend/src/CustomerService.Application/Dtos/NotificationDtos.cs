@@ -29,6 +29,9 @@ public class NotificationDto
     /// <summary>Related case id, when applicable.</summary>
     public int? CaseId { get; set; }
 
+    /// <summary>Recipient address for Email/SMS channels (null for InApp).</summary>
+    public string? Recipient { get; set; }
+
     /// <summary>Maps a <see cref="Notification"/> entity to its DTO.</summary>
     /// <param name="n">Source entity.</param>
     /// <returns>The DTO.</returns>
@@ -42,6 +45,7 @@ public class NotificationDto
         CreatedAtUtc = n.CreatedAtUtc,
         Link = n.Link,
         CaseId = n.CaseId,
+        Recipient = n.Recipient,
     };
 }
 

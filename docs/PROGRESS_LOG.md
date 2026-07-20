@@ -2,6 +2,24 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 21] Feature: Email/SMS sending for overdue follow-ups (via INotificationSender seam) — 2026-07-20
+**Status:** Complete (backend build OK; `dotnet test` 26/26 passing — 24 original + 2 new; README roadmap checkbox ticked)
+**Context:** README roadmap item — outbound Email/SMS delivery for overdue follow-ups. Detection + dashboard surfacing + in-app records were already done; only outbound sending was missing. The `INotificationSender` seam existed but only `InAppNotificationSender` was registered, and `NotificationService` hardcoded `Channel = InApp`. Implemented without touching the rest of the system: a composite router + demo Email/SMS senders that log and write an outbox file (no external SMTP/SMS dependency, fully offline/verifiable). Enabling a channel is a config change; adding a new channel is a new sender class.
+**Changes:**
+- `backend/src/CustomerService.Application/Services/CompositeNotificationSender.cs` (new) — single `INotificationSender` the app consumes; routes each `Notification` to the registered sender whose `[HandlesChannel]` matches its `Channel`.
+- `backend/src/CustomerService.Application/Services/HandlesChannelAttribute.cs` (new) — `[HandlesChannel(NotificationChannel)]` marker used by the composite router.
+- `backend/src/CustomerService.Application/Services/EmailNotificationSender.cs` (new) — demo Email sender: logs + appends to `notifications/emails.log`.
+- `backend/src/CustomerService.Application/Services/SmsNotificationSender.cs` (new) — demo SMS sender: logs + appends to `notifications/sms.log`.
+- `backend/src/CustomerService.Application/Options/NotificationOptions.cs` (new) — `Channels` (default `["InApp"]`) + `OutboxPath` (default `notifications`), bound from `"Notifications"` config section.
+- `backend/src/CustomerService.Application/Services/NotificationService.cs` — now takes `NotificationOptions`; generates one `Notification` per enabled channel with de-dup keyed on `(CaseId, Channel)`; Email/SMS carry `Recipient` (customer Email/Phone) and no in-app `Link`.
+- `backend/src/CustomerService.Domain/Entities/Notification.cs` — added optional `Recipient` (Email/phone for outbound channels).
+- `backend/src/CustomerService.Application/Dtos/NotificationDtos.cs` — `NotificationDto` carries `Recipient`.
+- `backend/src/CustomerService.Api/Program.cs` — registers `InApp`/`Email`/`Sms` senders + `CompositeNotificationSender` (single consumed `INotificationSender`); binds `NotificationOptions` from config.
+- `backend/src/CustomerService.Api/appsettings.json` + `appsettings.Development.json` — added `"Notifications": { "Channels": ["InApp"], "OutboxPath": "notifications" }`.
+- `backend/tests/CustomerService.Tests/NotificationServiceTests.cs` — `FakeSender`/`Build` updated for `NotificationOptions`; added 2 tests (one notification per channel incl. recipient; idempotent per channel).
+- `README.md` — roadmap checkbox for Email/SMS sending flipped `[ ]` → `[x]`.
+- `docs/DIY.md` — Part 7 revision note documenting the composite sender + how to enable channels.
+
 ## [Phase 20] Docs: DIY.md beginner build guide + inline section refs — 2026-07-20
 **Status:** Complete (committed `d61cc29`; 23 files changed, 795 insertions)
 **Context:** User asked to capture the project's build knowledge as a from-scratch, beginner-friendly guide and to keep code↔doc navigation two-way. Added `docs/DIY.md` (Parts 0–12, verified against actual current source — not memory/MVP_BUILD_PROMPT) and added `DIY.md §N` doc-comments across the referenced files so a reader can jump from code to the relevant guide section. Also ticked the stale README roadmap checkbox for "Docker Compose for one-command local setup" (the `docker-compose.yml` already exists and is documented).

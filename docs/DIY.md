@@ -764,6 +764,8 @@ tests) and `ng test` (frontend, 13 tests, headless Chrome). For production you
 
 **Verified working as of:** 2026-07-20 — `dotnet test` passes 24/24 (SQLite); `ng test` passes 13/13 (headless Chrome); `npm run build` succeeds; `docker compose up` builds the full stack.
 
+> **Revision note (2026-07-20):** Email/SMS *sending* for overdue follow-ups is now implemented behind the `INotificationSender` seam (Phase 21). The app consumes a single `CompositeNotificationSender` that routes each `Notification` to the sender handling its `Channel` (via `[HandlesChannel]`). Demo `EmailNotificationSender`/`SmsNotificationSender` log + append to an outbox file (`notifications/emails.log`, `notifications/sms.log`) — no external SMTP/SMS dependency. Enable channels in `appsettings.json` under `"Notifications": { "Channels": ["InApp","Email","Sms"] }`. See `backend/src/CustomerService.Application/Services/`.
+
 ---
 
 *End of DIY guide. Keep this document current: whenever a future change touches a

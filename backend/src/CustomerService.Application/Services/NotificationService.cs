@@ -1,5 +1,6 @@
 using CustomerService.Application.Dtos;
 using CustomerService.Application.Interfaces;
+using CustomerService.Application.Options;
 using CustomerService.Domain;
 using CustomerService.Domain.Entities;
 using CustomerService.Domain.Interfaces;
@@ -9,27 +10,33 @@ namespace CustomerService.Application.Services;
 
 /// <summary>
 /// Generates overdue-follow-up notifications and serves them to the in-app
-/// notification center. Generation is idempotent: at most one unread
-/// notification exists per overdue case at any time.
+/// notification center. Generation is idempotent: at most one notification
+/// exists per (overdue case, channel) at any time. Which channels fire is
+/// driven by <see cref="NotificationOptions.Channels"/> — InApp by default,
+/// with Email/SMS available via the <see cref="INotificationSender"/> seam.
 /// </summary>
 public class NotificationService : INotificationService
 {
     private readonly IRepository<Case> _cases;
     private readonly IRepository<Notification> _notifications;
     private readonly INotificationSender _sender;
+    private readonly NotificationOptions _options;
 
     /// <summary>Initializes a new <see cref="NotificationService"/>.</summary>
     /// <param name="cases">Case repository.</param>
     /// <param name="notifications">Notification repository.</param>
-    /// <param name="sender">Notification sender (in-app in the demo).</param>
+    /// <param name="sender">Composite notification sender (routes by channel).</param>
+    /// <param name="options">Notification options (enabled channels).</param>
     public NotificationService(
         IRepository<Case> cases,
         IRepository<Notification> notifications,
-        INotificationSender sender)
+        INotificationSender sender,
+        NotificationOptions options)
     {
         _cases = cases;
         _notifications = notifications;
         _sender = sender;
+        _options = options;
     }
 
     /// <inheritdoc/>
@@ -53,36 +60,47 @@ public class NotificationService : INotificationService
             return 0;
         }
 
-        // Case ids that already have a notification (read or unread) — never
-        // re-notify the same case, even after the user marks it read.
+        // (CaseId, Channel) pairs that already have a notification (read or
+        // unread) — never re-notify the same case on the same channel, even
+        // after the user marks it read.
         var alreadyNotified = await _notifications.Query()
             .Where(n => n.CaseId.HasValue)
-            .Select(n => n.CaseId!.Value)
+            .Select(n => new { n.CaseId, n.Channel })
             .ToListAsync();
-        var alreadySet = new HashSet<int>(alreadyNotified);
+        var alreadySet = new HashSet<(int, NotificationChannel)>(
+            alreadyNotified.Select(x => (x.CaseId!.Value, x.Channel)));
 
+        var channels = _options.Channels.Distinct().ToList();
         var created = 0;
         foreach (var c in overdueCases)
         {
-            if (alreadySet.Contains(c.Id))
-            {
-                continue;
-            }
-
             var daysOverdue = OverduePolicy.DaysOverdue(c, now);
             var customerName = c.Customer?.Name ?? "a customer";
-            var notification = new Notification
+            var body = $"Case #{c.Id} \"{c.Subject}\" for {customerName} is {daysOverdue} day(s) overdue for a follow-up.";
+
+            foreach (var channel in channels)
             {
-                Title = "Overdue follow-up",
-                Message = $"Case #{c.Id} \"{c.Subject}\" for {customerName} is {daysOverdue} day(s) overdue for a follow-up.",
-                Channel = NotificationChannel.InApp,
-                Status = NotificationStatus.Unread,
-                CreatedAtUtc = now,
-                Link = $"/cases/{c.Id}",
-                CaseId = c.Id,
-            };
-            await _sender.SendAsync(notification);
-            created++;
+                if (alreadySet.Contains((c.Id, channel)))
+                {
+                    continue;
+                }
+
+                var notification = new Notification
+                {
+                    Title = "Overdue follow-up",
+                    Message = body,
+                    Channel = channel,
+                    Status = NotificationStatus.Unread,
+                    CreatedAtUtc = now,
+                    Link = channel == NotificationChannel.InApp ? $"/cases/{c.Id}" : null,
+                    CaseId = c.Id,
+                    Recipient = channel == NotificationChannel.InApp
+                        ? null
+                        : (channel == NotificationChannel.Email ? c.Customer?.Email : c.Customer?.Phone),
+                };
+                await _sender.SendAsync(notification);
+                created++;
+            }
         }
 
         return created;

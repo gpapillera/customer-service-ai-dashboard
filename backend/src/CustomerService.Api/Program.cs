@@ -75,6 +75,14 @@ public class Program
         builder.Services.AddScoped<IDashboardService, DashboardService>();
 
         builder.Services.AddScoped<INotificationSender, InAppNotificationSender>();
+        builder.Services.AddScoped<INotificationSender, EmailNotificationSender>();
+        builder.Services.AddScoped<INotificationSender, SmsNotificationSender>();
+        // CompositeNotificationSender routes each notification to the sender
+        // that handles its channel (via [HandlesChannel]); the app consumes
+        // only this single INotificationSender. See docs/DIY.md §7.
+        builder.Services.AddScoped<INotificationSender, CompositeNotificationSender>();
+        builder.Services.Configure<CustomerService.Application.Options.NotificationOptions>(
+            builder.Configuration.GetSection("Notifications"));
         builder.Services.AddScoped<INotificationService, NotificationService>();
 
         builder.Services.AddSingleton<IPriorityPredictor>(serviceProvider =>

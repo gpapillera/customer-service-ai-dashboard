@@ -61,4 +61,10 @@ public class Notification
 
     /// <summary>Foreign key to the related case, when applicable.</summary>
     public int? CaseId { get; set; }
+
+    /// <summary>
+    /// Recipient address for outbound channels (Email address or phone
+    /// number). Null for InApp notifications, which are shown in the bell.
+    /// </summary>
+    public string? Recipient { get; set; }
 }

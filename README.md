@@ -315,7 +315,7 @@ The priority-prediction model is a multiclass classifier (Decision Tree / Random
 - [x] Sentiment analysis on complaint text instead of keyword flags
 - [x] Overdue follow-up detection surfaced on the dashboard (open cases past their `FollowUpDueUtc` with no follow-up since the deadline, **plus** stale open cases with no follow-up for 3+ days). Follow-up deadlines are auto-scheduled from an SLA on case creation. Email/SMS *sending* is a follow-up item below.
 - [x] In-app notification center for overdue follow-ups (bell + unread badge + dropdown, persisted `Notification` records, pluggable `INotificationSender` for future Email/SMS).
-- [ ] Email/SMS notification *sending* for overdue follow-ups (detection + dashboard surfacing + in-app records are done; outbound Email/SMS delivery not yet implemented — the `INotificationSender` seam is ready for it)
+- [x] Email/SMS notification *sending* for overdue follow-ups (detection + dashboard surfacing + in-app records were already done; the `INotificationSender` seam now routes to demo Email/SMS senders that log + write an outbox file — enable via `Notifications:Channels` in appsettings)
 - [ ] Role-based dashboard views
 - [x] Docker Compose for one-command local setup
 - [ ] CI/CD pipeline for automated testing

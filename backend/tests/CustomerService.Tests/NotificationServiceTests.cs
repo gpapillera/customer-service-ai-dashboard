@@ -1,5 +1,6 @@
 using CustomerService.Application.Dtos;
 using CustomerService.Application.Interfaces;
+using CustomerService.Application.Options;
 using CustomerService.Application.Services;
 using CustomerService.Domain.Entities;
 using CustomerService.Tests.Fakes;
@@ -14,12 +15,13 @@ namespace CustomerService.Tests;
 public class NotificationServiceTests
 {
     private static (NotificationService svc, FakeRepository<Case> cases, FakeRepository<Notification> notes, FakeSender sender)
-        Build()
+        Build(List<NotificationChannel>? channels = null)
     {
         var cases = new FakeRepository<Case>();
         var notes = new FakeRepository<Notification>();
         var sender = new FakeSender(notes);
-        var svc = new NotificationService(cases, notes, sender);
+        var options = new NotificationOptions { Channels = channels ?? new() { NotificationChannel.InApp } };
+        var svc = new NotificationService(cases, notes, sender, options);
         return (svc, cases, notes, sender);
     }
 
@@ -120,5 +122,36 @@ public class NotificationServiceTests
             await _notes.AddAsync(notification);
             await _notes.SaveChangesAsync();
         }
+    }
+
+    [Fact]
+    public async Task GenerateOverdueAsync_CreatesOnePerChannel_WhenEmailAndSmsEnabled()
+    {
+        var (svc, cases, _, sender) = Build(new() { NotificationChannel.InApp, NotificationChannel.Email, NotificationChannel.Sms });
+        var c = OverdueCase(2, "Package not delivered", "Maria Clara", 2);
+        c.Customer!.Email = "maria@example.com";
+        c.Customer!.Phone = "+15551234567";
+        cases.AddAsync(c).Wait();
+
+        var created = await svc.GenerateOverdueAsync();
+
+        Assert.Equal(3, created);
+        Assert.Equal(3, sender.Sent.Count);
+        Assert.Contains(sender.Sent, n => n.Channel == NotificationChannel.InApp && n.Recipient == null);
+        Assert.Contains(sender.Sent, n => n.Channel == NotificationChannel.Email && n.Recipient == "maria@example.com");
+        Assert.Contains(sender.Sent, n => n.Channel == NotificationChannel.Sms && n.Recipient == "+15551234567");
+    }
+
+    [Fact]
+    public async Task GenerateOverdueAsync_IsIdempotent_PerChannel()
+    {
+        var (svc, cases, _, _) = Build(new() { NotificationChannel.InApp, NotificationChannel.Email });
+        cases.AddAsync(OverdueCase(2, "Package not delivered", "Maria Clara", 2)).Wait();
+
+        var first = await svc.GenerateOverdueAsync();
+        var second = await svc.GenerateOverdueAsync();
+
+        Assert.Equal(2, first);
+        Assert.Equal(0, second); // already notified on both channels → no new notifications
     }
 }
