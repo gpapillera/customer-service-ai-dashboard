@@ -145,6 +145,19 @@
         <mat-card class="cs-lift side-card reveal" appReveal>
           <mat-card-content>
             <h3 class="side-title">Assignee</h3>
+            <mat-form-field appearance="outline" class="assignee-field">
+              <mat-label>Assign to</mat-label>
+              <mat-select
+                [value]="c.assignedToUserId ?? ''"
+                (selectionChange)="assignTo($event.value || null)"
+                [disabled]="assigning()"
+              >
+                <mat-option value="">Unassigned</mat-option>
+                @for (agent of agents(); track agent.id) {
+                  <mat-option [value]="agent.id">{{ agent.fullName }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
             <div class="assignee-box">
               <span class="assignee-name">{{ c.assignedToUserName || 'Unassigned' }}</span>
               <button
@@ -152,7 +165,7 @@
                 class="unassign-btn"
                 mat-stroked-button
                 (click)="unassign()"
-                [disabled]="!c.assignedToUserId || unassigning()"
+                [disabled]="!c.assignedToUserId || unassigning() || assigning()"
               >
                 @if (unassigning()) {
                   <mat-spinner diameter="18"></mat-spinner>

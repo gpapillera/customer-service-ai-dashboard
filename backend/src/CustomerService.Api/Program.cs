@@ -71,8 +71,10 @@ public class Program
 
         builder.Services.AddScoped<ICustomerService, Application.Services.CustomerService>();
         builder.Services.AddScoped<ICaseService, CaseService>();
+        builder.Services.AddScoped<ICaseCommentService, CaseCommentService>();
         builder.Services.AddScoped<ICallLogService, CallLogService>();
         builder.Services.AddScoped<IAuthService, AuthService>();
+        builder.Services.AddScoped<ICustomerAuthService, CustomerAuthService>();
         builder.Services.AddScoped<IDashboardService, DashboardService>();
 
         builder.Services.AddScoped<InAppNotificationSender>();
@@ -193,8 +195,69 @@ public class Program
         // is added to a model that already has a database (e.g. Notification.Type),
         // we add it explicitly here. Idempotent + provider-aware. Swap for EF
         // migrations in production.
+        EnsureNotificationsTable(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
         EnsureNotificationTypeColumn(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
+        EnsureCustomerAccountTable(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
+        EnsureCaseCommentsTable(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
+        EnsureCaseResolvedAtColumn(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
+        EnsureCaseFollowUpDueUtcColumn(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
         SeedDataInitializer.Initialize(ctx);
+    }
+
+    /// <summary>
+    /// Creates the <c>Notifications</c> table if it is missing. Needed because
+    /// the project uses <c>EnsureCreated()</c> (no migrations), which will not
+    /// create a table for a model added after the database already exists.
+    /// Idempotent + provider-aware. Swap for EF migrations in production.
+    /// </summary>
+    private static async Task EnsureNotificationsTable(AppDbContext ctx, string? provider)
+    {
+        const string table = "Notifications";
+        try
+        {
+            if (provider != null && provider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase))
+            {
+                var conn = ctx.Database.GetDbConnection();
+                if (conn.State != System.Data.ConnectionState.Open)
+                {
+                    await conn.OpenAsync();
+                }
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = $"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='{table}';";
+                var count = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+                if (count == 0)
+                {
+                    using var create = conn.CreateCommand();
+                    create.CommandText = $@"CREATE TABLE [{table}] (
+                        [Id] INTEGER PRIMARY KEY AUTOINCREMENT,
+                        [Title] TEXT NOT NULL,
+                        [Message] TEXT NOT NULL,
+                        [Channel] INTEGER NOT NULL,
+                        [Status] INTEGER NOT NULL,
+                        [Type] INTEGER NOT NULL DEFAULT 0,
+                        [CreatedAtUtc] TEXT NOT NULL,
+                        [Link] TEXT,
+                        [CaseId] INTEGER,
+                        [Recipient] TEXT
+                    );";
+                    await create.ExecuteNonQueryAsync();
+                }
+            }
+            else
+            {
+                ctx.Database.ExecuteSqlRaw(
+                    $"IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='{table}') " +
+                    $"CREATE TABLE [{table}] (" +
+                    $"[Id] int IDENTITY(1,1) NOT NULL, [Title] nvarchar(200) NOT NULL, [Message] nvarchar(1000) NOT NULL, " +
+                    $"[Channel] int NOT NULL, [Status] int NOT NULL, [Type] int NOT NULL DEFAULT 0, " +
+                    $"[CreatedAtUtc] datetime2 NOT NULL, [Link] nvarchar(200), [CaseId] int, [Recipient] nvarchar(200), " +
+                    $"CONSTRAINT [PK_Notifications] PRIMARY KEY ([Id]));");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"WARN: could not ensure {table} table: {ex.Message}");
+        }
     }
 
     /// <summary>
@@ -238,6 +301,221 @@ public class Program
         {
             // Non-fatal: if the column already exists or the provider differs,
             // the app should still start. Log and continue.
+            Console.WriteLine($"WARN: could not ensure {table}.{column} column: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Creates the <c>CustomerAccounts</c> table if it is missing. Needed
+    /// because the project uses <c>EnsureCreated()</c> (no migrations), which
+    /// will not create a table for a model added after the database already
+    /// exists. Idempotent + provider-aware. Swap for EF migrations in
+    /// production.
+    /// </summary>
+    private static async Task EnsureCustomerAccountTable(AppDbContext ctx, string? provider)
+    {
+        const string table = "CustomerAccounts";
+        try
+        {
+            if (provider != null && provider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase))
+            {
+                var conn = ctx.Database.GetDbConnection();
+                if (conn.State != System.Data.ConnectionState.Open)
+                {
+                    await conn.OpenAsync();
+                }
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = $"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='{table}';";
+                var count = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+                if (count == 0)
+                {
+                    using var create = conn.CreateCommand();
+                    create.CommandText = $@"CREATE TABLE [{table}] (
+                        [Id] INTEGER PRIMARY KEY AUTOINCREMENT,
+                        [CustomerId] INTEGER NOT NULL,
+                        [PasswordHash] TEXT,
+                        [InviteToken] TEXT,
+                        [InviteTokenExpiresAt] TEXT,
+                        [InviteTokenUsed] INTEGER NOT NULL,
+                        [IsActive] INTEGER NOT NULL,
+                        [CreatedAtUtc] TEXT NOT NULL,
+                        CONSTRAINT [FK_CustomerAccounts_Customers_CustomerId] FOREIGN KEY ([CustomerId]) REFERENCES [Customers] ([Id]) ON DELETE CASCADE
+                    );";
+                    await create.ExecuteNonQueryAsync();
+                    using var idxToken = conn.CreateCommand();
+                    idxToken.CommandText = $"CREATE UNIQUE INDEX [IX_CustomerAccounts_InviteToken] ON [{table}] ([InviteToken]);";
+                    await idxToken.ExecuteNonQueryAsync();
+                }
+            }
+            else
+            {
+                var exists = ctx.Database.ExecuteSqlRaw(
+                    $"IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='{table}') " +
+                    $"CREATE TABLE [{table}] (" +
+                    $"[Id] int IDENTITY(1,1) NOT NULL, [CustomerId] int NOT NULL, [PasswordHash] nvarchar(200), " +
+                    $"[InviteToken] nvarchar(128), [InviteTokenExpiresAt] datetime2, " +
+                    $"[InviteTokenUsed] bit NOT NULL, [IsActive] bit NOT NULL, [CreatedAtUtc] datetime2 NOT NULL, " +
+                    $"CONSTRAINT [PK_CustomerAccounts] PRIMARY KEY ([Id]), " +
+                    $"CONSTRAINT [FK_CustomerAccounts_Customers_CustomerId] FOREIGN KEY ([CustomerId]) REFERENCES [Customers] ([Id]) ON DELETE CASCADE);");
+                _ = exists;
+                // Add the unique index on InviteToken separately (IF NOT EXISTS guard).
+                ctx.Database.ExecuteSqlRaw(
+                    $"IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_CustomerAccounts_InviteToken') " +
+                    $"CREATE UNIQUE INDEX [IX_CustomerAccounts_InviteToken] ON [{table}] ([InviteToken]);");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"WARN: could not ensure {table} table: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Creates the <c>CaseComments</c> table if it is missing. Needed because
+    /// the project uses <c>EnsureCreated()</c> (no migrations), which will not
+    /// create a table for a model added after the database already exists.
+    /// Idempotent + provider-aware. Swap for EF migrations in production.
+    /// </summary>
+    private static async Task EnsureCaseCommentsTable(AppDbContext ctx, string? provider)
+    {
+        const string table = "CaseComments";
+        try
+        {
+            if (provider != null && provider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase))
+            {
+                var conn = ctx.Database.GetDbConnection();
+                if (conn.State != System.Data.ConnectionState.Open)
+                {
+                    await conn.OpenAsync();
+                }
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = $"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='{table}';";
+                var count = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+                if (count == 0)
+                {
+                    using var create = conn.CreateCommand();
+                    create.CommandText = $@"CREATE TABLE [{table}] (
+                        [Id] INTEGER PRIMARY KEY AUTOINCREMENT,
+                        [CaseId] INTEGER NOT NULL,
+                        [AuthorUserId] TEXT,
+                        [AuthorCustomerId] INTEGER,
+                        [Body] TEXT NOT NULL,
+                        [CreatedAtUtc] TEXT NOT NULL,
+                        CONSTRAINT [FK_CaseComments_Cases_CaseId] FOREIGN KEY ([CaseId]) REFERENCES [Cases] ([Id]) ON DELETE CASCADE,
+                        CONSTRAINT [FK_CaseComments_Users_AuthorUserId] FOREIGN KEY ([AuthorUserId]) REFERENCES [Users] ([Id]) ON DELETE SET NULL,
+                        CONSTRAINT [FK_CaseComments_Customers_AuthorCustomerId] FOREIGN KEY ([AuthorCustomerId]) REFERENCES [Customers] ([Id]) ON DELETE SET NULL
+                    );";
+                    await create.ExecuteNonQueryAsync();
+                    using var idx = conn.CreateCommand();
+                    idx.CommandText = $"CREATE INDEX [IX_CaseComments_CaseId] ON [{table}] ([CaseId]);";
+                    await idx.ExecuteNonQueryAsync();
+                }
+            }
+            else
+            {
+                var exists = ctx.Database.ExecuteSqlRaw(
+                    $"IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='{table}') " +
+                    $"CREATE TABLE [{table}] (" +
+                    $"[Id] int IDENTITY(1,1) NOT NULL, [CaseId] int NOT NULL, [AuthorUserId] nvarchar(450), " +
+                    $"[AuthorCustomerId] int, [Body] nvarchar(4000) NOT NULL, [CreatedAtUtc] datetime2 NOT NULL, " +
+                    $"CONSTRAINT [PK_CaseComments] PRIMARY KEY ([Id]), " +
+                    $"CONSTRAINT [FK_CaseComments_Cases_CaseId] FOREIGN KEY ([CaseId]) REFERENCES [Cases] ([Id]) ON DELETE CASCADE, " +
+                    $"CONSTRAINT [FK_CaseComments_Users_AuthorUserId] FOREIGN KEY ([AuthorUserId]) REFERENCES [Users] ([Id]) ON DELETE SET NULL, " +
+                    $"CONSTRAINT [FK_CaseComments_Customers_AuthorCustomerId] FOREIGN KEY ([AuthorCustomerId]) REFERENCES [Customers] ([Id]) ON DELETE NO ACTION);");
+                _ = exists;
+                ctx.Database.ExecuteSqlRaw(
+                    $"IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_CaseComments_CaseId') " +
+                    $"CREATE INDEX [IX_CaseComments_CaseId] ON [{table}] ([CaseId]);");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"WARN: could not ensure {table} table: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Adds the <c>Cases.ResolvedAtUtc</c> column if it is missing. Needed
+    /// because the project uses <c>EnsureCreated()</c> (no migrations), which
+    /// will not alter an existing table when the model gains a column.
+    /// Idempotent + provider-aware. Swap for EF migrations in production.
+    /// </summary>
+    private static async Task EnsureCaseResolvedAtColumn(AppDbContext ctx, string? provider)
+    {
+        const string table = "Cases";
+        const string column = "ResolvedAtUtc";
+        try
+        {
+            if (provider != null && provider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase))
+            {
+                var conn = ctx.Database.GetDbConnection();
+                if (conn.State != System.Data.ConnectionState.Open)
+                {
+                    await conn.OpenAsync();
+                }
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = $"SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name='{column}';";
+                var count = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+                if (count == 0)
+                {
+                    using var alter = conn.CreateCommand();
+                    alter.CommandText = $"ALTER TABLE {table} ADD COLUMN {column} TEXT;";
+                    await alter.ExecuteNonQueryAsync();
+                }
+            }
+            else
+            {
+                var exists = ctx.Database.ExecuteSqlRaw(
+                    $"IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='{table}' AND COLUMN_NAME='{column}') " +
+                    $"ALTER TABLE {table} ADD [{column}] datetime2;");
+                _ = exists;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"WARN: could not ensure {table}.{column} column: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Adds the <c>Cases.FollowUpDueUtc</c> column if it is missing. Pre-existing
+    /// live databases created before this column was added to the model lack it,
+    /// which makes any query that materializes the full <c>Case</c> entity fail.
+    /// Idempotent + provider-aware. Swap for EF migrations in production.
+    /// </summary>
+    private static async Task EnsureCaseFollowUpDueUtcColumn(AppDbContext ctx, string? provider)
+    {
+        const string table = "Cases";
+        const string column = "FollowUpDueUtc";
+        try
+        {
+            if (provider != null && provider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase))
+            {
+                var conn = ctx.Database.GetDbConnection();
+                if (conn.State != System.Data.ConnectionState.Open)
+                {
+                    await conn.OpenAsync();
+                }
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = $"SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name='{column}';";
+                var count = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+                if (count == 0)
+                {
+                    using var alter = conn.CreateCommand();
+                    alter.CommandText = $"ALTER TABLE {table} ADD COLUMN {column} TEXT;";
+                    await alter.ExecuteNonQueryAsync();
+                }
+            }
+            else
+            {
+                var exists = ctx.Database.ExecuteSqlRaw(
+                    $"IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='{table}' AND COLUMN_NAME='{column}') " +
+                    $"ALTER TABLE {table} ADD [{column}] datetime2;");
+                _ = exists;
+            }
+        }
+        catch (Exception ex)
+        {
             Console.WriteLine($"WARN: could not ensure {table}.{column} column: {ex.Message}");
         }
     }

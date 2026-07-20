@@ -1,0 +1,51 @@
+<div class="page">
+  <header class="page-head">
+    <div>
+      <h1 class="page-title">My cases</h1>
+      <p class="page-sub">Track the requests you've sent to our team.</p>
+    </div>
+    <button mat-flat-button color="primary" class="cs-lift" (click)="newCase()">
+      <cs-icon name="add"></cs-icon>
+      <span>New case</span>
+    </button>
+  </header>
+
+  @if (loading()) {
+    <div class="center">
+      <mat-spinner diameter="32"></mat-spinner>
+    </div>
+  }
+
+  @if (error()) {
+    <div class="error-banner" role="alert">{{ error() }}</div>
+  }
+
+  @if (!loading() && !error() && cases().length === 0) {
+    <div class="empty">
+      <div class="empty-icon"><cs-icon name="inbox"></cs-icon></div>
+      <h2>No cases yet</h2>
+      <p>When you open a request it will show up here.</p>
+      <button mat-flat-button color="primary" (click)="newCase()">
+        <cs-icon name="add"></cs-icon>
+        <span>Start your first case</span>
+      </button>
+    </div>
+  }
+
+  @if (!loading() && cases().length > 0) {
+    <ul class="case-list">
+      @for (c of cases(); track c.id) {
+        <li class="case-item cs-lift" (click)="open(c.id)">
+          <div class="case-main">
+            <span class="case-subject">{{ c.subject }}</span>
+            <span class="case-date">{{ formatDate(c.createdAtUtc) }}</span>
+          </div>
+          <span class="cs-pill {{ statusClass(c.status) }}">
+            <span class="cs-dot"></span>{{ c.status }}
+          </span>
+          <cs-icon name="chevron_right" class="case-chevron"></cs-icon>
+        </li>
+      }
+    </ul>
+  }
+</div>

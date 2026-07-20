@@ -125,6 +125,18 @@ public class EmailNotificationSender : INotificationSender
     /// </summary>
     private static (string Subject, string Body) BuildContent(Notification notification, string originalRecipient)
     {
+        if (notification.Type == NotificationType.CustomerInvite)
+        {
+            // Customer-facing invite: plain-language explanation + the link.
+            // The link is carried in the message body (set by CustomerAuthService).
+            var subject = "You've been invited to the Customer Portal";
+            var body = $"Hello,\n\n"
+                + $"{notification.Message}\n\n"
+                + $"If you weren't expecting this invitation, you can safely ignore this email.\n\n"
+                + $"Thank you,\nCustomer Service Team";
+            return (subject, body);
+        }
+
         if (notification.Type == NotificationType.CaseResolved)
         {
             var status = notification.Title.Replace("Case ", "", StringComparison.OrdinalIgnoreCase).Trim();

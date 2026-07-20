@@ -8,29 +8,45 @@ namespace CustomerService.Domain.Interfaces;
 public interface IDashboardRepository
 {
     /// <summary>Computes KPI totals and status/priority breakdowns.</summary>
+    /// <param name="agentId">
+    /// When set, also computes the agent-scoped "My *" totals for cases assigned
+    /// to this user id. When null, the "My *" fields are left at zero (company-wide view).
+    /// </param>
     /// <returns>A <see cref="DashboardSummary"/> with aggregate metrics.</returns>
-    Task<DashboardSummary> GetSummaryAsync();
+    Task<DashboardSummary> GetSummaryAsync(string? agentId = null);
 
     /// <summary>Returns cases created per day for the last <paramref name="days"/> days.</summary>
     /// <param name="days">Number of trailing days to aggregate.</param>
+    /// <param name="agentId">
+    /// When set, only counts cases assigned to this user id. When null, company-wide.
+    /// </param>
     /// <returns>A list of (date, count) pairs ordered by date.</returns>
-    Task<IReadOnlyList<DateCount>> GetCasesCreatedTrendAsync(int days);
+    Task<IReadOnlyList<DateCount>> GetCasesCreatedTrendAsync(int days, string? agentId = null);
 
     /// <summary>Returns case counts grouped by category.</summary>
+    /// <param name="agentId">
+    /// When set, only counts cases assigned to this user id. When null, company-wide.
+    /// </param>
     /// <returns>A list of (categoryName, count) pairs.</returns>
-    Task<IReadOnlyList<CategoryCount>> GetCasesByCategoryAsync();
+    Task<IReadOnlyList<CategoryCount>> GetCasesByCategoryAsync(string? agentId = null);
 
     /// <summary>Returns the most recent cases (for the dashboard list).</summary>
     /// <param name="limit">Maximum number of cases to return.</param>
+    /// <param name="agentId">
+    /// When set, only returns cases assigned to this user id. When null, company-wide.
+    /// </param>
     /// <returns>A list of recent <see cref="Case"/> entities.</returns>
-    Task<IReadOnlyList<Case>> GetRecentCasesAsync(int limit);
+    Task<IReadOnlyList<Case>> GetRecentCasesAsync(int limit, string? agentId = null);
 
     /// <summary>
     /// Returns open cases whose scheduled follow-up deadline has passed and for
     /// which no follow-up (call log) has occurred since that deadline.
     /// </summary>
+    /// <param name="agentId">
+    /// When set, only considers cases assigned to this user id. When null, company-wide.
+    /// </param>
     /// <returns>A list of <see cref="OverdueFollowUpSummary"/>, most-overdue first.</returns>
-    Task<List<OverdueFollowUpSummary>> GetOverdueFollowUpsAsync();
+    Task<List<OverdueFollowUpSummary>> GetOverdueFollowUpsAsync(string? agentId = null);
 }
 
 /// <summary>Lightweight aggregate returned by <see cref="IDashboardRepository"/>.</summary>
@@ -56,6 +72,27 @@ public class DashboardSummary
 
     /// <summary>Total number of customers.</summary>
     public int TotalCustomers { get; set; }
+
+    // ---- Agent-scoped ("My *") totals. Populated only when the dashboard is
+    // requested by an Agent; left at zero for the company-wide Admin view. ----
+
+    /// <summary>Number of cases assigned to the calling agent.</summary>
+    public int MyCases { get; set; }
+
+    /// <summary>Number of assigned cases not yet Resolved/Closed.</summary>
+    public int MyOpenCases { get; set; }
+
+    /// <summary>Number of assigned high-priority cases.</summary>
+    public int MyHighPriorityCases { get; set; }
+
+    /// <summary>Number of assigned cases whose priority was ML-suggested.</summary>
+    public int MyAiPredictedCases { get; set; }
+
+    /// <summary>Number of assigned cases with status == Resolved.</summary>
+    public int MyResolvedCases { get; set; }
+
+    /// <summary>Number of assigned open cases whose follow-up is overdue.</summary>
+    public int MyOverdueFollowUps { get; set; }
 
     /// <summary>Count of cases per status.</summary>
     public Dictionary<string, int> ByStatus { get; set; } = new();

@@ -11,14 +11,20 @@ namespace CustomerService.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Roles = "Admin,Agent")]
 public class CustomersController : ControllerBase
 {
     private readonly ICustomerService _service;
+    private readonly ICustomerAuthService _auth;
 
     /// <summary>Initializes a new <see cref="CustomersController"/>.</summary>
     /// <param name="service">Customer service.</param>
-    public CustomersController(ICustomerService service) => _service = service;
+    /// <param name="auth">Customer auth service (invites).</param>
+    public CustomersController(ICustomerService service, ICustomerAuthService auth)
+    {
+        _service = service;
+        _auth = auth;
+    }
 
     /// <summary>Lists all customers.</summary>
     /// <returns>All customers.</returns>
@@ -75,5 +81,34 @@ public class CustomersController : ControllerBase
     {
         await _service.DeleteAsync(id);
         return NoContent();
+    }
+
+    /// <summary>
+    /// Sends a customer-portal invite email. Both Admins and Agents may
+    /// trigger this (business decision). Generates a fresh invite token,
+    /// overwriting any unused prior invite, and emails the activation link.
+    /// </summary>
+    /// <param name="id">Customer id.</param>
+    /// <returns>204 No Content on success, 400 if the customer has no email, 404 if not found.</returns>
+    [HttpPost("{id:int}/invite")]
+    [Authorize(Roles = "Admin,Agent")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SendInvite(int id)
+    {
+        try
+        {
+            await _auth.SendInviteAsync(id);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
     }
 }

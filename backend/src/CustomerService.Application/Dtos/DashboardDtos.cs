@@ -26,6 +26,27 @@ public class DashboardDto
     /// <summary>Total customers.</summary>
     public int TotalCustomers { get; set; }
 
+    // ---- Agent-scoped ("My *") totals. Populated only for an Agent caller;
+    // left at zero for the company-wide Admin view. ----
+
+    /// <summary>Cases assigned to the calling agent.</summary>
+    public int MyCases { get; set; }
+
+    /// <summary>Assigned cases not yet Resolved/Closed.</summary>
+    public int MyOpenCases { get; set; }
+
+    /// <summary>Assigned high-priority cases.</summary>
+    public int MyHighPriorityCases { get; set; }
+
+    /// <summary>Assigned cases whose priority was ML-suggested.</summary>
+    public int MyAiPredictedCases { get; set; }
+
+    /// <summary>Assigned cases with status == Resolved.</summary>
+    public int MyResolvedCases { get; set; }
+
+    /// <summary>Assigned open cases whose follow-up is overdue.</summary>
+    public int MyOverdueFollowUps { get; set; }
+
     /// <summary>Most recent cases (for the "Recent Cases" list).</summary>
     public List<RecentCaseDto> RecentCases { get; set; } = new();
 

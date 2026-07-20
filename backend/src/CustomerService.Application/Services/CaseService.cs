@@ -43,7 +43,7 @@ public class CaseService : ICaseService
 
     /// <inheritdoc/>
     public async Task<IReadOnlyList<CaseDto>> GetAllAsync(
-        CaseStatus? status, Priority? priority, int? categoryId, DateTime? from, DateTime? to, bool overdue = false)
+        CaseStatus? status, Priority? priority, int? categoryId, DateTime? from, DateTime? to, bool overdue = false, string? assignedToUserId = null)
     {
         IQueryable<Case> q = _cases.Query()
             .Include(c => c.Customer)
@@ -53,6 +53,12 @@ public class CaseService : ICaseService
         if (categoryId.HasValue) q = q.Where(c => c.CategoryId == categoryId.Value);
         if (from.HasValue) q = q.Where(c => c.CreatedAtUtc >= from.Value);
         if (to.HasValue) q = q.Where(c => c.CreatedAtUtc <= to.Value);
+        // "Assigned to me" — resolved from the JWT by the controller, never
+        // trusted from the client. Enables the Agent dashboard click-through.
+        if (!string.IsNullOrEmpty(assignedToUserId))
+        {
+            q = q.Where(c => c.AssignedToUserId == assignedToUserId);
+        }
         if (overdue)
         {
             // Open cases that need a follow-up: either a scheduled deadline was

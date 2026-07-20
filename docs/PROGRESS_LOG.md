@@ -2,6 +2,138 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 5] Feature: Admin Agent list + Case assignment UI (Phase 5 of 5) — 2026-07-20
+**Status:** Complete (backend `dotnet build` → 0 Error(s); frontend `npm run build` → success, only pre-existing SCSS budget warnings; verified via curl `:5274` + browser `:4200` + SQL Server cross-check)
+**Scope (explicitly bounded — NOT expanded):** Read-only agent visibility (name, email, open-case count) plus enabling case assignment from the Case Detail page. Does **not** include creating staff accounts or editing agent permissions/roles.
+**Backend changes:**
+- `UsersController` — NEW `GET /api/users/agents-summary` (`[Authorize(Roles="Admin,Agent")]`). Returns every `UserRole.Agent` with a real DB aggregate of currently-open cases (status NOT IN Resolved/Closed). Implemented as a grouped `COUNT` over the `Cases` set keyed by `AssignedToUserId` (NOT by fetching all cases to the client). `AgentSummary` record gained a required 4th positional param `OpenCaseCount` (optional default caused CS0854 inside the EF expression tree, so it was made required; `GetAll` passes `0`).
+- `User.cs` — added then **removed** a `Cases` navigation property: it produced an ambiguous EF relationship (SQL `Invalid column name 'UserId'`) because `Case` already has `AssignedToUser`. The aggregate instead counts via the injected `IRepository<Case>` — no model/relationship change needed.
+- `UsersController` constructor now also takes `IRepository<Case>` (registered as scoped already).
+**Frontend changes (standalone components, no NgModules):**
+- `shared/models.ts` — `Agent` gains `openCaseCount: number`.
+- `users/user.service.ts` (NEW) — `agentsSummary(): Observable<Agent[]>` → `GET /api/users/agents-summary`.
+- `users/agent-list.component.{ts,html,scss}` (NEW) — read-only grid of agent cards (avatar, full name, id/email, "Agent" pill, open-case count). Apple-like styling with `.cs-lift`/`.reveal`/`.stagger`. No edit/delete/create actions.
+- `app.routes.ts` — added `{ path: 'agents', component: AgentListComponent }` under the guarded `LayoutComponent` children.
+- `shared/layout/layout.component.ts` — `navLinks` gains an `adminOnly: true` "Agents" item; new `visibleNavLinks` getter filters it out for non-admins. `layout.component.html` uses `visibleNavLinks` in both the full sidenav and the collapsed rail loops, so the item is hidden entirely for Agent-role users.
+- `cases/case-detail.component.ts` — injects `CaseService.agents()` into an `agents` signal (in `ngOnInit`); NEW `assignTo(agentId)` calls the existing `CaseService.update()` with `assignedToUserId` set, then updates the local signal (preserving all other fields — re-verifies the earlier null-preservation fix). `assigning` signal disables the control during the call.
+- `cases/case-detail.component.html` — the existing "Assignee" side-card now has an `Assign to` `<mat-select>` sourced from `agents()` (Unassigned + each agent), showing the current assignee; the existing Unassign button remains.
+**Verification (curl `:5274` + browser `:4200` + SQL Server cross-check):**
+- **`GET /api/users/agents-summary`** as admin → `[{agent-001, Grace Agent, 4}, {agent-002, Maria Santos, 3}]`. SQL cross-check `SELECT AssignedToUserId, COUNT(*) FROM Cases WHERE AssignedToUserId IS NOT NULL AND Status NOT IN (3,4) GROUP BY AssignedToUserId` returned exactly `agent-001=4, agent-002=3`. Same payload returned for Agent (maria) — endpoint is readable by both roles.
+- **Agents nav:** visible + active for Admin at `/agents` (lists both agents with correct counts). Hidden entirely for Agent (maria) — only Dashboard/Customers/Cases show.
+- **Assign flow (UI):** On case 12 (was assigned to Maria), selected "Grace Agent" in the new dropdown → assignee updated to Grace Agent immediately; after page reload the assignee is still Grace Agent (persists). Reassign also reflected in the aggregate: `agents-summary` moved from `agent-001=4, agent-002=3` to `agent-001=4, agent-002=4` after reassigning a closed case (case 12) — confirming the count query is correct and live.
+- **Null-preservation re-verified:** After reassigning case 12 to agent-002 via API, a follow-up `PUT` that changed ONLY `status` (omitting `assignedToUserId`) left `assignedToUserId` as `agent-002` — the earlier data-loss fix still holds.
+- **Browser:** Admin `/agents` renders the agent grid; Case Detail "Assignee" card shows the working dropdown; Agent login never sees the Agents nav. No console errors.
+**Note:** This completes all 5 planned phases. The dashboard, portal, ML priority model, agent scoping, and admin agent/assignment features are all live and verified.
+
+## [Phase 4] Feature: Agent-personalized Dashboard (Phase 4 of 5) — 2026-07-20
+**Status:** Complete (backend `dotnet build` → 0 Error(s); frontend `npm run build` → success, only pre-existing SCSS budget warnings; verified via curl `:5274` + browser `:4200` + SQL cross-check)
+**Why:** The existing staff dashboard was company-wide for everyone. Phase 4 scopes every number AND chart to the calling agent's own assigned cases (Admin stays company-wide), and makes the KPI cards click through to a correctly-scoped `/cases` list.
+**Backend changes (modified existing endpoint — NO new route):**
+- `DashboardController.Get()` — extracts `agentId = User.IsInRole("Agent") ? User.FindFirst(ClaimTypes.NameIdentifier)?.Value : null;` and passes it to `GetDashboardAsync`. Admin → `null` (unchanged company-wide). Agent → scoped to their JWT id (never a query param).
+- `IDashboardService.GetDashboardAsync(string? agentId = null)` + `DashboardService` — forwards `agentId` to all repo calls; maps 6 new `My*` fields.
+- `IDashboardRepository` + `DashboardRepository` — `GetSummaryAsync`, `GetCasesCreatedTrendAsync`, `GetCasesByCategoryAsync`, `GetRecentCasesAsync`, `GetOverdueFollowUpsAsync` all gain `string? agentId = null`. When set, status/priority breakdowns AND trend/byCategory/recent are filtered by `AssignedToUserId`. `MyOverdueFollowUps` is `0` for admin and `overdue.Count` for an agent (was incorrectly showing company-wide count for admin — fixed).
+- `DashboardSummary` (Domain) + `DashboardDto` (Application) — added `MyCases`, `MyOpenCases`, `MyHighPriorityCases`, `MyAiPredictedCases`, `MyResolvedCases`, `MyOverdueFollowUps` (all `int`, default 0).
+- `ICaseService.GetAllAsync(..., bool overdue = false, string? assignedToUserId = null)` + `CaseService` — when `assignedToUserId` set, filters `AssignedToUserId`. Inline overdue filter unchanged (uses `OverduePolicy.OpenStatuses` + stale logic, since EF can't translate the static method).
+- `CasesController.GetAll` — added `[FromQuery] bool assignedToMe = false`; resolves `assignedToUserId` from the JWT server-side (never trusts the client) and passes to the service.
+- **Overdue source-of-truth:** `OverduePolicy.NeedsFollowUp` is already shared by the dashboard, `NotificationService.GenerateOverdueAsync`, and `OverdueEmailHostedService`. Agent scoping only filters candidates by `AssignedToUserId` before `NeedsFollowUp` — the dashboard "My Overdue" number and the email job can never drift.
+**Frontend changes (standalone components, no NgModules):**
+- `shared/models.ts` — `Dashboard` gains the 6 `my*` number fields.
+- `dashboard/dashboard.component.ts` — `kpis` getter branches on `auth.getRole() === 'Agent'`. Agent → 6 "My ___" cards (My Cases → `/cases?assignedToMe=true`; My Open → `...&status=Open`; My High Priority → `...&priority=High`; My Resolved → `...&status=Resolved`; My AI Predicted → `...&aiOnly=true`; My Overdue → `...&overdue=true`). Admin → original 7 company-wide cards unchanged. Charts reuse the same components/styling — only data/labels change.
+- `cases/case.service.ts` — `list()` gains `assignedToMe?: boolean` → sets `assignedToMe=true` query param.
+- `cases/case-list.component.ts` — reads `assignedToMe` from query params and passes it through to `list()`.
+**Verification (curl `:5274` + browser `:4200` + SQL Server cross-check):**
+- **Admin** dashboard unchanged: `totalCases:16, openCases:13, highPriority:6, resolved:4, totalCustomers:12, aiPredicted:6, overdueFollowUps:7`; all `My*` fields `0`; charts company-wide.
+- **Maria (agent-002)** dashboard scoped: `myCases:5, myOpenCases:3, myHighPriorityCases:1, myAiPredictedCases:2, myResolvedCases:1, myOverdueFollowUps:3`. SQL cross-check (`WHERE AssignedToUserId='agent-002'`) returned exactly `5 / 3 / 1 / 2 / 1` — matches. Charts (byStatus `New:2,InProgress:1,Resolved:1,Closed:1`; byPriority `Low:2,Medium:2,High:1`) are scoped to her cases, not company-wide.
+- **My Overdue click-through:** Maria "My Overdue" card → `/cases?assignedToMe=true&overdue=true` → "3 cases found", all assigned to agent-002 and all overdue (cases 2, 7, 9) — matches `myOverdueFollowUps:3` and the email-job definition.
+- **`/cases?assignedToMe=true`** for Maria returns exactly 5 cases, all `assignedToUserId:'agent-002'`.
+- **Browser:** Maria login shows the 6 "My ___" cards with the scoped numbers above and scoped recent-cases/overdue lists; Admin login shows the 7 company-wide cards (16/13/6/4/12/6/7). Both render without error.
+**Note:** `tests/CustomerService.Tests/AuthBoundaryTests.cs` has 3 pre-existing build errors (CS7036: missing `caseService` arg to `CustomerPortalController` constructor) unrelated to Phase 4 — the API project alone builds clean (`0 Error(s)`). These should be fixed separately before relying on `dotnet test`.
+
+## [Phase 3] Feature: Customer-facing frontend portal (Phase 3 of 5) — 2026-07-20
+**Status:** Complete (frontend `npm run build` → success, 0 Error(s); backend `dotnet build` → 0 Error(s); all flows live-verified in browser at `:4200` + curl against `:5274`)
+**Why:** Phases 1–2 delivered the customer auth backend + authorization-hardened case access. Phase 3 exposes that to customers through a separate, visually-consistent Angular portal that reuses the existing design system and the existing staff `CaseService.CreateAsync` AI-priority wiring (no duplicated prediction path).
+**Backend (already in place from Phase 2, reused here):** `POST /api/customer-portal/cases` takes `CreateCustomerCaseDto` (subject, description, categoryId — **no CustomerId, no priority**), derives the customer id from the JWT `CustomerId` claim, and calls the SAME `ICaseService.CreateAsync` the staff path uses → the case is created with the AI-predicted `Priority`/`PriorityReason`/`FollowUpDueUtc` set internally. The customer response (`CustomerCaseSummaryDto`) carries **none** of that.
+**Frontend changes (all standalone components, no NgModules):**
+- `app/customer/customer-auth.service.ts` (new) — `CustomerAuthService`, token stored under a **different** sessionStorage key (`customer_auth_token`) so it never collides with the staff `cs_token`. `login/logout/getToken/isAuthenticated/getName/getId` + reactive `currentCustomer` signal.
+- `app/customer/customer-auth.guard.ts` (new) — `customerAuthGuard` redirects to `/customer/login` when unauthenticated.
+- `app/customer/customer-token.interceptor.ts` (new) — attaches the customer JWT **only** to requests whose URL starts with `/api/customer-portal`; passes everything else through.
+- `app/auth/token.interceptor.ts` (modified) — staff interceptor now **skips** `/api/customer-portal` so the two tokens never fight.
+- `app.config.ts` (modified) — registers `CustomerTokenInterceptor` after the staff one.
+- `app.routes.ts` (modified) — adds `customer/login`, `customer/accept-invite`, and the guarded `customer` shell (`CustomerLayoutComponent`) with `cases`, `cases/new`, `cases/:id`.
+- `app/shared/models.ts` (modified) — `CustomerCaseSummary/Detail/Comment`, `CreateCustomerCase`, `CreateCustomerComment`, `ValidateInviteResponse` DTOs (structurally **no** priority/AI/call-log/agent fields).
+- `app/customer/customer.service.ts` (new) — `listCases/getCase/createCase/getComments/addComment/validateInvite/acceptInvite`.
+- `app/customer/customer-layout.component.*` (new) — top bar with brand, customer name, logout.
+- `app/customer/customer-login.component.*` (new) — email/password reactive form → login → `/customer/cases`.
+- `app/customer/accept-invite.component.*` (new) — reads `?token=`, validates, shows "set your password" form, success state → login. Invalid/expired/used token → clean message, no stack trace.
+- `app/customer/my-cases-list.component.*` (new) — lists only the customer's own cases with status pill + created date; "+ New Case" button.
+- `app/customer/new-case.component.*` (new) — subject/description + category dropdown sourced from the shared `CATEGORIES` constant; posts and navigates to detail.
+- `app/customer/my-case-detail.component.*` (new) — subject/description/status/created/resolved + shared comment thread (customer vs staff visually distinguished via `isStaff`); reply appends without full reload. **Deliberately renders no priority/AI/call-log/agent content.**
+**Design system reuse:** all components use the existing CSS vars, `.cs-pill`/`.status-*` classes, `.cs-lift` hover, `CsIconComponent` (Lucide SVGs), and the ServiceAI brand — the portal visually belongs to the same product.
+**Verification (browser `:4200` + curl `:5274`, SQL Server):**
+- Invite → accept (password set) → customer login all work; `validate-invite` returns masked email; `accept-invite` 204; login returns `role:Customer`.
+- `GET /api/customer-portal/cases` → only the caller's own cases (Ana Reyes saw ids 4 + 15, not other customers').
+- `POST /api/customer-portal/cases` → 201 with `CustomerCaseSummary` (id/subject/status/createdAt only). Staff-side `GET /api/cases/15` confirmed it was **unassigned** (`assignedToUserId:null`) with internal AI priority `Medium`, `priorityAutoSuggested:true` — which the customer never saw.
+- Comment thread both directions: customer post → `isStaff:false`; staff (Maria) reply → `isStaff:true` visible to the customer without hard refresh. UI reply appended instantly and cleared the box.
+- **Negative security re-confirmed:** customer JWT → staff `/api/cases` **403**; staff JWT → customer `/api/customer-portal/cases` **403**; no token → **401**; customer JWT → another customer's case **404** (anti-enumeration); customer JWT → staff comment endpoint **403**. No data leak on any path.
+- New-case UI flow verified end-to-end (created case 16, redirected to its detail, no priority/AI rendered). Accept-invite UI verified for both valid (shows "Welcome, {name}") and invalid (clean "Invite unavailable" message) tokens.
+
+## [Phase 31.1] Follow-up: Durable auth-boundary unit tests + comment-body 400 hardening — 2026-07-20
+**Status:** Complete (backend `dotnet test` → **56/56 passing**; `dotnet build` → 0 Error(s))
+**Why:** Phase 2's security layer was only verified by hand with curl. The user asked for durable unit tests on the auth boundary "before too much more gets built on top of this security layer." This also closes the open "missing JSON paste" follow-up — the customer DTO shape is now asserted in code, not just in a report.
+**Changes:**
+- `tests/CustomerService.Tests/AuthBoundaryTests.cs` (new, 25 tests) — covers three concerns:
+  1. **Controller authorization attributes (reflection):** `CasesController`, `CustomersController`, `CallLogsController`, `DashboardController`, `MlController`, `NotificationsController`, `UsersController` all carry `[Authorize(Roles="Admin,Agent")]`; `CustomerPortalController` carries `[Authorize(Roles="Customer")]` and does NOT allow Admin/Agent. This is the structural guarantee that a Customer token can never reach a staff endpoint.
+  2. **`CustomerPortalController` runtime behaviour:** customer id derived strictly from the JWT `CustomerId` claim (missing claim → `UnauthorizedAccessException`); `GetMyCases` returns only the caller's cases; `GetMyCase` returns 404 for both a non-owned case and a non-existent case (anti-enumeration); the customer DTO omits `Priority`/`PriorityReason`/`CategoryId`/`AssignedToUserId` (compile-time assertion — adding those members would break the test); `PostComment` returns 404 for a non-owned case and 201 with the claim-derived author id.
+  3. **`CaseCommentService` "exactly one author" invariant:** `AddStaffCommentAsync` sets only `AuthorUserId`; `AddCustomerCommentAsync` sets only `AuthorCustomerId`; empty/whitespace body throws `ArgumentException`; unknown case/user throws `KeyNotFoundException`.
+- `tests/CustomerService.Tests/CustomerService.Tests.csproj` — added `ProjectReference` to `CustomerService.Api` (needed to unit-test the controllers).
+- `tests/CustomerService.Tests/Fakes/FakeRepository.cs` — `GetByIdAsync` now handles **string** primary keys (required for `IRepository<User>`, whose `Id` is a GUID string) and `AddAsync` preserves an explicitly-set non-zero int id so tests can control keys.
+- **Bug fix surfaced by the tests:** a whitespace-only comment body passed `[Required]` validation, reached the service, threw `ArgumentException`, and the `PostComment` endpoints only caught `KeyNotFoundException` → returned **500** instead of **400**. Hardened both `CustomerPortalController.PostComment` and `CasesController.PostComment` to also catch `ArgumentException` and return `BadRequest` (with a `ProblemDetails` title). This is a real validation-boundary hole in the security layer, now closed.
+**Verification:** `dotnet test CustomerServiceApi.sln` → 56/56 passing (25 new + 31 prior). No regressions.
+
+## [Phase 31] Feature: CaseComment entity + customer-scoped, authorization-hardened case access (Phase 2 of 5) — 2026-07-20
+**Status:** Complete (backend `dotnet build` → 0 Error(s); `dotnet test` 31/31 passing; all endpoints live-verified on SQL Server via curl)
+**Scope:** Backend-only. No customer-facing frontend yet (Phase 3). Existing staff `/api/cases/*` endpoints were NOT modified in behavior/DTOs — only new `customer-portal`-prefixed routes + new comment endpoints were added. `CallLog` entity untouched (stays staff-only).
+**Changes:**
+- `Domain/Entities/CaseComment.cs` (new) — `Id`, `CaseId` (FK), `AuthorUserId` (nullable FK→User), `AuthorCustomerId` (nullable FK→Customer), `Body` (required, max 4000), `CreatedAtUtc`. Exactly-one-author invariant enforced in the service, not by convention.
+- `Domain/Entities/Case.cs` — added `ResolvedAtUtc` (nullable, read-only to customers) + `Comments` nav collection.
+- `Infrastructure/Data/AppDbContext.cs` — added `CaseComments` DbSet + mapping (unique `CaseId` index, `AuthorUserId`→Users SET NULL, `AuthorCustomerId`→Customers **NO ACTION** — SQL Server forbids two cascade paths to `Customers`).
+- `Application/Dtos/CustomerPortalDtos.cs` (new) — `CustomerCaseSummaryDto` (id, subject, status, createdAt — **category deliberately excluded as internal-only**), `CustomerCaseDetailDto` (subject, description, status, createdAt, resolvedAt, comments — **explicitly omits priority/AI-prediction/call-log/assigned-agent**), `CaseCommentDto` (authorDisplayName, isStaff, body, createdAt), `CreateCaseCommentDto`.
+- `Application/Interfaces/ICaseCommentService.cs` (new) + `Application/Services/CaseCommentService.cs` (new) — shared read/post logic; `AddStaffCommentAsync` sets `AuthorUserId` only, `AddCustomerCommentAsync` sets `AuthorCustomerId` only; both reject empty/whitespace body and unknown case/author.
+- `Api/Controllers/CustomerPortalController.cs` (new) — `[Authorize(Roles="Customer")]`. `GET cases` (scoped to JWT `CustomerId` claim), `GET cases/{id}` + `GET/POST cases/{id}/comments` (ownership check → **404 for both "not yours" and "doesn't exist"**, anti-enumeration). Customer id is taken strictly from the JWT claim, never a client value.
+- `Api/Controllers/CasesController.cs` — added `GET/POST {id}/comments` (staff, `[Authorize(Roles="Admin,Agent")]`, author from staff JWT `NameIdentifier`); controller hardened to `Roles="Admin,Agent"`.
+- **Security hardening (negative-security requirement):** `CustomersController`, `CallLogsController`, `DashboardController`, `MlController`, `NotificationsController`, `UsersController` all changed from bare `[Authorize]` to `[Authorize(Roles="Admin,Agent")]` so a `Customer`-role token is rejected (previously a Customer token could have reached staff endpoints — a real gap).
+- `Api/Program.cs` — registered `ICaseCommentService`; added idempotent provider-aware helpers `EnsureCaseCommentsTable`, `EnsureCaseResolvedAtColumn`, and `EnsureCaseFollowUpDueUtcColumn` (the live DB was missing `FollowUpDueUtc`, which broke any full-`Case` materialization — now fixed).
+**Verification (curl against `:5274`, SQL Server):**
+- Customer (Juan, id 1) `GET /api/customer-portal/cases` → only his 2 cases (ids 1, 5).
+- Customer `GET /api/customer-portal/cases/2` (belongs to customer 2) → **404** (not 403); same 404 shape as a non-existent id.
+- Customer `GET /api/customer-portal/cases/1` → `{"id":1,"subject":...,"description":...,"status":"InProgress","createdAtUtc":...,"resolvedAtUtc":null,"comments":[]}` — **confirmed NO `priority`/`priorityReason`/`priorityAutoSuggested`/`category`/`assignedTo`/`callLogs` fields present**.
+- Customer posted a comment → appeared in staff `GET /api/cases/1/comments` (author "Juan Dela Cruz", `isStaff:false`).
+- Agent posted a comment → appeared in customer `GET /api/customer-portal/cases/1/comments` (author "Grace Agent", `isStaff:true`). Shared thread confirmed both directions.
+- **Negative security (Customer token):** `GET /api/cases`→403, `GET /api/customers`→403, `GET /api/customers/1`→403, `GET /api/dashboard`→403, `POST /api/customers/1/invite`→403, `POST /api/ml/predict-priority`→403, `GET /api/cases/1/comments`→403, `GET /api/notifications`→403, `GET /api/calllogs/case/1`→403, `POST /api/calllogs`→403, `GET /api/users`→403. (`GET /api/calllogs` root → 405 method-not-allowed, correct since no such route; the real routes are 403.) No data leak on any.
+- Edge cases: customer endpoint with no token → 401; with staff token → 403; empty/whitespace comment body → 400; comment on non-owned case → 404.
+
+## [Phase 30] Feature: Customer authentication backend + invite email (Phase 1 of 5) — 2026-07-20
+**Status:** Complete (backend `dotnet build` → 0 Error(s); all endpoints live-verified on SQL Server via curl)
+**Scope:** Backend-only. No customer-facing frontend pages yet (that's Phase 3). No `[Authorize(Roles="Customer")]` protected data endpoints, no changes to staff Users/roles.
+**Changes:**
+- `Domain/Entities/CustomerAccount.cs` (new) — separate from `Customer` profile: `Id` (PK, 1:1 with Customer), `CustomerId` (FK, unique), `PasswordHash` (nullable), `InviteToken` (nullable, unique, GUID), `InviteTokenExpiresAt` (48h), `InviteTokenUsed`, `IsActive`, `CreatedAtUtc`.
+- `Infrastructure/Data/AppDbContext.cs` — added `CustomerAccounts` DbSet + mapping (unique `CustomerId`, unique `InviteToken`, `Id` DB-generated, 1:1 cascade FK to `Customers`).
+- `Domain/Entities/Notification.cs` — added `NotificationType.CustomerInvite = 2` (alongside `CaseOverdue`/`CaseResolved`).
+- `Application/Services/EmailNotificationSender.cs` — added `CustomerInvite` email content (plain-language invite + link; dev-redirected to `DevOverrideRecipient` like other emails).
+- `Application/Options` / `appsettings*.json` — added `FrontendBaseUrl` ("http://localhost:4200") so the invite link is config-driven, not hardcoded.
+- `Application/Dtos/AuthDtos.cs` — added `ValidateInviteResponse`, `AcceptInviteRequest`, `CustomerLoginRequest`, `CustomerLoginResponse`.
+- `Application/Interfaces/ICustomerAuthService.cs` (new) + `Application/Services/CustomerAuthService.cs` (new) — `SendInviteAsync` (overwrites prior unused invite, emails link), `ValidateInviteAsync` (public, returns valid + name + masked email), `AcceptInviteAsync` (BCrypt hash, sets `IsActive`/`InviteTokenUsed`, does NOT auto-login), `LoginAsync` (email→Customer→CustomerAccount, BCrypt verify, issues a JWT with `role=Customer` + `CustomerId` claim using the SAME signing key as staff auth).
+- `Api/Controllers/CustomersController.cs` — `POST /api/customers/{id}/invite`, `[Authorize(Roles="Admin,Agent")]`; 400 if customer has no email, 404 if missing.
+- `Api/Controllers/CustomerAuthController.cs` (new) — `GET /api/customer-auth/validate-invite` (public), `POST /api/customer-auth/accept-invite` (public), `POST /api/customer-auth/login` (public).
+- `Api/Program.cs` — registered `ICustomerAuthService`; added `EnsureCustomerAccountTable` + `EnsureNotificationsTable` idempotent helpers (provider-aware SQL Server/SQLite) so the new tables are created even though the project uses `EnsureCreated()` with no migrations. (The live DB was missing the `Notifications` table — recreated here.)
+**Verification (curl against `:5274`, SQL Server):**
+- Invite as **Admin** for customer 1 → 204; email delivered to `DevOverrideRecipient` with a working `…/customer/accept-invite?token=<guid>` link.
+- `validate-invite?token=…` → `{"valid":true,"customerName":"Juan Dela Cruz","customerEmailMasked":"j***@acme.ph"}` (200).
+- `accept-invite` (token + password) → 204; **same token again** → 400 `{"error":"This invite has already been used."}`.
+- `login` (juan@acme.ph / TestPass123) → 200 with JWT; decoded claims: `role=Customer`, `CustomerId=1`, `nameidentifier=1`, `name=juan@acme.ph`, correct `iss`/`aud`. Wrong password → 401 `{"error":"Invalid credentials."}` (generic, no leak).
+- Invite as **Agent** (user `agent`) for customer 2 → 204 (confirms Agents can trigger it). No token → 401.
+**Note:** A pre-existing unrelated DB schema gap (`FollowUpDueUtc` column missing) makes the `OverdueEmailHostedService` background job log errors; it does not affect this phase's endpoints.
+
 ## [Phase 29] Fix: Notification modal renders off-screen when sidenav is hidden — 2026-07-20
 **Status:** Complete (verified in browser via Playwright; frontend `npm run build` OK)
 - **Bug:** When the sidenav was collapsed to the icon rail (`.rail`), clicking the rail's notification bell opened the modal off-screen (modal `x = -248`, backdrop only `63px` wide = rail width).

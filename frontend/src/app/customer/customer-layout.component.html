@@ -1,0 +1,26 @@
+<div class="customer-shell">
+  <header class="topbar cs-lift">
+    <div class="brand">
+      <div class="brand-logo"><cs-icon name="headset"></cs-icon></div>
+      <div class="brand-text">
+        <span class="brand-name">ServiceAI</span>
+        <span class="brand-sub">Customer Portal</span>
+      </div>
+    </div>
+
+    <div class="topbar-right">
+      <div class="who">
+        <cs-icon name="account_circle"></cs-icon>
+        <span class="who-name">{{ name }}</span>
+      </div>
+      <button type="button" class="logout-btn" (click)="logout()">
+        <cs-icon name="logout"></cs-icon>
+        <span>Log out</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="content">
+    <router-outlet></router-outlet>
+  </main>
+</div>

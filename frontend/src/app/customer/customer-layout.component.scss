@@ -1,0 +1,123 @@
+:host {
+  display: block;
+  min-height: 100vh;
+  background: var(--cs-bg);
+}
+
+.customer-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1.5rem;
+  background: var(--cs-surface);
+  border-bottom: 1px solid var(--cs-border);
+  box-shadow: var(--cs-shadow);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.brand-logo {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--cs-radius-sm);
+  background: var(--cs-accent-gradient);
+  color: #fff;
+  display: grid;
+  place-items: center;
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.brand-name {
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--cs-text);
+}
+
+.brand-sub {
+  font-size: 0.72rem;
+  color: var(--cs-text-muted);
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.who {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--cs-text);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.who-name {
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.logout-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid var(--cs-border);
+  background: var(--cs-surface);
+  color: var(--cs-text);
+  padding: 0.45rem 0.85rem;
+  border-radius: var(--cs-radius-pill);
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.2s var(--cs-ease), transform 0.2s var(--cs-ease),
+    box-shadow 0.2s var(--cs-ease);
+}
+
+.logout-btn:hover {
+  background: var(--cs-accent-light);
+  color: var(--cs-accent-strong);
+  transform: translateY(-1px);
+  box-shadow: var(--cs-shadow-hover);
+}
+
+.content {
+  flex: 1;
+  padding: 1.75rem 1.5rem 3rem;
+  max-width: 880px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+@media (max-width: 600px) {
+  .who-name {
+    display: none;
+  }
+  .topbar {
+    padding: 0.65rem 1rem;
+  }
+  .content {
+    padding: 1.25rem 1rem 2.5rem;
+  }
+}

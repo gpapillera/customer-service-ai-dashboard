@@ -18,7 +18,7 @@
         <app-notification-bell></app-notification-bell>
       </div>
       <nav class="nav">
-        @for (link of navLinks; track link.path) {
+        @for (link of visibleNavLinks; track link.path) {
           <a
             class="nav-item"
             [routerLink]="link.path"
@@ -71,7 +71,7 @@
         </div>
 
         <div class="rail-nav">
-          @for (link of navLinks; track link.path) {
+          @for (link of visibleNavLinks; track link.path) {
             <a
               class="rail-item"
               [routerLink]="link.path"

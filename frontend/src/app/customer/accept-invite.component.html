@@ -1,0 +1,89 @@
+<div class="invite-wrapper">
+  <mat-card class="invite-card" appearance="outlined">
+    <div class="brand-block">
+      <div class="brand-logo"><cs-icon name="headset"></cs-icon></div>
+      <div class="brand-text">
+        <span class="brand-name">ServiceAI</span>
+        <span class="brand-sub">Customer Portal</span>
+      </div>
+    </div>
+
+    <mat-card-content>
+      @if (validating()) {
+        <div class="center">
+          <mat-spinner diameter="32"></mat-spinner>
+          <p class="muted">Checking your invite…</p>
+        </div>
+      }
+
+      @if (invalidError()) {
+        <div class="state">
+          <div class="state-icon warn"><cs-icon name="circle_alert"></cs-icon></div>
+          <h1 class="state-title">Invite unavailable</h1>
+          <p class="state-msg">{{ invalidError() }}</p>
+          <a mat-stroked-button routerLink="/customer/login">Back to sign in</a>
+        </div>
+      }
+
+      @if (done()) {
+        <div class="state">
+          <div class="state-icon ok"><cs-icon name="check_circle"></cs-icon></div>
+          <h1 class="state-title">You're all set</h1>
+          <p class="state-msg">
+            Your password is set. You can now sign in to the customer portal.
+          </p>
+          <button mat-flat-button color="primary" (click)="goToLogin()">
+            Continue to sign in
+          </button>
+        </div>
+      }
+
+      @if (valid() && !done()) {
+        <h1 class="title">Set your password</h1>
+        <p class="subtitle">
+          Welcome{{ customerName() ? ', ' + customerName() : '' }}! Choose a password
+          to activate your account.
+        </p>
+
+        <form [formGroup]="form" (ngSubmit)="submit()" class="invite-form">
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>New password</mat-label>
+            <input matInput type="password" formControlName="password" autocomplete="new-password" />
+            @if (form.controls.password.hasError('required') && form.controls.password.touched) {
+              <mat-error>Password is required</mat-error>
+            }
+            @if (form.controls.password.hasError('minlength') && form.controls.password.touched) {
+              <mat-error>Use at least 8 characters</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Confirm password</mat-label>
+            <input matInput type="password" formControlName="confirm" autocomplete="new-password" />
+            @if (form.controls.confirm.hasError('required') && form.controls.confirm.touched) {
+              <mat-error>Please confirm your password</mat-error>
+            }
+          </mat-form-field>
+
+          @if (formError()) {
+            <div class="error-banner" role="alert">{{ formError() }}</div>
+          }
+
+          <button
+            mat-flat-button
+            color="primary"
+            type="submit"
+            class="full-width submit-btn"
+            [disabled]="saving()"
+          >
+            @if (saving()) {
+              <mat-spinner diameter="20"></mat-spinner>
+            } @else {
+              Activate account
+            }
+          </button>
+        </form>
+      }
+    </mat-card-content>
+  </mat-card>
+</div>

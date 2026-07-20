@@ -1,0 +1,37 @@
+<div class="page">
+  <div class="page-head reveal" appReveal>
+    <div class="head-titles">
+      <h1>Agents</h1>
+      <p class="subtitle">Support agents and their currently open case load.</p>
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="center"><mat-spinner diameter="36"></mat-spinner></div>
+  } @else {
+    <div class="grid stagger">
+      @for (agent of agents(); track agent.id) {
+        <mat-card class="cs-lift agent-card reveal" appReveal>
+          <mat-card-content>
+            <div class="agent-top">
+              <div class="avatar"><cs-icon name="person"></cs-icon></div>
+              <div class="agent-id">
+                <div class="agent-name">{{ agent.fullName }}</div>
+                <div class="agent-email">{{ agent.id }}</div>
+              </div>
+            </div>
+            <div class="agent-meta">
+              <span class="cs-pill status-resolved">Agent</span>
+            </div>
+            <div class="open-count">
+              <span class="count">{{ agent.openCaseCount }}</span>
+              <span class="count-label">open cases</span>
+            </div>
+          </mat-card-content>
+        </mat-card>
+      } @empty {
+        <p class="muted">No agents found.</p>
+      }
+    </div>
+  }
+</div>

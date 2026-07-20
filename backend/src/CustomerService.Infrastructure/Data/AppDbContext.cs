@@ -21,6 +21,9 @@ public class AppDbContext : DbContext
     /// <summary>Customers.</summary>
     public DbSet<Customer> Customers => Set<Customer>();
 
+    /// <summary>Customer login accounts (invite + password state).</summary>
+    public DbSet<CustomerAccount> CustomerAccounts => Set<CustomerAccount>();
+
     /// <summary>Case categories.</summary>
     public DbSet<Category> Categories => Set<Category>();
 
@@ -29,6 +32,9 @@ public class AppDbContext : DbContext
 
     /// <summary>Call / follow-up logs.</summary>
     public DbSet<CallLog> CallLogs => Set<CallLog>();
+
+    /// <summary>Case comments (shared thread between customer + staff).</summary>
+    public DbSet<CaseComment> CaseComments => Set<CaseComment>();
 
     /// <summary>System notifications (e.g. overdue follow-up alerts).</summary>
     public DbSet<Notification> Notifications => Set<Notification>();
@@ -59,6 +65,19 @@ public class AppDbContext : DbContext
                 .HasForeignKey(c => c.CustomerId).OnDelete(DeleteBehavior.Cascade);
         });
 
+        builder.Entity<CustomerAccount>(e =>
+        {
+            e.HasKey(a => a.Id);
+            e.Property(a => a.Id).ValueGeneratedOnAdd();
+            e.HasIndex(a => a.CustomerId).IsUnique();
+            e.HasIndex(a => a.InviteToken).IsUnique();
+            e.Property(a => a.InviteToken).HasMaxLength(128);
+            e.Property(a => a.PasswordHash).HasMaxLength(200);
+            e.HasOne(a => a.Customer!).WithOne()
+                .HasForeignKey<CustomerAccount>(a => a.CustomerId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         builder.Entity<Category>(e =>
         {
             e.HasKey(c => c.Id);
@@ -70,10 +89,28 @@ public class AppDbContext : DbContext
         {
             e.HasKey(c => c.Id);
             e.Property(c => c.Subject).IsRequired().HasMaxLength(300);
+            e.Property(c => c.ResolvedAtUtc);
             e.HasOne(c => c.Category!).WithMany(c => c.Cases)
                 .HasForeignKey(c => c.CategoryId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(c => c.AssignedToUser!).WithMany()
                 .HasForeignKey(c => c.AssignedToUserId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        builder.Entity<CaseComment>(e =>
+        {
+            e.HasKey(c => c.Id);
+            e.Property(c => c.Id).ValueGeneratedOnAdd();
+            e.Property(c => c.Body).IsRequired().HasMaxLength(4000);
+            e.HasOne(c => c.Case!).WithMany(c => c.Comments)
+                .HasForeignKey(c => c.CaseId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(c => c.AuthorUser!).WithMany()
+                .HasForeignKey(c => c.AuthorUserId).OnDelete(DeleteBehavior.SetNull);
+            // NO ACTION (not SetNull): SQL Server forbids multiple cascade paths
+            // to Customers (Case -> Customer is Cascade, so a second path via
+            // CaseComments.AuthorCustomerId would error). A customer with
+            // comments is simply not deletable until their comments are removed.
+            e.HasOne(c => c.AuthorCustomer!).WithMany()
+                .HasForeignKey(c => c.AuthorCustomerId).OnDelete(DeleteBehavior.NoAction);
         });
 
         builder.Entity<CallLog>(e =>

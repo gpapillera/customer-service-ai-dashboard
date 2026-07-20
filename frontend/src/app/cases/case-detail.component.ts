@@ -55,6 +55,9 @@ export class CaseDetailComponent implements OnInit {
   /** Sentinel sent to the backend to explicitly clear the assignee. */
   private readonly unassignSentinel = '__unassign__';
   readonly unassigning = signal(false);
+  /** Agents available for assignment (GET /api/users). */
+  readonly agents = signal<Agent[]>([]);
+  readonly assigning = signal(false);
 
   readonly statuses: Case['status'][] = ['New', 'InProgress', 'Escalated', 'Resolved', 'Closed'];
   readonly priorities: Case['priority'][] = ['Low', 'Medium', 'High'];
@@ -76,6 +79,7 @@ export class CaseDetailComponent implements OnInit {
       error: () => this.loading.set(false),
     });
     this.callLogService.listByCase(id).subscribe((logs) => this.logs.set(logs));
+    this.caseService.agents().subscribe((list) => this.agents.set(list));
   }
 
   /** Adds a call / follow-up log to the case. */
@@ -152,6 +156,35 @@ export class CaseDetailComponent implements OnInit {
           this.unassigning.set(false);
         },
         error: () => this.unassigning.set(false),
+      });
+  }
+
+  /** Assigns (or reassigns) the case to the chosen agent via the existing
+      update path. Sends the selected agent id explicitly so the backend sets
+      the assignee; the null-preservation logic leaves every other field
+      untouched (re-verifies the earlier data-loss fix). */
+  assignTo(agentId: string | null): void {
+    const c = this.case();
+    if (!c) return;
+    // No-op when the selection matches the current assignee.
+    if ((agentId ?? null) === (c.assignedToUserId ?? null)) return;
+    this.assigning.set(true);
+    this.caseService
+      .update(c.id, {
+        subject: c.subject,
+        description: c.description,
+        status: c.status,
+        priority: c.priority,
+        categoryId: c.categoryId,
+        assignedToUserId: agentId,
+      })
+      .subscribe({
+        next: () => {
+          const name = this.agents().find((a) => a.id === agentId)?.fullName ?? null;
+          this.case.set({ ...c, assignedToUserId: agentId, assignedToUserName: name });
+          this.assigning.set(false);
+        },
+        error: () => this.assigning.set(false),
       });
   }
 

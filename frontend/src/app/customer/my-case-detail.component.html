@@ -1,0 +1,91 @@
+<div class="page">
+  <a class="back-link" (click)="back()">
+    <cs-icon name="arrow_back"></cs-icon>
+    <span>Back to my cases</span>
+  </a>
+
+  @if (loading()) {
+    <div class="center">
+      <mat-spinner diameter="32"></mat-spinner>
+    </div>
+  }
+
+  @if (error()) {
+    <div class="error-banner" role="alert">{{ error() }}</div>
+  }
+
+  @if (!loading() && detail(); as d) {
+    <header class="case-head">
+      <div class="case-head-main">
+        <h1 class="case-title">{{ d.subject }}</h1>
+        <span class="cs-pill {{ statusClass(d.status) }}">
+          <span class="cs-dot"></span>{{ d.status }}
+        </span>
+      </div>
+      <div class="case-meta">
+        <span>Opened {{ formatDate(d.createdAtUtc) }}</span>
+        @if (d.resolvedAtUtc) {
+          <span class="resolved">Resolved {{ formatDate(d.resolvedAtUtc) }}</span>
+        }
+      </div>
+    </header>
+
+    @if (d.description) {
+      <section class="panel">
+        <h2 class="panel-title">Details</h2>
+        <p class="description">{{ d.description }}</p>
+      </section>
+    }
+
+    <section class="panel">
+      <h2 class="panel-title">Conversation</h2>
+
+      @if (comments().length === 0) {
+        <p class="muted">No messages yet. Send the first one below.</p>
+      }
+
+      <ul class="thread">
+        @for (c of comments(); track c.id) {
+          <li class="msg" [class.staff]="c.isStaff" [class.customer]="!c.isStaff">
+            <div class="msg-head">
+              <span class="msg-author">
+                <cs-icon [name]="c.isStaff ? 'headset' : 'account_circle'"></cs-icon>
+                {{ c.authorDisplayName }}
+              </span>
+              <span class="msg-time">{{ formatDate(c.createdAtUtc) }}</span>
+            </div>
+            <p class="msg-body">{{ c.body }}</p>
+          </li>
+        }
+      </ul>
+
+      @if (commentError()) {
+        <div class="error-banner" role="alert">{{ commentError() }}</div>
+      }
+
+      <form [formGroup]="commentForm" (ngSubmit)="sendComment()" class="reply">
+        <textarea
+          matInput
+          class="reply-input"
+          formControlName="body"
+          rows="3"
+          placeholder="Write a reply…"
+        ></textarea>
+        <div class="reply-actions">
+          <button
+            mat-flat-button
+            color="primary"
+            type="submit"
+            [disabled]="sending()"
+          >
+            @if (sending()) {
+              <mat-spinner diameter="20"></mat-spinner>
+            } @else {
+              Send
+            }
+          </button>
+        </div>
+      </form>
+    </section>
+  }
+</div>

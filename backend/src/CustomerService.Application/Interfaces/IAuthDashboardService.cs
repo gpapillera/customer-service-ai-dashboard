@@ -15,6 +15,10 @@ public interface IAuthService
 public interface IDashboardService
 {
     /// <summary>Builds the full dashboard payload.</summary>
+    /// <param name="agentId">
+    /// When set (Agent caller), every number/chart is scoped to cases assigned
+    /// to this user id. When null (Admin caller), the view is company-wide.
+    /// </param>
     /// <returns>A <see cref="DashboardDto"/>.</returns>
-    Task<DashboardDto> GetDashboardAsync();
+    Task<DashboardDto> GetDashboardAsync(string? agentId = null);
 }

@@ -14,6 +14,7 @@ import { DashboardService } from './dashboard.service';
 import { Dashboard, RecentCase } from '../shared/models';
 import { CATEGORIES } from '../shared/categories';
 import { LayoutComponent } from '../shared/layout/layout.component';
+import { AuthService } from '../auth/auth.service';
 
 /**
  * Dashboard: 6 KPI cards, weekly trend line, priority donut, horizontal
@@ -40,6 +41,7 @@ import { LayoutComponent } from '../shared/layout/layout.component';
 })
 export class DashboardComponent implements OnInit, AfterViewInit {
   private readonly service = inject(DashboardService);
+  private readonly auth = inject(AuthService);
   /** Sidenav open state (from the app shell) — the page brand logo is shown
       only when the sidenav is collapsed. */
   readonly sidenavOpen = inject(LayoutComponent).opened;
@@ -153,10 +155,24 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     });
   }
 
-  /** 6 KPI cards derived from the dashboard payload. */
+  /** KPI cards derived from the dashboard payload. Admins see the
+   *  company-wide set; Agents see their own "My *" set (scoped to cases
+   *  assigned to them). The click-through links carry `assignedToMe=true`
+   *  so the /cases list filters to the same scope. */
   get kpis() {
     const d = this.data();
     if (!d) return [];
+    const isAgent = this.auth.getRole() === 'Agent';
+    if (isAgent) {
+      return [
+        { label: 'My Cases', value: d.myCases, icon: 'briefcase', tone: 'indigo', link: '/cases?assignedToMe=true' },
+        { label: 'My Open', value: d.myOpenCases, icon: 'clock', tone: 'blue', link: '/cases?assignedToMe=true&status=Open' },
+        { label: 'My High Priority', value: d.myHighPriorityCases, icon: 'priority_high', tone: 'red', link: '/cases?assignedToMe=true&priority=High' },
+        { label: 'My Resolved', value: d.myResolvedCases, icon: 'check_circle', tone: 'green', link: '/cases?assignedToMe=true&status=Resolved' },
+        { label: 'My AI Predicted', value: d.myAiPredictedCases, icon: 'auto_awesome', tone: 'purple', link: '/cases?assignedToMe=true&aiOnly=true' },
+        { label: 'My Overdue', value: d.myOverdueFollowUps, icon: 'schedule', tone: 'amber', link: '/cases?assignedToMe=true&overdue=true' },
+      ];
+    }
     return [
       { label: 'Total Cases', value: d.totalCases, icon: 'briefcase', tone: 'indigo', link: '/cases' },
       { label: 'Open Cases', value: d.openCases, icon: 'clock', tone: 'blue', link: '/cases?status=Open' },

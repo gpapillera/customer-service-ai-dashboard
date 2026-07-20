@@ -1,0 +1,92 @@
+.page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 8px 4px 32px;
+}
+
+.page-head {
+  margin-bottom: 18px;
+}
+
+.head-titles h1 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.subtitle {
+  margin: 4px 0 0;
+  color: var(--cs-muted, #6b7280);
+  font-size: 14px;
+}
+
+.center {
+  display: flex;
+  justify-content: center;
+  padding: 48px 0;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.agent-card {
+  border-radius: var(--cs-radius, 16px);
+}
+
+.agent-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--cs-accent-soft, #eef2ff);
+  color: var(--cs-accent, #6366f1);
+}
+
+.agent-name {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.agent-email {
+  font-size: 12px;
+  color: var(--cs-muted, #6b7280);
+  word-break: break-all;
+}
+
+.agent-meta {
+  margin: 12px 0;
+}
+
+.open-count {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--cs-border, #eceef2);
+}
+
+.count {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.count-label {
+  font-size: 13px;
+  color: var(--cs-muted, #6b7280);
+}
+
+.muted {
+  color: var(--cs-muted, #6b7280);
+}

@@ -52,6 +52,8 @@ export class LayoutComponent {
     { path: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
     { path: '/customers', label: 'Customers', icon: 'people' },
     { path: '/cases', label: 'Cases', icon: 'confirmation_number' },
+    // Agents list is admin-only (Phase 5). Hidden entirely for Agent-role users.
+    { path: '/agents', label: 'Agents', icon: 'supervisor_account', adminOnly: true },
   ];
 
   constructor() {
@@ -95,6 +97,12 @@ export class LayoutComponent {
   /** The currently signed-in user (or null). */
   get user() {
     return this.auth.currentUser();
+  }
+
+  /** Nav links visible to the current user (admin-only items filtered out for agents). */
+  get visibleNavLinks() {
+    const isAdmin = this.auth.getRole() === 'Admin';
+    return this.navLinks.filter((l) => !l.adminOnly || isAdmin);
   }
 
   /** Asks for confirmation, then logs the user out (only on confirm). */

@@ -13,7 +13,7 @@ namespace CustomerService.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/ml")]
-[Authorize]
+[Authorize(Roles = "Admin,Agent")]
 public class MlController : ControllerBase
 {
     private readonly IPriorityPredictor _predictor;

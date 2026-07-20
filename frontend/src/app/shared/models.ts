@@ -110,12 +110,65 @@ export interface Agent {
   id: string;
   fullName: string;
   role: 'Admin' | 'Agent';
+  /** Open (not Resolved/Closed) cases currently assigned to this agent. */
+  openCaseCount: number;
 }
 
 /** A single point in a dashboard trend series. */
 export interface DateCount {
   date: string;
   count: number;
+}
+
+// ---- Customer portal DTOs (Phase 3) ----
+// These deliberately mirror the backend's CustomerPortalDtos, which omit
+// priority / AI-prediction / call-log / assigned-agent fields by design.
+
+/** Customer-facing case list item. */
+export interface CustomerCaseSummary {
+  id: number;
+  subject: string;
+  status: 'New' | 'InProgress' | 'Escalated' | 'Resolved' | 'Closed';
+  createdAtUtc: string;
+}
+
+/** Customer-facing case detail. */
+export interface CustomerCaseDetail {
+  id: number;
+  subject: string;
+  description: string;
+  status: 'New' | 'InProgress' | 'Escalated' | 'Resolved' | 'Closed';
+  createdAtUtc: string;
+  resolvedAtUtc: string | null;
+  comments: CustomerCaseComment[];
+}
+
+/** A comment on the shared customer/staff thread. */
+export interface CustomerCaseComment {
+  id: number;
+  authorDisplayName: string;
+  isStaff: boolean;
+  body: string;
+  createdAtUtc: string;
+}
+
+/** Payload for a customer to create a case. */
+export interface CreateCustomerCase {
+  subject: string;
+  description: string;
+  categoryId: number;
+}
+
+/** Payload for a customer to post a comment. */
+export interface CreateCustomerComment {
+  body: string;
+}
+
+/** Response from GET /api/customer-auth/validate-invite. */
+export interface ValidateInviteResponse {
+  valid: boolean;
+  customerName: string | null;
+  customerEmailMasked: string | null;
 }
 
 /** A category/count pair for breakdown charts. */
@@ -156,6 +209,13 @@ export interface Dashboard {
   aiPredictedCases: number;
   highPriorityCases: number;
   totalCustomers: number;
+  /** Agent-scoped totals (populated only for an Agent caller). */
+  myCases: number;
+  myOpenCases: number;
+  myHighPriorityCases: number;
+  myAiPredictedCases: number;
+  myResolvedCases: number;
+  myOverdueFollowUps: number;
   byStatus: Record<string, number>;
   byPriority: Record<string, number>;
   trend: DateCount[];

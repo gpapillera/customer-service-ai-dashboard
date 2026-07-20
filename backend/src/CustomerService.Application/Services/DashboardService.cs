@@ -17,12 +17,12 @@ public class DashboardService : IDashboardService
     public DashboardService(IDashboardRepository repo) => _repo = repo;
 
     /// <inheritdoc/>
-    public async Task<DashboardDto> GetDashboardAsync()
+    public async Task<DashboardDto> GetDashboardAsync(string? agentId = null)
     {
-        var summary = await _repo.GetSummaryAsync();
-        var trend = await _repo.GetCasesCreatedTrendAsync(30);
-        var byCategory = await _repo.GetCasesByCategoryAsync();
-        var recent = await _repo.GetRecentCasesAsync(5);
+        var summary = await _repo.GetSummaryAsync(agentId);
+        var trend = await _repo.GetCasesCreatedTrendAsync(30, agentId);
+        var byCategory = await _repo.GetCasesByCategoryAsync(agentId);
+        var recent = await _repo.GetRecentCasesAsync(5, agentId);
 
         return new DashboardDto
         {
@@ -33,6 +33,12 @@ public class DashboardService : IDashboardService
             AiPredictedCases = summary.AiPredictedCases,
             HighPriorityCases = summary.HighPriorityCases,
             TotalCustomers = summary.TotalCustomers,
+            MyCases = summary.MyCases,
+            MyOpenCases = summary.MyOpenCases,
+            MyHighPriorityCases = summary.MyHighPriorityCases,
+            MyAiPredictedCases = summary.MyAiPredictedCases,
+            MyResolvedCases = summary.MyResolvedCases,
+            MyOverdueFollowUps = summary.MyOverdueFollowUps,
             ByStatus = summary.ByStatus,
             ByPriority = summary.ByPriority,
             Trend = trend.Select(t => new DateCountDto

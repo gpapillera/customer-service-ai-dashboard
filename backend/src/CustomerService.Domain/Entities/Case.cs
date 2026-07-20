@@ -88,6 +88,13 @@ public class Case
     /// <summary>UTC timestamp of the last status change.</summary>
     public DateTime? UpdatedAtUtc { get; set; }
 
+    /// <summary>
+    /// UTC timestamp when the case first reached a resolved/closed state. Null
+    /// while the case is still open. Surfaced to customers (read-only) so they
+    /// can see when their issue was resolved.
+    /// </summary>
+    public DateTime? ResolvedAtUtc { get; set; }
+
     /// <summary>UTC timestamp of the customer's last contact before this case (for ML feature).</summary>
     public DateTime? LastContactUtc { get; set; }
 
@@ -101,4 +108,7 @@ public class Case
 
     /// <summary>Navigation property: call / follow-up logs attached to this case.</summary>
     public ICollection<CallLog> CallLogs { get; set; } = new List<CallLog>();
+
+    /// <summary>Navigation property: comments on the shared customer/staff thread.</summary>
+    public ICollection<CaseComment> Comments { get; set; } = new List<CaseComment>();
 }

@@ -1,0 +1,67 @@
+<div class="page">
+  <a routerLink="/customer/cases" class="back-link">
+    <cs-icon name="arrow_back"></cs-icon>
+    <span>Back to my cases</span>
+  </a>
+
+  <mat-card class="form-card" appearance="outlined">
+    <mat-card-content>
+      <h1 class="title">Open a new case</h1>
+      <p class="subtitle">Tell us what's going on and we'll get back to you.</p>
+
+      <form [formGroup]="form" (ngSubmit)="submit()" class="case-form">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Subject</mat-label>
+          <input matInput formControlName="subject" maxlength="300" />
+          @if (form.controls.subject.hasError('required') && form.controls.subject.touched) {
+            <mat-error>Subject is required</mat-error>
+          }
+          @if (form.controls.subject.hasError('maxlength') && form.controls.subject.touched) {
+            <mat-error>Keep it under 300 characters</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Category</mat-label>
+          <mat-select formControlName="categoryId">
+            @for (c of categories; track c.id) {
+              <mat-option [value]="c.id">{{ c.name }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Description</mat-label>
+          <textarea
+            matInput
+            formControlName="description"
+            rows="5"
+            placeholder="Add any details that will help us help you."
+          ></textarea>
+        </mat-form-field>
+
+        @if (error()) {
+          <div class="error-banner" role="alert">{{ error() }}</div>
+        }
+
+        <div class="actions">
+          <button mat-stroked-button routerLink="/customer/cases" type="button">
+            Cancel
+          </button>
+          <button
+            mat-flat-button
+            color="primary"
+            type="submit"
+            [disabled]="saving()"
+          >
+            @if (saving()) {
+              <mat-spinner diameter="20"></mat-spinner>
+            } @else {
+              Submit case
+            }
+          </button>
+        </div>
+      </form>
+    </mat-card-content>
+  </mat-card>
+</div>

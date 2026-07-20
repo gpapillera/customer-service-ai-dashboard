@@ -12,7 +12,7 @@ namespace CustomerService.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Roles = "Admin,Agent")]
 public class NotificationsController : ControllerBase
 {
     private readonly INotificationService _service;

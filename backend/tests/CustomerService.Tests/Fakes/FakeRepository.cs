@@ -22,21 +22,35 @@ public class FakeRepository<T> : IRepository<T> where T : class
     /// <summary>All stored entities (untracked, async-capable).</summary>
     public IQueryable<T> Query() => new AsyncEnumerableAdapter<T>(_items.AsQueryable());
 
-    /// <summary>Finds an entity by its int Id.</summary>
+    /// <summary>Finds an entity by its Id (int or string primary key).</summary>
     public Task<T?> GetByIdAsync(object id)
     {
-        var target = (int)id;
-        var found = _items.FirstOrDefault(x => (int)x!.GetType().GetProperty("Id")!.GetValue(x)! == target);
+        var idProp = typeof(T).GetProperty("Id")!;
+        var found = _items.FirstOrDefault(x =>
+        {
+            var value = idProp.GetValue(x)!;
+            return id switch
+            {
+                int i => value is int vi && vi == i,
+                string s => value is string vs && vs == s,
+                _ => Equals(value, id),
+            };
+        });
         return Task.FromResult(found);
     }
 
-    /// <summary>Adds an entity, assigning the next int Id.</summary>
+    /// <summary>Adds an entity, assigning the next int Id unless one is already set.</summary>
     public Task AddAsync(T entity)
     {
         var idProp = typeof(T).GetProperty("Id");
         if (idProp is not null && idProp.PropertyType == typeof(int))
         {
-            idProp.SetValue(entity, _nextId++);
+            // Preserve an explicitly-set (non-zero) id so tests can control keys;
+            // otherwise assign the next auto-incrementing id.
+            if ((int)idProp.GetValue(entity)! == 0)
+            {
+                idProp.SetValue(entity, _nextId++);
+            }
         }
         _items.Add(entity);
         return Task.CompletedTask;

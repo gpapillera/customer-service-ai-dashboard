@@ -41,6 +41,9 @@ public enum NotificationType
 
     /// <summary>Case resolved/closed confirmation (customer-facing).</summary>
     CaseResolved = 1,
+
+    /// <summary>Customer portal invite (customer-facing).</summary>
+    CustomerInvite = 2,
 }
 
 /// <summary>

@@ -76,6 +76,7 @@ export class CaseListComponent implements OnInit {
     search: '' as string,
     aiOnly: false,
     overdue: false,
+    assignedToMe: false,
   });
 
   /** True when the "Open" pseudo-filter (everything except Closed) is active. */
@@ -115,6 +116,7 @@ export class CaseListComponent implements OnInit {
     const categoryId = qp.get('categoryId');
     const aiOnly = qp.get('aiOnly') === 'true';
     const overdue = qp.get('overdue') === 'true';
+    const assignedToMe = qp.get('assignedToMe') === 'true';
     if (status) {
       // "Open" is a pseudo-status (everything except Closed) handled client-side.
       if (status === 'Open') {
@@ -135,6 +137,7 @@ export class CaseListComponent implements OnInit {
     }
     if (aiOnly) this.filters.update((f) => ({ ...f, aiOnly: true }));
     if (overdue) this.filters.update((f) => ({ ...f, overdue: true }));
+    if (assignedToMe) this.filters.update((f) => ({ ...f, assignedToMe: true }));
 
     this.load();
 
@@ -173,6 +176,7 @@ export class CaseListComponent implements OnInit {
         priority: f.priority || undefined,
         categoryId: f.categoryId ?? undefined,
         overdue: f.overdue || undefined,
+        assignedToMe: f.assignedToMe || undefined,
       })
       .subscribe({
         next: (list) => {

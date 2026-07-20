@@ -13,8 +13,9 @@ public interface ICaseService
     /// <param name="from">Optional created-from date (UTC).</param>
     /// <param name="to">Optional created-to date (UTC).</param>
     /// <param name="overdue">When true, only open cases with a past follow-up deadline and no follow-up since.</param>
+    /// <param name="assignedToUserId">When set, only cases assigned to this user id (resolved from the JWT by the controller).</param>
     /// <returns>Matching cases.</returns>
-    Task<IReadOnlyList<CaseDto>> GetAllAsync(CaseStatus? status, Priority? priority, int? categoryId, DateTime? from, DateTime? to, bool overdue = false);
+    Task<IReadOnlyList<CaseDto>> GetAllAsync(CaseStatus? status, Priority? priority, int? categoryId, DateTime? from, DateTime? to, bool overdue = false, string? assignedToUserId = null);
 
     /// <summary>Returns a single case by id.</summary>
     /// <param name="id">Case id.</param>
