@@ -26,7 +26,8 @@ public class CaseServiceTests
         customers = new FakeRepository<Customer>();
         categories = new FakeRepository<Category>();
         predictor ??= new RuleBasedPriorityPredictor();
-        return new CaseService(cases, customers, categories, predictor);
+        INotificationService notifications = new FakeNotificationService();
+        return new CaseService(cases, customers, categories, predictor, notifications);
     }
 
     private static Customer SeedCustomer(FakeRepository<Customer> repo, int id = 1)
@@ -184,5 +185,16 @@ public class CaseServiceTests
     {
         var svc = BuildService(out var cases, out var customers, out var categories);
         await Assert.ThrowsAsync<KeyNotFoundException>(() => svc.DeleteAsync(123));
+    }
+
+    /// <summary>No-op notification service for CaseService tests.</summary>
+    private class FakeNotificationService : INotificationService
+    {
+        public Task<int> GenerateOverdueAsync() => Task.FromResult(0);
+        public Task<int> NotifyResolvedAsync(Case caseEntity) => Task.FromResult(0);
+        public Task<IReadOnlyList<NotificationDto>> GetAllAsync() => Task.FromResult<IReadOnlyList<NotificationDto>>(Array.Empty<NotificationDto>());
+        public Task<NotificationSummaryDto> GetSummaryAsync() => Task.FromResult(new NotificationSummaryDto());
+        public Task<bool> MarkReadAsync(int id) => Task.FromResult(false);
+        public Task<int> MarkAllReadAsync() => Task.FromResult(0);
     }
 }

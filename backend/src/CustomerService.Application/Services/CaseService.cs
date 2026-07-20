@@ -19,22 +19,26 @@ public class CaseService : ICaseService
     private readonly IRepository<Customer> _customers;
     private readonly IRepository<Category> _categories;
     private readonly IPriorityPredictor _predictor;
+    private readonly INotificationService _notifications;
 
     /// <summary>Initializes a new <see cref="CaseService"/>.</summary>
     /// <param name="cases">Case repository.</param>
     /// <param name="customers">Customer repository.</param>
     /// <param name="categories">Category repository.</param>
     /// <param name="predictor">Priority predictor (ML or rule-based fallback).</param>
+    /// <param name="notifications">Notification service (resolved/customer email).</param>
     public CaseService(
         IRepository<Case> cases,
         IRepository<Customer> customers,
         IRepository<Category> categories,
-        IPriorityPredictor predictor)
+        IPriorityPredictor predictor,
+        INotificationService notifications)
     {
         _cases = cases;
         _customers = customers;
         _categories = categories;
         _predictor = predictor;
+        _notifications = notifications;
     }
 
     /// <inheritdoc/>
@@ -135,16 +139,60 @@ public class CaseService : ICaseService
     {
         var caseEntity = await _cases.GetByIdAsync(id)
             ?? throw new KeyNotFoundException($"Case {id} not found.");
+
+        // Capture the prior status so we can detect a transition into a
+        // resolved/closed state (the trigger for the customer email).
+        var priorStatus = caseEntity.Status;
+
         caseEntity.Subject = dto.Subject;
         caseEntity.Description = dto.Description;
         caseEntity.Status = dto.Status;
         caseEntity.Priority = dto.Priority;
         caseEntity.CategoryId = dto.CategoryId;
-        caseEntity.AssignedToUserId = dto.AssignedToUserId;
+
+        // DATA-LOSS FIX: the update DTO sends AssignedToUserId == null
+        // unconditionally from both UI entry points (the "Update Status"
+        // quick-select and the Edit modal). The DTO type is a plain nullable
+        // string, so it cannot tell "field omitted" apart from "explicitly
+        // unassign". There is currently no UI to unassign a case, so we
+        // PRESERVE the existing assignee when the DTO value is null rather
+        // than wiping it. (If an explicit unassign action is added later,
+        // the DTO will need a sentinel/distinct flag to express it.)
+        if (dto.AssignedToUserId is not null)
+        {
+            caseEntity.AssignedToUserId = dto.AssignedToUserId;
+        }
+
         caseEntity.PriorityAutoSuggested = false; // manual override
         caseEntity.UpdatedAtUtc = DateTime.UtcNow;
         _cases.Update(caseEntity);
         await _cases.SaveChangesAsync();
+
+        // EVENT-BASED trigger: when a case transitions INTO Resolved/Closed,
+        // notify the customer by email (Email channel only, when enabled).
+        // Wrapped so a delivery failure never rolls back the status update
+        // that already succeeded above.
+        if (priorStatus != dto.Status
+            && (dto.Status == CaseStatus.Resolved || dto.Status == CaseStatus.Closed))
+        {
+            try
+            {
+                // Re-load with customer so the email can resolve the recipient.
+                var withCustomer = await _cases.Query()
+                    .Include(c => c.Customer)
+                    .FirstOrDefaultAsync(c => c.Id == id);
+                if (withCustomer is not null)
+                {
+                    await _notifications.NotifyResolvedAsync(withCustomer);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Swallow: the status change already committed. Log and move on.
+                // (No ILogger injected here; the sender logs its own failures.)
+                _ = ex;
+            }
+        }
     }
 
     /// <inheritdoc/>

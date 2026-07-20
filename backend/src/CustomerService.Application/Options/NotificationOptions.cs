@@ -21,4 +21,10 @@ public class NotificationOptions
     /// senders append outbox lines. Defaults to "notifications".
     /// </summary>
     public string OutboxPath { get; set; } = "notifications";
+
+    /// <summary>
+    /// How often (in minutes) the background overdue-email worker scans for
+    /// overdue cases. Configurable so it is never hardcoded. Defaults to 30.
+    /// </summary>
+    public double OverdueCheckIntervalMinutes { get; set; } = 30;
 }

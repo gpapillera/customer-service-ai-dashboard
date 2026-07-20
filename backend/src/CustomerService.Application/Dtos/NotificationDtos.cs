@@ -20,6 +20,9 @@ public class NotificationDto
     /// <summary>Read/unread state.</summary>
     public NotificationStatus Status { get; set; }
 
+    /// <summary>Why the notification was generated (overdue, resolved, etc.).</summary>
+    public NotificationType Type { get; set; }
+
     /// <summary>UTC creation timestamp.</summary>
     public DateTime CreatedAtUtc { get; set; }
 
@@ -42,6 +45,7 @@ public class NotificationDto
         Message = n.Message,
         Channel = n.Channel,
         Status = n.Status,
+        Type = n.Type,
         CreatedAtUtc = n.CreatedAtUtc,
         Link = n.Link,
         CaseId = n.CaseId,

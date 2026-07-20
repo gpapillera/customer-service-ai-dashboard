@@ -21,7 +21,8 @@ public class NotificationServiceTests
         var notes = new FakeRepository<Notification>();
         var sender = new FakeSender(notes);
         var options = new NotificationOptions { Channels = channels ?? new() { NotificationChannel.InApp } };
-        var svc = new NotificationService(cases, notes, sender, options);
+        var logger = Microsoft.Extensions.Logging.Abstractions.NullLogger<NotificationService>.Instance;
+        var svc = new NotificationService(cases, notes, sender, options, logger);
         return (svc, cases, notes, sender);
     }
 
@@ -129,6 +130,8 @@ public class NotificationServiceTests
     {
         var (svc, cases, _, sender) = Build(new() { NotificationChannel.InApp, NotificationChannel.Email, NotificationChannel.Sms });
         var c = OverdueCase(2, "Package not delivered", "Maria Clara", 2);
+        // Overdue emails go to the ASSIGNED AGENT, not the customer.
+        c.AssignedToUser = new User { Id = "agent-001", Email = "agent@example.com" };
         c.Customer!.Email = "maria@example.com";
         c.Customer!.Phone = "+15551234567";
         cases.AddAsync(c).Wait();
@@ -138,7 +141,7 @@ public class NotificationServiceTests
         Assert.Equal(3, created);
         Assert.Equal(3, sender.Sent.Count);
         Assert.Contains(sender.Sent, n => n.Channel == NotificationChannel.InApp && n.Recipient == null);
-        Assert.Contains(sender.Sent, n => n.Channel == NotificationChannel.Email && n.Recipient == "maria@example.com");
+        Assert.Contains(sender.Sent, n => n.Channel == NotificationChannel.Email && n.Recipient == "agent@example.com");
         Assert.Contains(sender.Sent, n => n.Channel == NotificationChannel.Sms && n.Recipient == "+15551234567");
     }
 
@@ -146,12 +149,114 @@ public class NotificationServiceTests
     public async Task GenerateOverdueAsync_IsIdempotent_PerChannel()
     {
         var (svc, cases, _, _) = Build(new() { NotificationChannel.InApp, NotificationChannel.Email });
-        cases.AddAsync(OverdueCase(2, "Package not delivered", "Maria Clara", 2)).Wait();
+        var c = OverdueCase(2, "Package not delivered", "Maria Clara", 2);
+        c.AssignedToUser = new User { Id = "agent-001", Email = "agent@example.com" };
+        cases.AddAsync(c).Wait();
 
         var first = await svc.GenerateOverdueAsync();
         var second = await svc.GenerateOverdueAsync();
 
         Assert.Equal(2, first);
         Assert.Equal(0, second); // already notified on both channels → no new notifications
+    }
+
+    [Fact]
+    public async Task GenerateOverdueAsync_SkipsUnassignedCase_NoRecipient()
+    {
+        var (svc, cases, _, sender) = Build(new() { NotificationChannel.Email });
+        var c = OverdueCase(2, "Package not delivered", "Maria Clara", 2);
+        c.AssignedToUser = null; // unassigned → no agent email
+        cases.AddAsync(c).Wait();
+
+        var created = await svc.GenerateOverdueAsync();
+
+        Assert.Equal(0, created);
+        Assert.Empty(sender.Sent);
+    }
+
+    [Fact]
+    public async Task NotifyResolvedAsync_SendsToCustomer_AndIsIdempotent()
+    {
+        var (svc, cases, notes, sender) = Build(new() { NotificationChannel.Email });
+        var c = new Case
+        {
+            Id = 5,
+            Subject = "Done",
+            Status = CaseStatus.Resolved,
+            Customer = new Customer { Id = 1, Name = "Ana", Email = "ana@example.com" },
+        };
+
+        var first = await svc.NotifyResolvedAsync(c);
+        var second = await svc.NotifyResolvedAsync(c);
+
+        Assert.Equal(1, first);
+        Assert.Equal(0, second); // same (CaseId, Email, CaseResolved) → not re-sent
+        var sent = Assert.Single(sender.Sent);
+        Assert.Equal(NotificationChannel.Email, sent.Channel);
+        Assert.Equal(NotificationType.CaseResolved, sent.Type);
+        Assert.Equal("ana@example.com", sent.Recipient);
+    }
+
+    [Fact]
+    public async Task NotifyResolvedAsync_SkipsWhenCustomerHasNoEmail()
+    {
+        var (svc, cases, _, sender) = Build(new() { NotificationChannel.Email });
+        var c = new Case
+        {
+            Id = 5,
+            Subject = "Done",
+            Status = CaseStatus.Closed,
+            Customer = new Customer { Id = 1, Name = "Ana", Email = string.Empty },
+        };
+
+        var created = await svc.NotifyResolvedAsync(c);
+
+        Assert.Equal(0, created);
+        Assert.Empty(sender.Sent);
+    }
+
+    [Fact]
+    public async Task OverdueAndResolved_Coexist_OnSameCaseSameChannel()
+    {
+        // Regression: the de-dup key must be (CaseId, Channel, Type), not just
+        // (CaseId, Channel) — otherwise the resolved-customer email would be
+        // blocked by the overdue-agent email for the same case.
+        var (svc, cases, _, sender) = Build(new() { NotificationChannel.Email });
+        var overdue = OverdueCase(2, "Package not delivered", "Maria Clara", 2);
+        overdue.AssignedToUser = new User { Id = "agent-001", Email = "agent@example.com" };
+        cases.AddAsync(overdue).Wait();
+
+        var overdueCreated = await svc.GenerateOverdueAsync();
+        var resolvedCreated = await svc.NotifyResolvedAsync(new Case
+        {
+            Id = 2,
+            Subject = "Package not delivered",
+            Status = CaseStatus.Resolved,
+            Customer = new Customer { Id = 1, Name = "Maria Clara", Email = "maria@example.com" },
+        });
+
+        Assert.Equal(1, overdueCreated);
+        Assert.Equal(1, resolvedCreated);
+        Assert.Contains(sender.Sent, n => n.Type == NotificationType.CaseOverdue && n.Recipient == "agent@example.com");
+        Assert.Contains(sender.Sent, n => n.Type == NotificationType.CaseResolved && n.Recipient == "maria@example.com");
+    }
+
+    [Fact]
+    public async Task GenerateOverdueAsync_SmsGoesToCustomerPhone_NotAgentEmail()
+    {
+        // SMS audience is unchanged (customer phone), even though Email goes to
+        // the agent. Regression guard for the recipient-resolution switch.
+        var (svc, cases, _, sender) = Build(new() { NotificationChannel.Sms });
+        var c = OverdueCase(2, "Package not delivered", "Maria Clara", 2);
+        c.AssignedToUser = new User { Id = "agent-001", Email = "agent@example.com" };
+        c.Customer!.Phone = "+15551234567";
+        cases.AddAsync(c).Wait();
+
+        var created = await svc.GenerateOverdueAsync();
+
+        Assert.Equal(1, created);
+        var sent = Assert.Single(sender.Sent);
+        Assert.Equal(NotificationChannel.Sms, sent.Channel);
+        Assert.Equal("+15551234567", sent.Recipient);
     }
 }

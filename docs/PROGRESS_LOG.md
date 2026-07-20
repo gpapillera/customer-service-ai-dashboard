@@ -2,6 +2,32 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 22] Fix: Email notification business rules (recipient, dedup, background job, resolved trigger, assignee data-loss) — 2026-07-20
+**Status:** Complete (backend build OK; `dotnet test` 31/31 passing; live-verified on SQLite)
+**Context:** Clarify + correct the email rules against the ACTUAL code (not assumptions). Read `EmailNotificationSender`, its trigger, and the `Notification` de-dup before changing anything. Findings: (a) de-dup key was `(CaseId, Channel)` — too broad, would block a resolved-customer email when an overdue-agent email for the same case existed; (b) overdue Email was sent to the **customer** (wrong audience — it's agent-facing); (c) no time-based trigger for overdue (only the on-demand `GET /api/notifications`); (d) no event trigger when a case is Resolved/Closed; (e) `CaseService.UpdateAsync` wiped `AssignedToUserId` whenever the DTO sent `null` (the frontend always sends `null` for that field).
+**Business rules now enforced:**
+- **Overdue (CaseOverdue):** agent-facing. InApp → any agent; **Email → assigned agent**; SMS → customer phone (unchanged). Unassigned overdue → skipped + logged (never guessed).
+- **Resolved/Closed (CaseResolved):** customer-facing. **Email → customer**; in-app has no customer audience so no in-app row. Customer with no email → skipped + logged.
+- **De-dup key:** now `(CaseId, Channel, Type)` so overdue-agent and resolved-customer emails for the same case coexist; re-runs never re-send.
+- **Triggers:** overdue via background `OverdueEmailHostedService` (interval = `Notifications:OverdueCheckIntervalMinutes`, default 30); resolved/closed via `CaseService.UpdateAsync` → `NotifyResolvedAsync` (failure never rolls back the status change).
+- **Data-loss fix:** `UpdateAsync` preserves the existing `AssignedToUserId` when the DTO is `null` (DTO is a plain nullable string, can't distinguish "omitted" from "explicitly unassign"; no UI unassigns today).
+**Changes:**
+- `backend/src/CustomerService.Domain/Entities/Notification.cs` — added `NotificationType` enum (`CaseOverdue=0`, `CaseResolved=1`) + `Type` property.
+- `backend/src/CustomerService.Application/Dtos/NotificationDtos.cs` — `NotificationDto.Type` mapped.
+- `backend/src/CustomerService.Application/Services/NotificationService.cs` — `GenerateOverdueAsync` uses 3-part de-dup + per-(Type,Channel) recipient resolution + pre-skips null recipients (logs warning); added `NotifyResolvedAsync` (customer Email, idempotent, pre-skips no-email); added `ILogger`.
+- `backend/src/CustomerService.Application/Interfaces/INotificationService.cs` — added `NotifyResolvedAsync(Case)`.
+- `backend/src/CustomerService.Application/Services/EmailNotificationSender.cs` — logs + writes `SKIPPED` line when recipient empty (no row persisted).
+- `backend/src/CustomerService.Application/Services/CaseService.cs` — `UpdateAsync` preserves assignee on `null` DTO; triggers `NotifyResolvedAsync` on Resolved/Closed transition (try/catch so status update is never blocked).
+- `backend/src/CustomerService.Application/Services/OverdueEmailHostedService.cs` (new) — `IHostedService` background worker; configurable interval; idempotent; swallows per-run errors.
+- `backend/src/CustomerService.Application/Options/NotificationOptions.cs` — added `OverdueCheckIntervalMinutes` (default 30).
+- `backend/src/CustomerService.Api/Program.cs` — registers hosted service; adds idempotent `EnsureNotificationTypeColumn` (adds `Notifications.Type` to existing SQLite/SqlServer DBs since the project uses `EnsureCreated()`, no migrations).
+- `backend/src/CustomerService.Api/appsettings.json` + `appsettings.Development.json` — `Channels: [InApp, Email]` + `OverdueCheckIntervalMinutes: 30`.
+- `backend/src/CustomerService.Application/CustomerService.Application.csproj` — added `Microsoft.Extensions.Hosting.Abstractions` + `Microsoft.Extensions.DependencyInjection` (for `IHostedService`/`IServiceScopeFactory`).
+- `backend/tests/CustomerService.Tests/NotificationServiceTests.cs` — updated recipient assertions (overdue Email → agent; SMS → customer phone); added resolved-email + skip + 3-part-dedup + SMS-recipient tests.
+- `backend/tests/CustomerService.Tests/CaseServiceTests.cs` — `BuildService` passes a `FakeNotificationService`.
+**Live verification (SQLite, Email enabled):** overdue worker sent 8 agent emails (no customers); resolving case #3 emailed the customer (`pedro@xyz.io`) not the agent; re-resolving → no 2nd email; re-running overdue → no 2nd agent email; unassigned overdue case #14 → skipped + logged, no crash; `assignedToUserId:null` preserved `agent-001`.
+**Interpretation flagged:** `UpdateAsync` DTO `AssignedToUserId` is a plain nullable string — it cannot tell "omitted" from "explicitly unassign". Since no UI unassigns, we preserve the existing assignee on `null`. If an explicit unassign action is added later, the DTO needs a sentinel/distinct flag.
+
 ## [Phase 21] Feature: Email/SMS sending for overdue follow-ups (via INotificationSender seam) — 2026-07-20
 **Status:** Complete (backend build OK; `dotnet test` 26/26 passing — 24 original + 2 new; README roadmap checkbox ticked)
 **Context:** README roadmap item — outbound Email/SMS delivery for overdue follow-ups. Detection + dashboard surfacing + in-app records were already done; only outbound sending was missing. The `INotificationSender` seam existed but only `InAppNotificationSender` was registered, and `NotificationService` hardcoded `Channel = InApp`. Implemented without touching the rest of the system: a composite router + demo Email/SMS senders that log and write an outbox file (no external SMTP/SMS dependency, fully offline/verifiable). Enabling a channel is a config change; adding a new channel is a new sender class.

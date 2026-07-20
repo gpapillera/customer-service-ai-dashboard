@@ -1,3 +1,4 @@
+using System.Data;
 using System.IO;
 using System.Text;
 using CustomerService.Application.Interfaces;
@@ -74,16 +75,24 @@ public class Program
         builder.Services.AddScoped<IAuthService, AuthService>();
         builder.Services.AddScoped<IDashboardService, DashboardService>();
 
-        builder.Services.AddScoped<INotificationSender, InAppNotificationSender>();
-        builder.Services.AddScoped<INotificationSender, EmailNotificationSender>();
-        builder.Services.AddScoped<INotificationSender, SmsNotificationSender>();
+        builder.Services.AddScoped<InAppNotificationSender>();
+        builder.Services.AddScoped<EmailNotificationSender>();
+        builder.Services.AddScoped<SmsNotificationSender>();
+        builder.Services.AddScoped<INotificationSender>(sp => sp.GetRequiredService<CompositeNotificationSender>());
         // CompositeNotificationSender routes each notification to the sender
-        // that handles its channel (via [HandlesChannel]); the app consumes
-        // only this single INotificationSender. See docs/DIY.md §7.
-        builder.Services.AddScoped<INotificationSender, CompositeNotificationSender>();
+        // that handles its channel; the app consumes only this single
+        // INotificationSender. See docs/DIY.md §7.
+        builder.Services.AddScoped<CompositeNotificationSender>();
         builder.Services.Configure<CustomerService.Application.Options.NotificationOptions>(
             builder.Configuration.GetSection("Notifications"));
+        // Register the resolved options as a concrete service so the Email/SMS
+        // senders can take NotificationOptions directly (not just IOptions<>).
+        builder.Services.AddScoped(sp =>
+            sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<CustomerService.Application.Options.NotificationOptions>>().Value);
         builder.Services.AddScoped<INotificationService, NotificationService>();
+        // Background worker: periodically scans for overdue cases and triggers the
+        // agent-facing overdue email. Interval is configurable (Notifications:OverdueCheckIntervalMinutes).
+        builder.Services.AddHostedService<OverdueEmailHostedService>();
 
         builder.Services.AddSingleton<IPriorityPredictor>(serviceProvider =>
         {
@@ -174,7 +183,57 @@ public class Program
         using var scope = app.Services.CreateScope();
         var ctx = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         ctx.Database.EnsureCreated();
+        // EnsureCreated() does not alter existing tables, so when a new column
+        // is added to a model that already has a database (e.g. Notification.Type),
+        // we add it explicitly here. Idempotent + provider-aware. Swap for EF
+        // migrations in production.
+        EnsureNotificationTypeColumn(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
         SeedDataInitializer.Initialize(ctx);
+    }
+
+    /// <summary>
+    /// Adds the <c>Notifications.Type</c> column if it is missing. Needed because
+    /// the project uses <c>EnsureCreated()</c> (no migrations), which will not
+    /// alter an existing table when the model gains a column.
+    /// </summary>
+    private static async Task EnsureNotificationTypeColumn(AppDbContext ctx, string? provider)
+    {
+        const string table = "Notifications";
+        const string column = "Type";
+        try
+        {
+            if (provider != null && provider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase))
+            {
+                var conn = ctx.Database.GetDbConnection();
+                if (conn.State != System.Data.ConnectionState.Open)
+                {
+                    await conn.OpenAsync();
+                }
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = $"SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name='{column}';";
+                var count = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+                if (count == 0)
+                {
+                    using var alter = conn.CreateCommand();
+                    alter.CommandText = $"ALTER TABLE {table} ADD COLUMN {column} INTEGER NOT NULL DEFAULT 0;";
+                    await alter.ExecuteNonQueryAsync();
+                }
+            }
+            else
+            {
+                var exists = ctx.Database.ExecuteSqlRaw(
+                    $"IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='{table}' AND COLUMN_NAME='{column}') " +
+                    $"ALTER TABLE {table} ADD [{column}] int NOT NULL DEFAULT 0;");
+                // ExecuteSqlRaw returns -1 for DDL; the IF guards re-runs.
+                _ = exists;
+            }
+        }
+        catch (Exception ex)
+        {
+            // Non-fatal: if the column already exists or the provider differs,
+            // the app should still start. Log and continue.
+            Console.WriteLine($"WARN: could not ensure {table}.{column} column: {ex.Message}");
+        }
     }
 
     /// <summary>
