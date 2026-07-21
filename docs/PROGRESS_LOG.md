@@ -2,6 +2,53 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 10 — Staff Account Panel + Password Reset] (2026-07-21)
+**Status:** ✅ COMPLETE (backend `dotnet build` → 0 errors, `dotnet test` → 64 passed; frontend `ng build` → 1.22 MB success; browser verified end-to-end)
+**What changed:**
+1. ✅ **Staff profile read/update:** `GET /api/users/me` returns `StaffProfileDto` (FullName, Email, UserName, Role); `PUT /api/users/me` accepts `UpdateStaffProfileDto` (name only, email read-only). Both require JWT auth with Admin/Agent role.
+2. ✅ **Password reset request:** `POST /api/users/me/request-password-reset` generates a 48-hour GUID token, persists it on the User entity, creates a `StaffPasswordReset` notification, and sends an email via `INotificationSender`. Frontend button in account panel shows "Email sent" (disabled) on success.
+3. ✅ **Password reset execution:** `POST /api/auth/reset-password` (anonymous) validates token (exists, not expired, not used), BCrypt-hashes the new password, invalidates the token. Returns 200 on success, 400 with error message on failure.
+4. ✅ **DB schema extension:** `EnsureUserResetTokenColumns()` idempotent helper adds `ResetToken` (nvarchar 128), `ResetTokenExpiresAt` (datetime2), `ResetTokenUsed` (bit default 0) to Users table for both SQLite and SQL Server. Called from `SeedDatabase()` on startup.
+5. ✅ **StaffAccountPanelComponent (frontend):** Right-anchored slide-in panel (mirrors customer AccountPanelComponent). Opens from "Account" button in sidenav. Shows Name, Email (read-only), Username, Role. Edit mode for name. Change password triggers reset email.
+6. ✅ **ResetPasswordComponent (frontend):** Public route at `/reset-password?token=...`. Reads token from query params, shows password+confirm form, POSTs to `/api/auth/reset-password`. Success state shows "You're all set" with "Continue to sign in" link. Missing token shows "Invalid link" error with "Back to sign in" link.
+7. ✅ **Layout integration:** Staff layout sidebar now has "Account" button (account_circle icon) above "Sign Out". `<app-staff-account-panel>` rendered at root level.
+8. ✅ **Email content:** `EmailNotificationSender` handles `StaffPasswordReset` type with subject "Password Reset — Staff Account" and body including reset link + safety note.
+9. ✅ **Auth DTOs:** `StaffProfileDto`, `UpdateStaffProfileDto`, `ResetPasswordRequest` added to `AuthDtos.cs`. `IAuthService` extended with 4 new methods.
+
+**Browser verification (all passed):**
+- ✅ Account panel opens, loads profile (Ada Admin / admin@demo.com / admin / Admin)
+- ✅ Edit mode: name field editable, email read-only, Save/Cancel work
+- ✅ Change password: email sent, button disables with "Email sent" confirmation
+- ✅ Reset page renders with correct branding ("ServiceAI / Staff Portal")
+- ✅ Successful password reset → "You're all set" success state
+- ✅ Login with new password (admin / NewPass123!) → redirected to dashboard
+- ✅ Reused token → clear error "This reset link is invalid, expired, or has already been used."
+- ✅ Missing token → "Invalid link" + "This reset link is missing its token." + "Back to sign in"
+
+**Files changed (backend):**
+- `Domain/Entities/User.cs` — added ResetToken, ResetTokenExpiresAt, ResetTokenUsed nullable fields
+- `Domain/Entities/Notification.cs` — added StaffPasswordReset = 5 to NotificationType enum
+- `Application/Dtos/AuthDtos.cs` — added StaffProfileDto, UpdateStaffProfileDto, ResetPasswordRequest
+- `Application/Interfaces/IAuthDashboardService.cs` — IAuthService extended with 4 new methods
+- `Application/Services/AuthService.cs` — GetProfileAsync, UpdateProfileAsync, RequestPasswordResetAsync, ResetPasswordAsync implementations
+- `Application/Services/EmailNotificationSender.cs` — StaffPasswordReset content in BuildContent
+- `Api/Controllers/UsersController.cs` — GET/PUT /api/users/me, POST /api/users/me/request-password-reset
+- `Api/Controllers/AuthController.cs` — POST /api/auth/reset-password (anonymous)
+- `Api/Program.cs` — EnsureUserResetTokenColumns() helper + call from SeedDatabase()
+
+**Files changed (frontend):**
+- `shared/models.ts` — added StaffProfile, UpdateStaffProfile interfaces
+- `auth/auth.service.ts` — added getProfile, updateProfile, requestPasswordReset methods
+- `shared/staff-account-panel.component.ts` — new component (signals-based, AuthService)
+- `shared/staff-account-panel.component.html` — slide-in panel template
+- `shared/staff-account-panel.component.scss` — panel styles (scrim, slide animation)
+- `auth/reset-password.component.ts` — new public component (HttpClient, ActivatedRoute)
+- `auth/reset-password.component.html` — reset form with success/error states
+- `auth/reset-password.component.scss` — centered card layout matching customer invite style
+- `shared/layout/layout.component.ts` — added StaffAccountPanelComponent import + viewChild + openAccount()
+- `shared/layout/layout.component.html` — Account button in sidenav + `<app-staff-account-panel>` element
+- `app.routes.ts` — added `/reset-password` public route
+
 ## [Phase 9 — Gap Fixes] Real-Time Polling, Chat Layout & Smooth Scroll (2026-07-21)
 **Status:** ✅ COMPLETE (frontend `ng build` → success; verified via browser at `:4200`)
 **What changed:**

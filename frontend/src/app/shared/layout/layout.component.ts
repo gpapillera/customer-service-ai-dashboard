@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { MatSidenavModule } from '@angular/material/sidenav';
@@ -10,6 +10,7 @@ import { CsIconComponent } from '../cs-icon.component';
 import { AuthService } from '../../auth/auth.service';
 import { ConfirmDialogComponent } from '../confirm-dialog.component';
 import { NotificationBellComponent } from '../notification-bell.component';
+import { StaffAccountPanelComponent } from '../staff-account-panel.component';
 
 /**
  * Application shell: a white sidenav with navigation (active = light indigo
@@ -29,6 +30,7 @@ import { NotificationBellComponent } from '../notification-bell.component';
     MatIconModule,
     CsIconComponent,
     NotificationBellComponent,
+    StaffAccountPanelComponent,
   ],
   templateUrl: './layout.component.html',
   styleUrl: './layout.component.scss',
@@ -38,6 +40,7 @@ export class LayoutComponent {
   private readonly router = inject(Router);
   private readonly dialog = inject(MatDialog);
   private readonly breakpointObserver = inject(BreakpointObserver);
+  private readonly accountPanel = viewChild(StaffAccountPanelComponent);
 
   /** True on narrow viewports (<768px); the sidenav switches to overlay mode. */
   readonly isHandset = signal(false);
@@ -111,6 +114,11 @@ export class LayoutComponent {
     return this.navLinks.filter(
       (l) => (!l.adminOnly || isAdmin) && (!l.agentOnly || isAgent),
     );
+  }
+
+  /** Opens the staff account panel. */
+  openAccount(): void {
+    this.accountPanel()?.show();
   }
 
   /** Asks for confirmation, then logs the user out (only on confirm). */

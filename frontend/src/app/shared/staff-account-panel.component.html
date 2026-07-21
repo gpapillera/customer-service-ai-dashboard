@@ -1,0 +1,97 @@
+@if (open()) {
+  <div class="ap-scrim" (click)="hide()"></div>
+
+  <aside class="ap-panel cs-lift" role="dialog" aria-label="Account settings">
+    <header class="ap-head">
+      <div class="ap-title">
+        <cs-icon name="account_circle"></cs-icon>
+        <span>My Account</span>
+      </div>
+      <button type="button" class="ap-close" (click)="hide()" aria-label="Close">
+        <cs-icon name="x"></cs-icon>
+      </button>
+    </header>
+
+    @if (error(); as err) {
+      <div class="ap-alert ap-alert-error">{{ err }}</div>
+    }
+
+    @if (profile(); as p) {
+      @if (!editing()) {
+        <div class="ap-body">
+          <dl class="ap-fields">
+            <div class="ap-field">
+              <dt>Name</dt>
+              <dd>{{ p.fullName }}</dd>
+            </div>
+            <div class="ap-field">
+              <dt>Email</dt>
+              <dd class="ap-muted">{{ p.email }}</dd>
+            </div>
+            <div class="ap-field">
+              <dt>Username</dt>
+              <dd class="ap-muted">{{ p.userName }}</dd>
+            </div>
+            <div class="ap-field">
+              <dt>Role</dt>
+              <dd><span class="cs-pill" [class]="p.role === 'Admin' ? 'status-escalated' : 'status-inprogress'">{{ p.role }}</span></dd>
+            </div>
+          </dl>
+
+          <div class="ap-actions">
+            <button type="button" class="cs-btn cs-btn-primary" (click)="startEdit()">
+              <cs-icon name="pencil"></cs-icon>
+              <span>Edit profile</span>
+            </button>
+            <button
+              type="button"
+              class="cs-btn cs-btn-ghost"
+              (click)="requestReset()"
+              [disabled]="resetSent()"
+            >
+              <cs-icon name="key_round"></cs-icon>
+              <span>{{ resetSent() ? 'Email sent' : 'Change password' }}</span>
+            </button>
+          </div>
+
+          @if (resetSent()) {
+            <div class="ap-alert ap-alert-success">
+              Check your email for a link to set a new password.
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="ap-body">
+          <label class="ap-input">
+            <span>Name</span>
+            <input type="text" [(ngModel)]="draft().fullName" />
+          </label>
+          <label class="ap-input ap-input-readonly">
+            <span>Email</span>
+            <input type="text" [value]="p.email" readonly disabled />
+          </label>
+
+          <div class="ap-actions">
+            <button
+              type="button"
+              class="cs-btn cs-btn-primary"
+              (click)="save()"
+              [disabled]="saving()"
+            >
+              <cs-icon name="check"></cs-icon>
+              <span>{{ saving() ? 'Saving…' : 'Save' }}</span>
+            </button>
+            <button type="button" class="cs-btn cs-btn-ghost" (click)="cancelEdit()">
+              <cs-icon name="x"></cs-icon>
+              <span>Cancel</span>
+            </button>
+          </div>
+        </div>
+      }
+    } @else {
+      <div class="ap-body">
+        <p class="ap-loading">Loading profile…</p>
+      </div>
+    }
+  </aside>
+}

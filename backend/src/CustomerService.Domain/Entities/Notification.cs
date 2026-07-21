@@ -50,6 +50,9 @@ public enum NotificationType
 
     /// <summary>New customer message on a case assigned to an agent (agent-facing, in-app).</summary>
     NewCustomerMessage = 4,
+
+    /// <summary>Staff (agent/admin) password reset request (staff-facing, email).</summary>
+    StaffPasswordReset = 5,
 }
 
 /// <summary>

@@ -21,8 +21,12 @@ import { MyCasesListComponent } from './customer/my-cases-list.component';
 import { NewCaseComponent } from './customer/new-case.component';
 import { MyCaseDetailComponent } from './customer/my-case-detail.component';
 
+// ---- Staff password reset (public, no auth required) ----
+import { ResetPasswordComponent } from './auth/reset-password.component';
+
 export const routes: Routes = [
   { path: 'login', component: LoginComponent },
+  { path: 'reset-password', component: ResetPasswordComponent },
   {
     path: '',
     component: LayoutComponent,

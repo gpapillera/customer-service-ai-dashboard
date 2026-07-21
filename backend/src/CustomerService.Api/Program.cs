@@ -202,6 +202,7 @@ public class Program
         EnsureCaseResolvedAtColumn(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
         EnsureCaseFollowUpDueUtcColumn(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
         EnsureConversationReadStatesTable(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
+        EnsureUserResetTokenColumns(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
         SeedDataInitializer.Initialize(ctx);
     }
 
@@ -575,6 +576,59 @@ public class Program
         catch (Exception ex)
         {
             Console.WriteLine($"WARN: could not ensure {table} table: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Adds the staff password-reset columns (<c>ResetToken</c>,
+    /// <c>ResetTokenExpiresAt</c>, <c>ResetTokenUsed</c>) to the <c>Users</c>
+    /// table if they are missing. Needed because <c>EnsureCreated()</c> will not
+    /// add columns to an existing table. Idempotent + provider-aware.
+    /// </summary>
+    private static async Task EnsureUserResetTokenColumns(AppDbContext ctx, string? provider)
+    {
+        var columns = new[] { "ResetToken", "ResetTokenExpiresAt", "ResetTokenUsed" };
+        try
+        {
+            if (provider != null && provider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase))
+            {
+                var conn = ctx.Database.GetDbConnection();
+                if (conn.State != System.Data.ConnectionState.Open)
+                    await conn.OpenAsync();
+
+                foreach (var col in columns)
+                {
+                    using var cmd = conn.CreateCommand();
+                    cmd.CommandText = $"SELECT COUNT(*) FROM pragma_table_info('Users') WHERE name='{col}';";
+                    var count = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+                    if (count == 0)
+                    {
+                        var type = col == "ResetTokenUsed" ? "INTEGER NOT NULL DEFAULT 0"
+                                 : col == "ResetTokenExpiresAt" ? "TEXT"
+                                 : "TEXT";
+                        using var alter = conn.CreateCommand();
+                        alter.CommandText = $"ALTER TABLE Users ADD COLUMN {col} {type};";
+                        await alter.ExecuteNonQueryAsync();
+                    }
+                }
+            }
+            else
+            {
+                // SQL Server — each ALTER is a no-op if the column already exists.
+                ctx.Database.ExecuteSqlRaw(
+                    "IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='Users' AND COLUMN_NAME='ResetToken') " +
+                    "ALTER TABLE Users ADD [ResetToken] nvarchar(128) NULL;");
+                ctx.Database.ExecuteSqlRaw(
+                    "IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='Users' AND COLUMN_NAME='ResetTokenExpiresAt') " +
+                    "ALTER TABLE Users ADD [ResetTokenExpiresAt] datetime2 NULL;");
+                ctx.Database.ExecuteSqlRaw(
+                    "IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='Users' AND COLUMN_NAME='ResetTokenUsed') " +
+                    "ALTER TABLE Users ADD [ResetTokenUsed] bit NOT NULL DEFAULT 0;");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"WARN: could not ensure Users reset-token columns: {ex.Message}");
         }
     }
 

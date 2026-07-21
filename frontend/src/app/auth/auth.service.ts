@@ -1,7 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, tap } from 'rxjs';
-import { LoginRequest, LoginResponse } from '../shared/models';
+import { LoginRequest, LoginResponse, StaffProfile, UpdateStaffProfile } from '../shared/models';
 import { NotificationStateService } from '../shared/notification-state.service';
 
 const TOKEN_KEY = 'cs_token';
@@ -69,6 +69,23 @@ export class AuthService {
   /** The current user's role, or empty string. */
   getRole(): string {
     return this.currentUser()?.role ?? '';
+  }
+
+  // ── Staff profile + password-reset (Phase 10) ──
+
+  /** Returns the signed-in staff member's own profile (JWT-scoped). */
+  getProfile(): Observable<StaffProfile> {
+    return this.http.get<StaffProfile>('/api/users/me');
+  }
+
+  /** Updates the signed-in staff member's own name (email read-only). */
+  updateProfile(dto: UpdateStaffProfile): Observable<void> {
+    return this.http.put<void>('/api/users/me', dto);
+  }
+
+  /** Requests a password-reset email (JWT-scoped). */
+  requestPasswordReset(): Observable<void> {
+    return this.http.post<void>('/api/users/me/request-password-reset', {});
   }
 
   private setSession(res: LoginResponse): void {

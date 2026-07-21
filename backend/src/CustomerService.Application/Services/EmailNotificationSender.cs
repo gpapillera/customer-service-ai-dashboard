@@ -137,6 +137,16 @@ public class EmailNotificationSender : INotificationSender
             return (subject, body);
         }
 
+        if (notification.Type == NotificationType.StaffPasswordReset)
+        {
+            var subject = "Password Reset — Staff Account";
+            var body = $"Hello,\n\n"
+                + $"{notification.Message}\n\n"
+                + $"If you didn't request a password reset, you can safely ignore this email.\n\n"
+                + $"Thank you,\nCustomer Service Dashboard";
+            return (subject, body);
+        }
+
         if (notification.Type == NotificationType.CaseResolved)
         {
             var status = notification.Title.Replace("Case ", "", StringComparison.OrdinalIgnoreCase).Trim();

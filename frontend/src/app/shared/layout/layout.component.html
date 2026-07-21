@@ -34,6 +34,10 @@
 
     @if (user) {
       <div class="sidenav-user">
+        <button type="button" class="signout-btn" (click)="openAccount()">
+          <cs-icon name="account_circle"></cs-icon>
+          <span>Account</span>
+        </button>
         <button type="button" class="signout-btn" (click)="logout()">
           <cs-icon name="logout"></cs-icon>
           <span>Sign Out</span>
@@ -87,3 +91,5 @@
     <router-outlet></router-outlet>
   </mat-sidenav-content>
 </mat-sidenav-container>
+
+<app-staff-account-panel></app-staff-account-panel>

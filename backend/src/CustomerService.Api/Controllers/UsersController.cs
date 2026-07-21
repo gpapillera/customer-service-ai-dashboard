@@ -1,15 +1,18 @@
+using CustomerService.Application.Dtos;
+using CustomerService.Application.Interfaces;
 using CustomerService.Domain.Entities;
 using CustomerService.Domain.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace CustomerService.Api.Controllers;
 
 /// <summary>
-/// Read-only endpoints for application users (agents/admins). Used by the
-/// case form to populate the "Assignee" dropdown and by the admin Agents
-/// list. See docs/DIY.md §6.
+/// Endpoints for application users (agents/admins). Includes read-only
+/// list/summary endpoints plus the signed-in user's own profile management
+/// and password-reset request (Phase 10).
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
@@ -18,15 +21,52 @@ public class UsersController : ControllerBase
 {
     private readonly IRepository<User> _users;
     private readonly IRepository<Case> _cases;
+    private readonly IAuthService _auth;
 
     /// <summary>Initializes a new <see cref="UsersController"/>.</summary>
-    /// <param name="users">User repository.</param>
-    /// <param name="cases">Case repository (used for open-case aggregates).</param>
-    public UsersController(IRepository<User> users, IRepository<Case> cases)
+    public UsersController(IRepository<User> users, IRepository<Case> cases, IAuthService auth)
     {
         _users = users;
         _cases = cases;
+        _auth = auth;
     }
+
+    // ── Staff profile endpoints (Phase 10) ──
+
+    /// <summary>Returns the signed-in staff member's own profile.</summary>
+    [HttpGet("me")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<ActionResult<StaffProfileDto>> GetMyProfile()
+    {
+        var userId = GetUserId();
+        return Ok(await _auth.GetProfileAsync(userId));
+    }
+
+    /// <summary>Updates the signed-in staff member's own name (email read-only).</summary>
+    [HttpPut("me")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> UpdateMyProfile([FromBody] UpdateStaffProfileDto dto)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+        await _auth.UpdateProfileAsync(GetUserId(), dto);
+        return NoContent();
+    }
+
+    /// <summary>Requests a password-reset email for the signed-in staff member.</summary>
+    [HttpPost("me/request-password-reset")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> RequestPasswordReset()
+    {
+        await _auth.RequestPasswordResetAsync(GetUserId());
+        return NoContent();
+    }
+
+    private string GetUserId()
+        => User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+           ?? throw new UnauthorizedAccessException();
+
+    // ── Existing list/summary endpoints ──
 
     /// <summary>Lists all users (agents + admins) for assignment pickers.</summary>
     /// <returns>The users as lightweight <see cref="AgentSummary"/> records.</returns>

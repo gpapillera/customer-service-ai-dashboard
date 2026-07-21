@@ -9,6 +9,24 @@ public interface IAuthService
     /// <param name="request">Login request.</param>
     /// <returns>A <see cref="LoginResponse"/> or null if invalid.</returns>
     Task<LoginResponse?> LoginAsync(LoginRequest request);
+
+    /// <summary>Returns the signed-in staff member's own profile (JWT-scoped).</summary>
+    Task<StaffProfileDto> GetProfileAsync(string userId);
+
+    /// <summary>Updates the signed-in staff member's own name (email never touched).</summary>
+    Task UpdateProfileAsync(string userId, UpdateStaffProfileDto dto);
+
+    /// <summary>
+    /// Generates a password-reset token for the staff member and emails a
+    /// reset link via the existing notification/email infrastructure.
+    /// </summary>
+    Task RequestPasswordResetAsync(string userId);
+
+    /// <summary>
+    /// Validates a reset token and sets a new password. Returns true on
+    /// success, false if the token is invalid/expired/already used.
+    /// </summary>
+    Task<bool> ResetPasswordAsync(ResetPasswordRequest request);
 }
 
 /// <summary>Application service contract for dashboard analytics.</summary>

@@ -165,3 +165,57 @@ public class UpdateCustomerProfileDto
     /// <summary>Optional address.</summary>
     public string? Address { get; set; }
 }
+
+// ── Staff profile DTOs (Phase 10) ──
+
+/// <summary>
+/// Read model for the signed-in staff member's own profile. Email is intentionally
+/// read-only (it is the login identity); only the editable profile fields are
+/// returned here.
+/// </summary>
+public class StaffProfileDto
+{
+    /// <summary>User id (GUID string).</summary>
+    public string Id { get; set; } = string.Empty;
+
+    /// <summary>Display name shown in the UI.</summary>
+    public string FullName { get; set; } = string.Empty;
+
+    /// <summary>Login identity (read-only).</summary>
+    public string Email { get; set; } = string.Empty;
+
+    /// <summary>Login username (read-only).</summary>
+    public string UserName { get; set; } = string.Empty;
+
+    /// <summary>Staff role (Agent or Admin).</summary>
+    public string Role { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Body for updating the signed-in staff member's own profile. Email is NOT
+/// accepted — the user id is taken strictly from the JWT claim, and the email
+/// (login identity) is never editable.
+/// </summary>
+public class UpdateStaffProfileDto
+{
+    /// <summary>Display name.</summary>
+    [Required(ErrorMessage = "Name is required.")]
+    [StringLength(200, ErrorMessage = "Name must be 200 characters or fewer.")]
+    public string FullName { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Body for the public staff password-reset endpoint. Validates the token
+/// and sets a new password in a single step.
+/// </summary>
+public class ResetPasswordRequest
+{
+    /// <summary>The reset token from the email link.</summary>
+    [Required(ErrorMessage = "Token is required.")]
+    public string Token { get; set; } = string.Empty;
+
+    /// <summary>The new password the user chooses.</summary>
+    [Required(ErrorMessage = "Password is required.")]
+    [MinLength(8, ErrorMessage = "Password must be at least 8 characters.")]
+    public string Password { get; set; } = string.Empty;
+}

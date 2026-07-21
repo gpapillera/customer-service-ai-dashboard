@@ -31,4 +31,21 @@ public class AuthController : ControllerBase
         var result = await _auth.LoginAsync(request);
         return result is null ? Unauthorized() : Ok(result);
     }
+
+    /// <summary>
+    /// Public endpoint: validates a staff password-reset token and sets a new
+    /// password. The same token-expiry/already-used validation pattern as the
+    /// customer accept-invite flow.
+    /// </summary>
+    [HttpPost("reset-password")]
+    [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+        var ok = await _auth.ResetPasswordAsync(request);
+        if (!ok) return BadRequest(new { error = "This reset link is invalid, expired, or has already been used." });
+        return Ok(new { message = "Password has been reset. You can now sign in." });
+    }
 }

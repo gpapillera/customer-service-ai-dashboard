@@ -210,6 +210,22 @@ export interface UpdateCustomerProfile {
   address?: string | null;
 }
 
+// ── Staff profile models (Phase 10) ──
+
+/** The signed-in staff member's own profile (email is read-only). */
+export interface StaffProfile {
+  id: string;
+  fullName: string;
+  email: string;
+  userName: string;
+  role: string;
+}
+
+/** Payload for updating the staff member's own name (email not accepted). */
+export interface UpdateStaffProfile {
+  fullName: string;
+}
+
 /** A category/count pair for breakdown charts. */
 export interface CategoryCount {
   category: string;

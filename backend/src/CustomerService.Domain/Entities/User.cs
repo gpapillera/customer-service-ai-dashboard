@@ -25,6 +25,21 @@ public class User
 
     /// <summary>UTC timestamp when the record was created.</summary>
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+
+    // ── Staff password-reset (independent of customer invite token fields) ──
+
+    /// <summary>
+    /// Opaque token for staff password-reset. Distinctly named from anything
+    /// invite-related because staff accounts are seeded directly and never go
+    /// through an invite/activation step.
+    /// </summary>
+    public string? ResetToken { get; set; }
+
+    /// <summary>UTC expiry for <see cref="ResetToken"/> (48-hour window).</summary>
+    public DateTime? ResetTokenExpiresAt { get; set; }
+
+    /// <summary>Whether this token has already been consumed.</summary>
+    public bool ResetTokenUsed { get; set; }
 }
 
 /// <summary>
