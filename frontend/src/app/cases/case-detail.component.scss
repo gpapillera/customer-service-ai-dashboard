@@ -360,6 +360,7 @@
 .chat-scroll {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   scroll-behavior: smooth;
   overscroll-behavior: contain;
   min-height: 0;
@@ -399,6 +400,8 @@
   line-height: 1.5;
   color: #3a3a3c;
   white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 .comment-form {
   display: flex;

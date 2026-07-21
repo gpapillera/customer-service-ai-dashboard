@@ -10,6 +10,7 @@
   flex: 1;
   display: flex;
   flex-direction: column;
+  width: 100%;
   max-width: 720px;
   margin: 0 auto;
   min-height: 0;
@@ -108,6 +109,7 @@
 .chat-scroll {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   scroll-behavior: smooth;
   overscroll-behavior: contain;
   padding-right: 0.25rem; /* breathing room for scrollbar */
@@ -125,6 +127,8 @@
   margin: 0;
   color: var(--cs-text);
   white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
   line-height: 1.5;
 }
 
@@ -182,6 +186,8 @@
 .msg-body {
   margin: 0;
   white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
   line-height: 1.5;
   color: var(--cs-text);
 }
