@@ -11,13 +11,13 @@
   } @else {
     <div class="grid stagger">
       @for (agent of agents(); track agent.id) {
-        <mat-card class="cs-lift agent-card reveal" appReveal>
+        <mat-card class="cs-lift agent-card reveal" appReveal (click)="openAgent(agent)" style="cursor:pointer">
           <mat-card-content>
             <div class="agent-top">
               <div class="avatar"><cs-icon name="person"></cs-icon></div>
               <div class="agent-id">
                 <div class="agent-name">{{ agent.fullName }}</div>
-                <div class="agent-email">{{ agent.id }}</div>
+                <div class="agent-email">{{ agent.email }}</div>
               </div>
             </div>
             <div class="agent-meta">
@@ -35,3 +35,90 @@
     </div>
   }
 </div>
+
+<!-- Agent detail / KPI overlay -->
+@if (selected(); as agent) {
+  <div class="overlay-scrim" (click)="close()"></div>
+  <aside class="overlay-panel cs-lift" role="dialog" aria-label="Agent details">
+    <header class="overlay-head">
+      <div class="overlay-title">
+        <div class="avatar"><cs-icon name="person"></cs-icon></div>
+        <div>
+          <div class="agent-name">{{ agent.fullName }}</div>
+          <div class="agent-role"><span class="cs-pill status-resolved">Agent</span></div>
+        </div>
+      </div>
+      <button type="button" class="close-btn" (click)="close()" aria-label="Close">
+        <cs-icon name="x"></cs-icon>
+      </button>
+    </header>
+
+    @if (error(); as err) {
+      <div class="alert alert-error">{{ err }}</div>
+    }
+
+    <div class="overlay-body">
+      @if (!editing()) {
+        <dl class="fields">
+          <div class="field">
+            <dt>Name</dt>
+            <dd>{{ agent.fullName }}</dd>
+          </div>
+          <div class="field">
+            <dt>Email</dt>
+            <dd class="muted">{{ agent.email }}</dd>
+          </div>
+          <div class="field">
+            <dt>Open Cases</dt>
+            <dd><span class="count-badge">{{ agent.openCaseCount }}</span></dd>
+          </div>
+        </dl>
+
+        <div class="actions">
+          <button type="button" class="cs-btn cs-btn-primary" (click)="startEdit()">
+            <cs-icon name="pencil"></cs-icon>
+            <span>Edit profile</span>
+          </button>
+        </div>
+      } @else {
+        <div class="edit-form">
+          <label class="field-input">
+            <span>Name</span>
+            <input type="text" [(ngModel)]="draft().fullName" />
+          </label>
+          <label class="field-input">
+            <span>Email</span>
+            <input type="email" [(ngModel)]="draft().email" />
+          </label>
+
+          <div class="actions">
+            <button type="button" class="cs-btn cs-btn-primary" (click)="save()" [disabled]="saving()">
+              <cs-icon name="check"></cs-icon>
+              <span>{{ saving() ? 'Saving…' : 'Save' }}</span>
+            </button>
+            <button type="button" class="cs-btn cs-btn-ghost" (click)="cancelEdit()">
+              <cs-icon name="x"></cs-icon>
+              <span>Cancel</span>
+            </button>
+          </div>
+        </div>
+      }
+
+      <!-- KPI cards -->
+      @if (kpis(); as d) {
+        <div class="kpi-section">
+          <h3 class="section-label">Performance</h3>
+          <div class="kpi-grid">
+            @for (k of agentKpis; track k.label) {
+              <div class="kpi-card" [class]="'tone-' + k.tone">
+                <div class="kpi-icon"><cs-icon [name]="k.icon" [size]="22"></cs-icon></div>
+                <div class="kpi-value">{{ k.value }}</div>
+                <div class="kpi-label">{{ k.label }}</div>
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  </aside>
+}

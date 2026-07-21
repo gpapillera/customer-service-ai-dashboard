@@ -2,6 +2,36 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 11 — Admin: Edit Agents + Agent Detail/KPI Popup] (2026-07-21)
+**Status:** ✅ COMPLETE (backend `dotnet build` → 0 errors, `dotnet test` → 64 passed; frontend `ng build` → 1.23 MB success; browser verified end-to-end)
+**What changed:**
+1. ✅ **Admin edit agent endpoint:** `PUT /api/users/{id}` accepts `UpdateAgentDto` (FullName + Email, both required, validated). Admin-only (403 for Agent role). Returns 204 on success, 400 on validation error, 404 if user not found.
+2. ✅ **Agent KPI endpoint:** `GET /api/users/{id}/kpis` calls `DashboardService.GetDashboardAsync(agentId)` to return scoped KPIs for a specific agent. Admin-only. Returns `DashboardDto` with `My*` fields scoped to the target agent.
+3. ✅ **AgentSummary enriched:** Added `Email` field to `AgentSummary` record and all projection sites so the agents list shows email addresses.
+4. ✅ **Frontend agent detail overlay:** Clicking an agent card opens a slide-in overlay panel with agent info (name, email, open cases), KPI grid (My Cases, My Open, My High Priority, My Resolved, My AI Predicted, My Overdue), and an "Edit profile" button.
+5. ✅ **Frontend edit agent form:** Toggle between read-only view and edit form. Name and email fields editable. Save calls `PUT /api/users/{id}` and updates the local agent list. Cancel reverts without saving.
+6. ✅ **Frontend KPI grid:** 6-card grid matching dashboard visual style. Tone classes for different KPI types. Data fetched from `GET /api/users/{id}/kpis`.
+
+**Browser verification (all passed):**
+- ✅ Agents page shows both agents with email addresses and open case counts
+- ✅ Clicking Grace Agent opens overlay with details + 6 KPI cards
+- ✅ KPI numbers match API response exactly (MyCases=9, MyOpen=7, MyHigh=4, MyResolved=1, MyAIPredicted=0, MyOverdue=6)
+- ✅ Edit profile → change name to "Grace Manager" → Save → card and overlay update → DB persisted (confirmed via API)
+- ✅ Name restored to "Grace Agent" via API
+- ✅ Agent role token → `PUT /api/users/agent-002` returns 403
+- ✅ Agent role token → `GET /api/users/agent-002/kpis` returns 403
+
+**Files changed (backend):**
+- `Application/Dtos/AuthDtos.cs` — added `UpdateAgentDto` (FullName, Email with validation)
+- `Api/Controllers/UsersController.cs` — injected `IDashboardService`, added `PUT /api/users/{id}` and `GET /api/users/{id}/kpis` (Admin-only), enriched `AgentSummary` with Email
+
+**Files changed (frontend):**
+- `shared/models.ts` — added `email` to `Agent` interface, added `UpdateAgent` interface
+- `users/user.service.ts` — added `updateAgent(id, dto)` and `getAgentKpis(id)` methods
+- `users/agent-list.component.ts` — rewrote with overlay signals (selected, kpis, editing, draft, saving, error), open/close/edit/save/cancel methods, `agentKpis` getter
+- `users/agent-list.component.html` — agent card grid + slide-in overlay panel with fields, edit form, KPI grid
+- `users/agent-list.component.scss` — overlay styles (scrim, panel, head, body, fields, KPI grid, tone classes)
+
 ## [Phase 10 — Staff Account Panel + Password Reset] (2026-07-21)
 **Status:** ✅ COMPLETE (backend `dotnet build` → 0 errors, `dotnet test` → 64 passed; frontend `ng build` → 1.22 MB success; browser verified end-to-end)
 **What changed:**

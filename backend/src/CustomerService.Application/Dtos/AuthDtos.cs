@@ -219,3 +219,24 @@ public class ResetPasswordRequest
     [MinLength(8, ErrorMessage = "Password must be at least 8 characters.")]
     public string Password { get; set; } = string.Empty;
 }
+
+// ── Admin agent-management DTOs (Phase 11) ──
+
+/// <summary>
+/// Body for an admin editing an agent's profile (name + email). Password and
+/// role are intentionally excluded — passwords are reset-email-only (Phase 10)
+/// and role changes require a separate process.
+/// </summary>
+public class UpdateAgentDto
+{
+    /// <summary>Display name.</summary>
+    [Required(ErrorMessage = "Name is required.")]
+    [StringLength(200, ErrorMessage = "Name must be 200 characters or fewer.")]
+    public string FullName { get; set; } = string.Empty;
+
+    /// <summary>Login email address.</summary>
+    [Required(ErrorMessage = "Email is required.")]
+    [EmailAddress(ErrorMessage = "Invalid email address.")]
+    [StringLength(200, ErrorMessage = "Email must be 200 characters or fewer.")]
+    public string Email { get; set; } = string.Empty;
+}

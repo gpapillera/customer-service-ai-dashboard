@@ -119,9 +119,16 @@ export interface Category {
 export interface Agent {
   id: string;
   fullName: string;
+  email: string;
   role: 'Admin' | 'Agent';
   /** Open (not Resolved/Closed) cases currently assigned to this agent. */
   openCaseCount: number;
+}
+
+/** Body for admin editing an agent's profile (Phase 11). */
+export interface UpdateAgent {
+  fullName: string;
+  email: string;
 }
 
 /** A single point in a dashboard trend series. */

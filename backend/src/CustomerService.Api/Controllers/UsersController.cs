@@ -11,8 +11,8 @@ namespace CustomerService.Api.Controllers;
 
 /// <summary>
 /// Endpoints for application users (agents/admins). Includes read-only
-/// list/summary endpoints plus the signed-in user's own profile management
-/// and password-reset request (Phase 10).
+/// list/summary endpoints, the signed-in user's own profile management,
+/// password-reset request (Phase 10), and admin agent management (Phase 11).
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
@@ -22,13 +22,15 @@ public class UsersController : ControllerBase
     private readonly IRepository<User> _users;
     private readonly IRepository<Case> _cases;
     private readonly IAuthService _auth;
+    private readonly IDashboardService _dashboardService;
 
     /// <summary>Initializes a new <see cref="UsersController"/>.</summary>
-    public UsersController(IRepository<User> users, IRepository<Case> cases, IAuthService auth)
+    public UsersController(IRepository<User> users, IRepository<Case> cases, IAuthService auth, IDashboardService dashboardService)
     {
         _users = users;
         _cases = cases;
         _auth = auth;
+        _dashboardService = dashboardService;
     }
 
     // ── Staff profile endpoints (Phase 10) ──
@@ -66,6 +68,40 @@ public class UsersController : ControllerBase
         => User.FindFirst(ClaimTypes.NameIdentifier)?.Value
            ?? throw new UnauthorizedAccessException();
 
+    // ── Admin agent-management endpoints (Phase 11) ──
+
+    /// <summary>Admin edits an agent's name and email. No role or password changes.</summary>
+    [HttpPut("{id}")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateAgent(string id, [FromBody] UpdateAgentDto dto)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+        var user = await _users.Query().FirstOrDefaultAsync(u => u.Id == id);
+        if (user is null) return NotFound();
+        user.FullName = dto.FullName;
+        user.Email = dto.Email;
+        _users.Update(user);
+        await _users.SaveChangesAsync();
+        return NoContent();
+    }
+
+    /// <summary>Returns the full KPI set for any agent (admin only).\summary>
+    [HttpGet("{id}/kpis")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<DashboardDto>> GetAgentKpis(string id)
+    {
+        var user = await _users.Query().FirstOrDefaultAsync(u => u.Id == id);
+        if (user is null) return NotFound();
+        // Reuse the same dashboard service — agentId scopes the "My *" fields.
+        var dto = await _dashboardService.GetDashboardAsync(id);
+        return Ok(dto);
+    }
+
     // ── Existing list/summary endpoints ──
 
     /// <summary>Lists all users (agents + admins) for assignment pickers.</summary>
@@ -75,7 +111,7 @@ public class UsersController : ControllerBase
     public IReadOnlyList<AgentSummary> GetAll()
         => _users.Query()
             .OrderBy(u => u.FullName)
-            .Select(u => new AgentSummary(u.Id, u.FullName, u.Role.ToString(), 0))
+            .Select(u => new AgentSummary(u.Id, u.FullName, u.Email, u.Role.ToString(), 0))
             .ToList();
 
     /// <summary>
@@ -94,7 +130,7 @@ public class UsersController : ControllerBase
         var agents = await _users.Query()
             .Where(u => u.Role == UserRole.Agent)
             .OrderBy(u => u.FullName)
-            .Select(u => new { u.Id, u.FullName, u.Role })
+            .Select(u => new { u.Id, u.FullName, u.Email, u.Role })
             .ToListAsync();
 
         // Real aggregate: count open cases per agent directly in the database.
@@ -111,6 +147,7 @@ public class UsersController : ControllerBase
             .Select(a => new AgentSummary(
                 a.Id,
                 a.FullName,
+                a.Email,
                 a.Role.ToString(),
                 countById.TryGetValue(a.Id, out var n) ? n : 0))
             .ToList();
@@ -120,6 +157,7 @@ public class UsersController : ControllerBase
 /// <summary>Lightweight user summary for assignment dropdowns and the agents list.</summary>
 /// <param name="Id">User primary key (GUID string).</param>
 /// <param name="FullName">Display name.</param>
+/// <param name="Email">Login email.</param>
 /// <param name="Role">Role name (Admin or Agent).</param>
 /// <param name="OpenCaseCount">Number of currently-open cases assigned to this user (agents only).</param>
-public record AgentSummary(string Id, string FullName, string Role, int OpenCaseCount);
+public record AgentSummary(string Id, string FullName, string Email, string Role, int OpenCaseCount);
