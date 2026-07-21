@@ -1,3 +1,4 @@
+using System.Net.Sockets;
 using CustomerService.Application.Interfaces;
 using CustomerService.Application.Options;
 using CustomerService.Domain.Entities;
@@ -96,7 +97,7 @@ public class EmailNotificationSender : INotificationSender
 
         try
         {
-            await SendViaSmtpAsync(effectiveRecipient, subject, body, originalRecipient);
+            await SendWithRetryAsync(effectiveRecipient, subject, body, originalRecipient, notification.CaseId, notification.Type);
             var audit = $"[{notification.CreatedAtUtc:u}] SENT: case #{notification.CaseId} ({notification.Type}) TO:{effectiveRecipient}"
                 + (devRedirected ? $" [DEV-REDIRECT from:{originalRecipient}]" : "")
                 + $" SUBJECT:{subject}";
@@ -109,11 +110,12 @@ public class EmailNotificationSender : INotificationSender
             // A send failure must never crash the overdue job or the
             // status-update flow that called us. Log clearly and keep the audit
             // trail, then swallow.
+            var errorDetail = ClassifySmtpError(ex);
             _logger.LogError(ex,
-                "EMAIL FAILED for case #{CaseId} ({Type}) intended for {Recipient} (effective {EffectiveRecipient}): {Message}",
-                notification.CaseId, notification.Type, originalRecipient, effectiveRecipient, ex.Message);
+                "EMAIL FAILED ({ErrorDetail}) for case #{CaseId} ({Type}) intended for {Recipient} (effective {EffectiveRecipient}): {Message}",
+                errorDetail, notification.CaseId, notification.Type, originalRecipient, effectiveRecipient, ex.Message);
             AppendToOutbox("emails.log",
-                $"[{notification.CreatedAtUtc:u}] FAILED: case #{notification.CaseId} ({notification.Type}) TO:{effectiveRecipient} (intended:{originalRecipient}) ERROR:{ex.Message}");
+                $"[{notification.CreatedAtUtc:u}] FAILED ({errorDetail}): case #{notification.CaseId} ({notification.Type}) TO:{effectiveRecipient} (intended:{originalRecipient}) ERROR:{ex.Message}");
         }
     }
 
@@ -187,8 +189,94 @@ public class EmailNotificationSender : INotificationSender
     }
 
     /// <summary>
-    /// Connects to the SMTP server via MailKit and delivers the message. All
-    /// network/auth operations are wrapped by the caller's try/catch.
+    /// Maximum number of SMTP send attempts (including the initial try).
+    /// Transient network errors and temporary auth failures are retried with
+    /// exponential backoff. Permanent auth failures (bad credentials) are
+    /// NOT retried.
+    /// </summary>
+    private const int MaxRetries = 3;
+
+    /// <summary>
+    /// Retries <see cref="SendViaSmtpAsync" /> up to <see cref="MaxRetries" />
+    /// times with exponential backoff. Only transient / network errors are
+    /// retried — authentication failures (bad credentials) fail immediately.
+    /// </summary>
+    private async Task SendWithRetryAsync(string to, string subject, string body, string originalRecipient, int? caseId, NotificationType type)
+    {
+        for (var attempt = 1; attempt <= MaxRetries; attempt++)
+        {
+            try
+            {
+                await SendViaSmtpAsync(to, subject, body, originalRecipient);
+                if (attempt > 1)
+                    _logger.LogInformation(
+                        "EMAIL sent on attempt {Attempt}/{Max} for case #{CaseId} ({Type}).",
+                        attempt, MaxRetries, caseId, type);
+                return;
+            }
+            catch (Exception ex) when (attempt < MaxRetries && IsTransientError(ex))
+            {
+                var delay = TimeSpan.FromSeconds(Math.Pow(2, attempt)); // 2s, 4s
+                _logger.LogWarning(ex,
+                    "EMAIL transient error on attempt {Attempt}/{Max} for case #{CaseId} ({Type}), retrying in {Delay}s...",
+                    attempt, MaxRetries, caseId, type, delay.TotalSeconds);
+                await Task.Delay(delay);
+            }
+        }
+
+        // Final attempt — let the exception propagate to the caller.
+        await SendViaSmtpAsync(to, subject, body, originalRecipient);
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when the exception represents a transient / network
+    /// error that may succeed on retry. Returns <c>false</c> for permanent
+    /// failures (authentication, malformed address, etc.).
+    /// </summary>
+    private static bool IsTransientError(Exception ex)
+    {
+        // MailKit wraps network errors; authentication failures are permanent.
+        if (ex is System.Security.Authentication.AuthenticationException)
+            return false;
+
+        // IO/network-level errors (timeout, connection reset, DNS failure)
+        if (ex is System.IO.IOException)
+            return true;
+        if (ex is System.Net.Sockets.SocketException)
+            return true;
+        if (ex is System.Net.Http.HttpRequestException)
+            return true;
+        if (ex is OperationCanceledException)
+            return true;
+
+        // Inner exceptions (MailKit often wraps)
+        if (ex.InnerException != null)
+            return IsTransientError(ex.InnerException);
+
+        return false;
+    }
+
+    /// <summary>
+    /// Classifies an SMTP error into a human-readable category for logging
+    /// and the outbox audit trail.
+    /// </summary>
+    private static string ClassifySmtpError(Exception ex)
+    {
+        if (ex is System.Security.Authentication.AuthenticationException)
+            return "AUTH_FAILED — check SenderEmail/SenderPassword (Gmail: use App Password, not account password)";
+        if (ex is System.IO.IOException)
+            return "NETWORK_IO — connection timed out or reset";
+        if (ex is System.Net.Sockets.SocketException)
+            return "SOCKET — could not reach SMTP server";
+        if (ex.Message.Contains("535", StringComparison.OrdinalIgnoreCase))
+            return "SMTP_535 — authentication rejected (invalid credentials or app password revoked)";
+        return "UNKNOWN";
+    }
+
+    /// <summary>
+    /// Connects to the SMTP server via MailKit and delivers the message.
+    /// A new <see cref="SmtpClient"/> is created per call — this is the
+    /// recommended MailKit pattern (unlike the obsolete System.Net.Mail.SmtpClient).
     /// </summary>
     private async Task SendViaSmtpAsync(string to, string subject, string body, string originalRecipient)
     {
@@ -205,6 +293,8 @@ public class EmailNotificationSender : INotificationSender
         message.Body = new TextPart("plain") { Text = body };
 
         using var client = new SmtpClient();
+        // Set a connection timeout so we don't hang indefinitely on unreachable servers.
+        client.Timeout = 30_000; // 30 seconds
         await client.ConnectAsync(_emailOptions.SmtpHost, _emailOptions.SmtpPort, SecureSocketOptions.StartTls);
         await client.AuthenticateAsync(_emailOptions.SenderEmail, _emailOptions.SenderPassword);
         await client.SendAsync(message);

@@ -17,10 +17,16 @@ namespace CustomerService.Api.Controllers;
 public class NotificationsController : ControllerBase
 {
     private readonly INotificationService _service;
+    private readonly IEmailTestService _emailTestService;
 
     /// <summary>Initializes a new <see cref="NotificationsController"/>.</summary>
     /// <param name="service">Notification service.</param>
-    public NotificationsController(INotificationService service) => _service = service;
+    /// <param name="emailTestService">Email connectivity test service.</param>
+    public NotificationsController(INotificationService service, IEmailTestService emailTestService)
+    {
+        _service = service;
+        _emailTestService = emailTestService;
+    }
 
     /// <summary>Ensures overdue notifications exist, then returns the summary.</summary>
     /// <returns>The notification summary (unread count + recent).</returns>
@@ -65,4 +71,33 @@ public class NotificationsController : ControllerBase
         await _service.MarkAllReadAsync();
         return NoContent();
     }
+
+    /// <summary>
+    /// Tests SMTP connectivity and credentials. Optionally sends a test email.
+    /// Admin-only endpoint for diagnosing email notification failures (e.g.
+    /// Gmail BadCredentials).
+    /// </summary>
+    /// <param name="request">
+    /// Optional body: <c>{ "testRecipient": "someone@example.com" }</c>.
+    /// If omitted or null, only tests connect + authenticate (no email sent).
+    /// </param>
+    /// <returns>Diagnostic result with connection, auth, and send status.</returns>
+    [HttpPost("email/test")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(typeof(Application.Interfaces.EmailTestResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> TestEmail([FromBody] TestEmailRequest? request)
+    {
+        var result = await _emailTestService.TestSmtpAsync(request?.TestRecipient);
+        return Ok(result);
+    }
+}
+
+/// <summary>Request body for the email test endpoint.</summary>
+public sealed class TestEmailRequest
+{
+    /// <summary>
+    /// Optional recipient address. When provided, a real test email is sent.
+    /// When null/empty, only the SMTP connect + authenticate handshake is tested.
+    /// </summary>
+    public string? TestRecipient { get; set; }
 }

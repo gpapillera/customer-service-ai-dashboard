@@ -98,6 +98,7 @@ public class Program
         builder.Services.AddScoped(sp =>
             sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<CustomerService.Application.Options.EmailOptions>>().Value);
         builder.Services.AddScoped<INotificationService, NotificationService>();
+        builder.Services.AddScoped<IEmailTestService, EmailTestService>();
         // Background worker: periodically scans for overdue cases and triggers the
         // agent-facing overdue email. Interval is configurable (Notifications:OverdueCheckIntervalMinutes).
         builder.Services.AddHostedService<OverdueEmailHostedService>();
