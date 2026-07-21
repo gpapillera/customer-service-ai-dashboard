@@ -2,6 +2,32 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 13 — Admin UI Polish Sweep] (2026-07-21)
+**Status:** ✅ COMPLETE (frontend `ng build` → 1.23 MB success; browser verified all pages render correctly)
+**What changed:**
+1. ✅ **Layout SCSS deduplication:** Removed duplicated `.content`, `.nav`, and `.sidenav-user` selectors from `layout.component.scss`. Removed stale `.sidenav a.active` rule that hardcoded Apple blue `rgba(0,113,227,0.1)` instead of using the design token `var(--cs-accent-light)`.
+2. ✅ **Customer list search toolbar token migration:** Replaced 6 hardcoded SCSS variables (`$white`, `$toolbar-border`, `$border`, `$text`, `$placeholder`, `$placeholder-text`) with `--cs-*` design tokens (`--cs-surface`, `--cs-border`, `--cs-text-muted`, `--cs-neutral`, `--cs-shadow`). Same fix pattern previously applied to `search-filter-toolbar.component.scss`.
+3. ✅ **Customer list empty state:** Changed `.empty mat-icon` selector to `.empty cs-icon` for consistency with other pages.
+4. ✅ **Customer list hardcoded text color:** Replaced `#515154` in `.row` with `var(--cs-text-muted)`.
+5. ✅ **Customer list page header naming:** Renamed `.page-head` to `.page-header` (matching global class from `styles.scss` and Cases page).
+6. ✅ **Agent list fallback color fixes:** Replaced all `var(--cs-muted, #6b7280)` with `var(--cs-text-muted)` (correct token). Replaced `var(--cs-accent-soft, #eef2ff)` with `var(--cs-accent-light)`. Fixed all `var(--cs-accent, #6366f1)` fallbacks to just `var(--cs-accent)` (actual value is `#4f46e5`). Fixed `var(--cs-border, #eceef2)` fallbacks. Fixed `var(--cs-border, #e2e8f0)` fallbacks in field-input and kpi-card. Renamed `.page-head` to `.page-header` for consistency.
+7. ✅ **Error banner standardization:** Unified `.error-banner` across `case-form`, `customer-form`, `admin-conversations`, and `conversations-list` to use `var(--cs-danger-bg)` and `var(--cs-danger)` tokens instead of hardcoded `#ffe5e5`/`#c0392b`/`#8a1f1f` or incorrect `var(--cs-danger, #ffe5e5)`.
+8. ✅ **Dashboard duplicate rule removed:** Removed duplicate `.tone-amber .kpi-icon` rule from `dashboard.component.scss`.
+
+**Files changed (frontend):**
+- `shared/layout/layout.component.scss` — removed duplicated selectors + hardcoded active color
+- `customers/customer-list.component.html` — renamed `.page-head` to `.page-header`
+- `customers/customer-list.component.scss` — replaced hardcoded SCSS vars with tokens, fixed empty state selector, renamed page header class
+- `users/agent-list.component.html` — renamed `.page-head` to `.page-header`
+- `users/agent-list.component.scss` — fixed all fallback color values to use correct design tokens, renamed page header class
+- `cases/case-form.component.scss` — standardized error-banner to use design tokens
+- `customers/customer-form.component.scss` — standardized error-banner to use design tokens
+- `cases/admin-conversations.component.scss` — fixed error-banner to use `--cs-danger-bg` (not `--cs-danger`)
+- `cases/conversations-list.component.scss` — fixed error-banner to use `--cs-danger-bg` (not `--cs-danger`)
+- `dashboard/dashboard.component.scss` — removed duplicate `.tone-amber` rule
+
+---
+
 ## [Phase 12 — Admin: Global Conversations View] (2026-07-21)
 **Status:** ✅ COMPLETE (backend `dotnet build` → 0 errors, `dotnet test` → 64 passed; frontend `ng build` → 1.23 MB success; browser verified end-to-end)
 **What changed:**

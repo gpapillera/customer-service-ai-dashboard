@@ -276,14 +276,8 @@
   color: var(--cs-accent-strong);
 }
 
-.nav {
-  padding-top: 0;
-}
-
 .sidenav-user {
   position: relative;
-  border-top: 1px solid var(--cs-border);
-  padding: 0.5rem;
 }
 
 /* Dropdown rendered inside the sidenav, anchored above the button. Using
@@ -334,16 +328,6 @@
   color: var(--cs-text-muted);
 }
 
-.sidenav a.active {
-  background: rgba(0, 113, 227, 0.1);
-  color: var(--cs-accent);
-  font-weight: 600;
-}
 
-.content {
-  padding: 1.5rem;
-  background: var(--cs-bg);
-  overflow: auto;
-}
 
 

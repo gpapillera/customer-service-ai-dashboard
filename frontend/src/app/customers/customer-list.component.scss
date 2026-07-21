@@ -1,4 +1,4 @@
-.page-head {
+.page-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -9,16 +9,6 @@
   margin-bottom: 1.25rem;
 }
 
-// Parent container mirroring the Cases SearchFilterToolbar card.
-$white: #ffffff;
-$toolbar-border: #e8edf3;
-$border: #dce6ef;
-$text: #0f172a;
-$placeholder: #94a3b8;
-// Default (unselected) placeholder text — slightly darker than the icon grey,
-// kept at normal weight (matches the Cases toolbar).
-$placeholder-text: #64748b;
-
 .search-toolbar {
   display: flex;
   align-items: center;
@@ -26,19 +16,19 @@ $placeholder-text: #64748b;
   height: 76px;
   padding: 12px 20px;
   box-sizing: border-box;
-  background: $white;
-  border: 1px solid $toolbar-border;
+  background: var(--cs-surface);
+  border: 1px solid var(--cs-border);
   border-radius: 20px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  box-shadow: var(--cs-shadow);
 }
 
 .search-field {
   width: 100%;
   height: 48px;
   margin: 0;
-  --mdc-outlined-text-field-outline-color: #{$border};
-  --mdc-outlined-text-field-hover-outline-color: #{$border};
-  --mdc-outlined-text-field-focus-outline-color: #{$border};
+  --mdc-outlined-text-field-outline-color: var(--cs-border);
+  --mdc-outlined-text-field-hover-outline-color: var(--cs-border);
+  --mdc-outlined-text-field-focus-outline-color: var(--cs-border);
   --mdc-outlined-text-field-container-shape: 8px;
   --mat-form-field-container-text-size: 16px;
 }
@@ -56,7 +46,7 @@ $placeholder-text: #64748b;
   display: none !important;
 }
 .search-field ::ng-deep .mat-mdc-text-field-wrapper {
-  border: 1px solid $border !important;
+  border: 1px solid var(--cs-border) !important;
   border-radius: 8px !important;
   overflow: hidden;
 }
@@ -71,11 +61,11 @@ $placeholder-text: #64748b;
 .search-field ::ng-deep input.mat-mdc-input-element {
   font-size: 16px !important;
   font-weight: 400;
-  color: $placeholder-text;
+  color: var(--cs-text-muted);
 }
 
 .search-field ::ng-deep input::placeholder {
-  color: $placeholder-text !important;
+  color: var(--cs-text-muted) !important;
   opacity: 1 !important;
 }
 
@@ -84,7 +74,7 @@ $placeholder-text: #64748b;
 }
 
 .prefix-icon {
-  color: $placeholder;
+  color: var(--cs-neutral);
   width: 20px;
   height: 20px;
   margin-left: 0.85rem;
@@ -108,7 +98,7 @@ $placeholder-text: #64748b;
   color: var(--cs-text-muted);
   padding: 3rem;
 }
-.empty mat-icon {
+.empty cs-icon {
   font-size: 48px;
   width: 48px;
   height: 48px;
@@ -180,7 +170,7 @@ $placeholder-text: #64748b;
   align-items: center;
   gap: 0.5rem;
   font-size: 0.85rem;
-  color: #515154;
+  color: var(--cs-text-muted);
   min-width: 0;
 }
 .row cs-icon {
