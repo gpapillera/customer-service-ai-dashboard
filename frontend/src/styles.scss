@@ -258,6 +258,46 @@ body {
     transform: scale(1);
   }
 }
+/* ---- Shared button utilities (used by account panels, agent list, etc.) ---- */
+.cs-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 14px;
+  border-radius: var(--cs-radius);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: transform 0.18s var(--cs-ease), background 0.18s var(--cs-ease),
+    box-shadow 0.18s var(--cs-ease);
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+}
+
+.cs-btn-primary {
+  background: var(--cs-accent);
+  color: #fff;
+
+  &:hover:not(:disabled) {
+    box-shadow: 0 8px 20px rgba(79, 70, 229, 0.25);
+  }
+}
+
+.cs-btn-ghost {
+  background: var(--cs-bg);
+  color: var(--cs-text);
+  border-color: var(--cs-border);
+}
+
 /* ---- Modal dialogs: give the content breathing room ----
    The form components render flush against the dialog edges, so add padding
    around the dialog surface and a little extra below the header. */

@@ -1,12 +1,13 @@
 // Material Design 3-inspired search + filter toolbar.
-$white: #ffffff;
-$toolbar-border: #e8edf3;
-$border: #dce6ef;
-$text: #111827;
-$placeholder: #94a3b8;
+// Mapped to the global --cs-* design token system.
+$white: var(--cs-surface, #ffffff);
+$toolbar-border: rgba(0, 0, 0, 0.06); // matches --cs-border
+$border: #dce6ef; // Material outline override — must be a literal for ::ng-deep
+$text: var(--cs-text, #0f172a);
+$placeholder: var(--cs-text-muted, #94a3b8);
 // Default (unselected) filter placeholder text — slightly darker than the
 // icon grey so it's readable, but kept at normal weight (not bold).
-$placeholder-text: #64748b;
+$placeholder-text: var(--cs-text-muted, #64748b);
 
 .toolbar {
   display: flex;
@@ -107,7 +108,7 @@ $placeholder-text: #64748b;
 .toolbar ::ng-deep .mat-mdc-select-value-text {
   font-size: 16px !important;
   font-weight: 600;
-  color: #0f172a !important;
+  color: var(--cs-text, #0f172a) !important;
 }
 
 // Search placeholder + default "All …" select placeholder — slightly darker

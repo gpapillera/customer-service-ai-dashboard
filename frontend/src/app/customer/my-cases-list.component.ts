@@ -5,6 +5,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatIconModule } from '@angular/material/icon';
 import { CsIconComponent } from '../shared/cs-icon.component';
+import { RevealDirective } from '../shared/reveal.directive';
 import { CustomerService } from './customer.service';
 import { CustomerCaseSummary } from '../shared/models';
 
@@ -22,6 +23,7 @@ import { CustomerCaseSummary } from '../shared/models';
     MatProgressSpinnerModule,
     MatIconModule,
     CsIconComponent,
+    RevealDirective,
   ],
   templateUrl: './my-cases-list.component.html',
   styleUrl: './my-cases-list.component.scss',

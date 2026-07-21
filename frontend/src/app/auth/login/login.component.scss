@@ -15,6 +15,24 @@
   background: var(--cs-surface);
   box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
   border: 1px solid var(--cs-border);
+  animation: login-enter 0.5s var(--cs-ease) both;
+}
+
+@keyframes login-enter {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-card {
+    animation: none;
+  }
 }
 
 /* Centered logo block, reusing the sidebar brand styling. */

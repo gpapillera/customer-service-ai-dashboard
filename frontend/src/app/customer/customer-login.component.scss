@@ -12,6 +12,24 @@
   border-radius: var(--cs-radius);
   box-shadow: var(--cs-shadow);
   padding: 0.5rem;
+  animation: login-enter 0.5s var(--cs-ease) both;
+}
+
+@keyframes login-enter {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-card {
+    animation: none;
+  }
 }
 
 .brand-block {
