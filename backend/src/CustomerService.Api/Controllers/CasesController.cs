@@ -92,6 +92,20 @@ public class CasesController : ControllerBase
         return await _service.GetMyConversationsAsync(agentUserId);
     }
 
+    /// <summary>
+    /// Admin "Conversations" view: all cases that have at least one comment,
+    /// regardless of assignment. Shows the assigned agent name (or null for
+    /// unassigned). Admin-only — Agent-role users get 403.
+    /// </summary>
+    /// <returns>Conversation summaries, most-recent activity first.</returns>
+    [HttpGet("all-conversations")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IReadOnlyList<ConversationSummaryDto>> AllConversations()
+    {
+        return await _service.GetAllConversationsAsync();
+    }
+
     /// <summary>Creates a case. Priority is ML-suggested when not supplied.</summary>
     /// <param name="dto">Create payload.</param>
     [HttpPost]

@@ -2,6 +2,41 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 12 — Admin: Global Conversations View] (2026-07-21)
+**Status:** ✅ COMPLETE (backend `dotnet build` → 0 errors, `dotnet test` → 64 passed; frontend `ng build` → 1.23 MB success; browser verified end-to-end)
+**What changed:**
+1. ✅ **Admin all-conversations endpoint:** `GET /api/cases/all-conversations` returns `IReadOnlyList<ConversationSummaryDto>` for every case that has at least one comment. Includes `AssignedAgentName` (resolved from the case's assigned user). Admin-only — returns 403 for Agent role.
+2. ✅ **ConversationSummaryDto enriched:** Added `AssignedAgentName` (string?, nullable) so the conversations list shows which agent is assigned to each case.
+3. ✅ **Frontend AdminConversationsComponent:** New standalone component at `/conversations` (admin-only nav item in sidebar). Lists all conversations with subject, customer name, assigned agent (or italic "Unassigned"), last message preview, and timestamp. Clicking a conversation navigates to the existing case detail page where the full comment thread is displayed.
+4. ✅ **Layout sidebar:** "Conversations" nav item added with `adminOnly: true` flag, visible only to Admin role users.
+5. ✅ **FakeCaseService updated:** Added `GetAllConversationsAsync()` stub returning empty list for test compatibility.
+
+**Browser verification (all passed):**
+- ✅ Admin logs in → sidebar shows "Conversations" nav item
+- ✅ Conversations list loads with 7 conversations across Maria Santos, Grace Agent, and Unassigned cases
+- ✅ Clicking a conversation → case detail loads with full comment thread (7 existing comments)
+- ✅ Posted reply as "Ada Admin" (Staff) from case detail → comment #8 created, conversation count jumps to 8
+- ✅ Customer login → `GET /api/customer-portal/cases/19/comments` → 8 comments visible, last one `isStaff: true` with correct body text
+- ✅ Agent role → `GET /api/cases/all-conversations` → 403 Forbidden
+
+**Files changed (backend):**
+- `Application/Dtos/CaseDtos.cs` — added `AssignedAgentName` to `ConversationSummaryDto`
+- `Application/Interfaces/ICaseService.cs` — added `GetAllConversationsAsync()` method
+- `Application/Services/CaseService.cs` — implemented `GetAllConversationsAsync()` querying all cases with comments, including AssignedToUser
+- `Api/Controllers/CasesController.cs` — added `GET /api/cases/all-conversations` (Admin-only)
+- `tests/Fakes/FakeCaseService.cs` — added `GetAllConversationsAsync()` stub
+
+**Files changed (frontend):**
+- `shared/models.ts` — added `assignedAgentName` to `Conversation` interface
+- `cases/case.service.ts` — added `allConversations()` method
+- `cases/admin-conversations.component.ts` — new standalone component (signals-based)
+- `cases/admin-conversations.component.html` — conversations list template
+- `cases/admin-conversations.component.scss` — conversation card styles + agent badge
+- `app.routes.ts` — added `/conversations` route
+- `shared/layout/layout.component.ts` — added Conversations nav item (adminOnly)
+
+---
+
 ## [Phase 11 — Admin: Edit Agents + Agent Detail/KPI Popup] (2026-07-21)
 **Status:** ✅ COMPLETE (backend `dotnet build` → 0 errors, `dotnet test` → 64 passed; frontend `ng build` → 1.23 MB success; browser verified end-to-end)
 **What changed:**

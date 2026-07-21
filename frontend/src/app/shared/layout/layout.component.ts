@@ -57,9 +57,10 @@ export class LayoutComponent {
     { path: '/cases', label: 'Cases', icon: 'confirmation_number' },
     // Agents list is admin-only (Phase 5). Hidden entirely for Agent-role users.
     { path: '/agents', label: 'Agents', icon: 'supervisor_account', adminOnly: true },
-    // Messages (conversations) tab is Agent-only (Phase 9). Admin's equivalent
-    // global view is a later phase, so it is hidden for Admins here.
+    // Messages (conversations) tab is Agent-only (Phase 9).
     { path: '/messages', label: 'Messages', icon: 'forum', agentOnly: true },
+    // Global conversations view is Admin-only (Phase 12).
+    { path: '/conversations', label: 'Conversations', icon: 'forum', adminOnly: true },
   ];
 
   constructor() {

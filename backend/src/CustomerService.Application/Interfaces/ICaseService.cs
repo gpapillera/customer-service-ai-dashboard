@@ -63,4 +63,12 @@ public interface ICaseService
     /// <param name="caseId">The case whose conversation to mark as read.</param>
     /// <param name="agentUserId">The agent's User.Id (from the JWT).</param>
     Task MarkConversationReadAsync(int caseId, string agentUserId);
+
+    /// <summary>
+    /// Returns all cases that have at least one comment, regardless of
+    /// assignment. Each entry includes the assigned agent name (or null for
+    /// unassigned cases). Intended for the Admin "Conversations" view.
+    /// </summary>
+    /// <returns>Conversation summaries, most-recent activity first.</returns>
+    Task<IReadOnlyList<ConversationSummaryDto>> GetAllConversationsAsync();
 }

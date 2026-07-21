@@ -159,4 +159,10 @@ public class ConversationSummaryDto
     /// marker for this case (or the agent has never viewed it).
     /// </summary>
     public bool Unread { get; set; }
+
+    /// <summary>
+    /// Display name of the agent assigned to the case, or null when
+    /// the case is unassigned.
+    /// </summary>
+    public string? AssignedAgentName { get; set; }
 }

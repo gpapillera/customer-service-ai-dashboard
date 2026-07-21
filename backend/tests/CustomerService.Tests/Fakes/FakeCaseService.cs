@@ -29,4 +29,7 @@ public class FakeCaseService : ICaseService
         Task.FromResult<IReadOnlyList<ConversationSummaryDto>>(new List<ConversationSummaryDto>());
 
     public Task MarkConversationReadAsync(int caseId, string agentUserId) => Task.CompletedTask;
+
+    public Task<IReadOnlyList<ConversationSummaryDto>> GetAllConversationsAsync() =>
+        Task.FromResult<IReadOnlyList<ConversationSummaryDto>>(new List<ConversationSummaryDto>());
 }

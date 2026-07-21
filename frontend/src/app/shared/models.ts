@@ -174,6 +174,7 @@ export interface Conversation {
   caseId: number;
   subject: string;
   customerName: string;
+  assignedAgentName: string | null;
   lastCommentSnippet: string;
   lastCommentAtUtc: string;
   lastCommentAuthor: string;

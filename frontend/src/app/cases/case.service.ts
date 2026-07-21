@@ -94,6 +94,11 @@ export class CaseService {
     return this.http.get<Conversation[]>(`${this.baseUrl}/my-conversations`);
   }
 
+  /** Admin global conversations — all cases with comments. */
+  allConversations(): Observable<Conversation[]> {
+    return this.http.get<Conversation[]>(`${this.baseUrl}/all-conversations`);
+  }
+
   /** Gets the shared comment thread for a case (staff view). */
   getComments(id: number): Observable<CustomerCaseComment[]> {
     return this.http.get<CustomerCaseComment[]>(`${this.baseUrl}/${id}/comments`);

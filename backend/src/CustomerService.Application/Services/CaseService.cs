@@ -373,6 +373,61 @@ public class CaseService : ICaseService
         await _readStates.SaveChangesAsync();
     }
 
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<ConversationSummaryDto>> GetAllConversationsAsync()
+    {
+        // All cases that have at least one comment, regardless of assignment.
+        var caseIdsWithComments = await _comments.Query()
+            .Select(cm => cm.CaseId)
+            .Distinct()
+            .ToListAsync();
+
+        if (caseIdsWithComments.Count == 0)
+        {
+            return Array.Empty<ConversationSummaryDto>();
+        }
+
+        var latestComments = await _comments.Query()
+            .Include(cm => cm.AuthorUser)
+            .Include(cm => cm.AuthorCustomer)
+            .Where(cm => caseIdsWithComments.Contains(cm.CaseId))
+            .GroupBy(cm => cm.CaseId)
+            .Select(g => g.OrderByDescending(cm => cm.CreatedAtUtc).First())
+            .ToListAsync();
+
+        var result = new List<ConversationSummaryDto>();
+        foreach (var comment in latestComments)
+        {
+            var caseEntity = await _cases.Query()
+                .Include(c => c.Customer)
+                .Include(c => c.AssignedToUser)
+                .FirstOrDefaultAsync(c => c.Id == comment.CaseId);
+            if (caseEntity is null)
+            {
+                continue;
+            }
+
+            result.Add(new ConversationSummaryDto
+            {
+                CaseId = comment.CaseId,
+                Subject = caseEntity.Subject,
+                CustomerName = caseEntity.Customer?.Name ?? string.Empty,
+                AssignedAgentName = caseEntity.AssignedToUser?.FullName,
+                LastCommentSnippet = comment.Body.Length > 140
+                    ? comment.Body[..140] + "…"
+                    : comment.Body,
+                LastCommentAtUtc = comment.CreatedAtUtc,
+                LastCommentAuthor = comment.AuthorUser?.FullName
+                    ?? comment.AuthorCustomer?.Name
+                    ?? "Unknown",
+                Unread = false, // Admin global view has no unread tracking
+            });
+        }
+
+        result.Sort((a, b) => b.LastCommentAtUtc.CompareTo(a.LastCommentAtUtc));
+        return result;
+    }
+
     internal static CaseDto ToDto(Case c) => new()
     {
         Id = c.Id,
