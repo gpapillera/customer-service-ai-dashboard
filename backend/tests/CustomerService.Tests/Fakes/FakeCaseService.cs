@@ -13,15 +13,20 @@ public class FakeCaseService : ICaseService
 {
     public Task<IReadOnlyList<CaseDto>> GetAllAsync(
         CaseStatus? status, Priority? priority, int? categoryId, DateTime? from, DateTime? to,
-        bool overdue = false, string? assignedToUserId = null) =>
+        bool overdue = false, string? assignedToUserId = null, string? callerRole = null, string? callerUserId = null) =>
         Task.FromResult<IReadOnlyList<CaseDto>>(new List<CaseDto>());
 
-    public Task<CaseDto?> GetByIdAsync(int id) => Task.FromResult<CaseDto?>(null);
+    public Task<CaseDto?> GetByIdAsync(int id, string? callerRole = null, string? callerUserId = null) => Task.FromResult<CaseDto?>(null);
 
     public Task<CaseDto> CreateAsync(CreateCaseDto dto) =>
         Task.FromResult(new CaseDto { Id = 0, Subject = dto.Subject, CustomerId = dto.CustomerId });
 
-    public Task UpdateAsync(int id, UpdateCaseDto dto) => Task.CompletedTask;
+    public Task UpdateAsync(int id, UpdateCaseDto dto, string? callerRole = null, string? callerUserId = null) => Task.CompletedTask;
 
     public Task DeleteAsync(int id) => Task.CompletedTask;
+
+    public Task<IReadOnlyList<ConversationSummaryDto>> GetMyConversationsAsync(string agentUserId) =>
+        Task.FromResult<IReadOnlyList<ConversationSummaryDto>>(new List<ConversationSummaryDto>());
+
+    public Task MarkConversationReadAsync(int caseId, string agentUserId) => Task.CompletedTask;
 }

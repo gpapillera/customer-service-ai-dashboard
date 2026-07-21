@@ -201,6 +201,7 @@ public class Program
         EnsureCaseCommentsTable(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
         EnsureCaseResolvedAtColumn(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
         EnsureCaseFollowUpDueUtcColumn(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
+        EnsureConversationReadStatesTable(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
         SeedDataInitializer.Initialize(ctx);
     }
 
@@ -517,6 +518,63 @@ public class Program
         catch (Exception ex)
         {
             Console.WriteLine($"WARN: could not ensure {table}.{column} column: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Creates the <c>ConversationReadStates</c> table if it is missing. Needed
+    /// because the project uses <c>EnsureCreated()</c> (no migrations), which
+    /// will not create a table for a model added after the database already
+    /// exists. Idempotent + provider-aware. Swap for EF migrations in
+    /// production.
+    /// </summary>
+    private static async Task EnsureConversationReadStatesTable(AppDbContext ctx, string? provider)
+    {
+        const string table = "ConversationReadStates";
+        try
+        {
+            if (provider != null && provider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase))
+            {
+                var conn = ctx.Database.GetDbConnection();
+                if (conn.State != System.Data.ConnectionState.Open)
+                {
+                    await conn.OpenAsync();
+                }
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = $"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='{table}';";
+                var count = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+                if (count == 0)
+                {
+                    using var create = conn.CreateCommand();
+                    create.CommandText = $@"CREATE TABLE [{table}] (
+                        [Id] INTEGER PRIMARY KEY AUTOINCREMENT,
+                        [AgentUserId] TEXT NOT NULL,
+                        [CaseId] INTEGER NOT NULL,
+                        [LastViewedUtc] TEXT NOT NULL
+                    );";
+                    await create.ExecuteNonQueryAsync();
+                    using var idx = conn.CreateCommand();
+                    idx.CommandText = $"CREATE INDEX [IX_ConversationReadStates_AgentCase] ON [{table}] ([AgentUserId], [CaseId]);";
+                    await idx.ExecuteNonQueryAsync();
+                }
+            }
+            else
+            {
+                var exists = ctx.Database.ExecuteSqlRaw(
+                    $"IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='{table}') " +
+                    $"CREATE TABLE [{table}] (" +
+                    $"[Id] int IDENTITY(1,1) NOT NULL, [AgentUserId] nvarchar(100) NOT NULL, " +
+                    $"[CaseId] int NOT NULL, [LastViewedUtc] datetime2 NOT NULL, " +
+                    $"CONSTRAINT [PK_ConversationReadStates] PRIMARY KEY ([Id]));");
+                _ = exists;
+                ctx.Database.ExecuteSqlRaw(
+                    $"IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_ConversationReadStates_AgentCase') " +
+                    $"CREATE INDEX [IX_ConversationReadStates_AgentCase] ON [{table}] ([AgentUserId], [CaseId]);");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"WARN: could not ensure {table} table: {ex.Message}");
         }
     }
 

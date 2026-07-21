@@ -10,9 +10,9 @@ import { RevealDirective } from '../shared/reveal.directive';
 import { CsIconComponent } from '../shared/cs-icon.component';
 import { CustomerService } from './customer.service';
 import { CustomerFormComponent } from './customer-form.component';
-import { CaseService } from '../cases/case.service';
 import { CaseFormComponent, CaseFormDialogData } from '../cases/case-form.component';
 import { Customer, Case } from '../shared/models';
+import { AuthService } from '../auth/auth.service';
 
 /**
  * Customer detail view: profile info plus the customer's case history.
@@ -36,9 +36,9 @@ import { Customer, Case } from '../shared/models';
 })
 export class CustomerDetailComponent implements OnInit {
   private readonly service = inject(CustomerService);
-  private readonly caseService = inject(CaseService);
   private readonly dialog = inject(MatDialog);
   private readonly route = inject(ActivatedRoute);
+  readonly auth = inject(AuthService);
 
   readonly customer = signal<Customer | null>(null);
   readonly cases = signal<Case[]>([]);
@@ -59,9 +59,7 @@ export class CustomerDetailComponent implements OnInit {
       },
       error: () => this.loading.set(false),
     });
-    this.caseService.list({}).subscribe((list) => {
-      this.cases.set(list.filter((c) => c.customerId === id));
-    });
+    this.loadCases();
   }
 
   /** Opens the new-case modal directly on this page, locked to this customer. */
@@ -83,8 +81,8 @@ export class CustomerDetailComponent implements OnInit {
   /** Reloads only the case history for this customer (in place). */
   private loadCases(): void {
     const id = Number(this.route.snapshot.paramMap.get('id'));
-    this.caseService.list({}).subscribe((list) => {
-      this.cases.set(list.filter((c) => c.customerId === id));
+    this.service.customerCases(id).subscribe((list) => {
+      this.cases.set(list);
     });
   }
 

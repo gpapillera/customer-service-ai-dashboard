@@ -24,18 +24,25 @@ public class CallLogsController : ControllerBase
     /// <param name="caseId">Parent case id.</param>
     [HttpGet("case/{caseId:int}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IReadOnlyList<CallLogDto>> GetByCase(int caseId)
-        => await _service.GetByCaseAsync(caseId);
+    {
+        var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+        var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        return await _service.GetByCaseAsync(caseId, role, userId);
+    }
 
     /// <summary>Adds a call log to a case.</summary>
     /// <param name="dto">Create payload.</param>
     [HttpPost]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<CallLogDto>> Create([FromBody] CreateCallLogDto dto)
     {
+        var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
         var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        var created = await _service.CreateAsync(dto, userId);
+        var created = await _service.CreateAsync(dto, userId, role, userId);
         return CreatedAtAction(nameof(GetByCase), new { caseId = created.CaseId }, created);
     }
 }

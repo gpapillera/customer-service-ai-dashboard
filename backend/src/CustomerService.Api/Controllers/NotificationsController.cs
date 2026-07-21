@@ -2,6 +2,7 @@ using CustomerService.Application.Dtos;
 using CustomerService.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace CustomerService.Api.Controllers;
 
@@ -28,7 +29,8 @@ public class NotificationsController : ControllerBase
     public async Task<NotificationSummaryDto> GetSummary()
     {
         await _service.GenerateOverdueAsync();
-        return await _service.GetSummaryAsync();
+        var recipientUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return await _service.GetSummaryAsync(recipientUserId);
     }
 
     /// <summary>Returns all notifications, newest first.</summary>
@@ -38,7 +40,8 @@ public class NotificationsController : ControllerBase
     public async Task<IReadOnlyList<NotificationDto>> GetAll()
     {
         await _service.GenerateOverdueAsync();
-        return await _service.GetAllAsync();
+        var recipientUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return await _service.GetAllAsync(recipientUserId);
     }
 
     /// <summary>Marks a single notification as read.</summary>

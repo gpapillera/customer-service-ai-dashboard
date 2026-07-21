@@ -128,3 +128,35 @@ public class CaseDto
     /// </summary>
     public int? DaysOverdue { get; set; }
 }
+
+/// <summary>
+/// A single entry in an agent's "Messages" (conversations) list. Summarises a
+/// case assigned to the agent that has at least one comment, surfacing the most
+/// recent comment and whether the agent has an unread message.
+/// </summary>
+public class ConversationSummaryDto
+{
+    /// <summary>Case id.</summary>
+    public int CaseId { get; set; }
+
+    /// <summary>Case subject.</summary>
+    public string Subject { get; set; } = string.Empty;
+
+    /// <summary>Customer display name (case owner).</summary>
+    public string CustomerName { get; set; } = string.Empty;
+
+    /// <summary>Truncated body of the most recent comment.</summary>
+    public string LastCommentSnippet { get; set; } = string.Empty;
+
+    /// <summary>UTC timestamp of the most recent comment.</summary>
+    public DateTime LastCommentAtUtc { get; set; }
+
+    /// <summary>Display name of the author of the most recent comment.</summary>
+    public string LastCommentAuthor { get; set; } = string.Empty;
+
+    /// <summary>
+    /// True when the latest comment is newer than the agent's last-viewed
+    /// marker for this case (or the agent has never viewed it).
+    /// </summary>
+    public bool Unread { get; set; }
+}

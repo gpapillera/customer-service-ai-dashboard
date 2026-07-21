@@ -102,3 +102,26 @@
 .foot a:hover {
   text-decoration: underline;
 }
+
+.signup-success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 0.5rem 0.25rem 0.75rem;
+}
+
+.success-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--cs-accent-gradient);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.signup-success .subtitle {
+  margin-bottom: 1.25rem;
+}

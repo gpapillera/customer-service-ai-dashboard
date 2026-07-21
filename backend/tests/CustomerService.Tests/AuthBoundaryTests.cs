@@ -96,7 +96,9 @@ public class AuthBoundaryTests
         var controller = new CustomerPortalController(
             cases,
             comments ?? new FakeCaseCommentService(),
-            new FakeCaseService());
+            new FakeCaseService(),
+            new FakeCustomerAuthService(),
+            new FakeNotificationService());
 
         var identity = new ClaimsIdentity(new[]
         {
@@ -242,7 +244,7 @@ public class AuthBoundaryTests
         (cases as IRepository<Case>).AddAsync(new Case { Id = 1, CustomerId = 1, Subject = "S" }).Wait();
         (customers as IRepository<Customer>).AddAsync(new Customer { Id = 1, Name = "Juan" }).Wait();
 
-        var controller = new CustomerPortalController(cases, svc, new FakeCaseService());
+        var controller = new CustomerPortalController(cases, svc, new FakeCaseService(), new FakeCustomerAuthService(), new FakeNotificationService());
         var identity = new ClaimsIdentity(new[]
         {
             new Claim("CustomerId", "1"),
@@ -281,7 +283,7 @@ public class AuthBoundaryTests
     {
         // With no CustomerId / NameIdentifier claim, GetCustomerId() must fail
         // safe (UnauthorizedAccessException) rather than impersonate a customer.
-        var controller = new CustomerPortalController(new FakeRepository<Case>(), new FakeCaseCommentService(), new FakeCaseService());
+        var controller = new CustomerPortalController(new FakeRepository<Case>(), new FakeCaseCommentService(), new FakeCaseService(), new FakeCustomerAuthService(), new FakeNotificationService());
         controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity()) },
@@ -398,5 +400,17 @@ public class AuthBoundaryTests
             LastCustomerAuthorId = authorCustomerId;
             return Task.FromResult(new CaseCommentDto { Id = 1, AuthorDisplayName = $"Customer #{authorCustomerId}", IsStaff = false, Body = body });
         }
+    }
+
+    /// <summary>No-op notification service for the auth-boundary tests.</summary>
+    private sealed class FakeNotificationService : INotificationService
+    {
+        public Task<int> GenerateOverdueAsync() => Task.FromResult(0);
+        public Task<int> NotifyResolvedAsync(Case caseEntity) => Task.FromResult(0);
+        public Task<int> NotifyNewCustomerMessageAsync(Case caseEntity, string customerName) => Task.FromResult(0);
+        public Task<IReadOnlyList<NotificationDto>> GetAllAsync(string? recipientUserId = null) => Task.FromResult<IReadOnlyList<NotificationDto>>(Array.Empty<NotificationDto>());
+        public Task<NotificationSummaryDto> GetSummaryAsync(string? recipientUserId = null) => Task.FromResult(new NotificationSummaryDto());
+        public Task<bool> MarkReadAsync(int id) => Task.FromResult(false);
+        public Task<int> MarkAllReadAsync() => Task.FromResult(0);
     }
 }

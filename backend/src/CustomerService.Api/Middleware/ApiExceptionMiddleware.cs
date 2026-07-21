@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using CustomerService.Domain;
 using CustomerService.Domain.Entities;
 
 namespace CustomerService.Api.Middleware;
@@ -63,7 +64,7 @@ public class ApiExceptionMiddleware
         {
             KeyNotFoundException => HttpStatusCode.NotFound,
             ArgumentException or InvalidOperationException => HttpStatusCode.BadRequest,
-            UnauthorizedAccessException => HttpStatusCode.Forbidden,
+            UnauthorizedAccessException or ForbiddenException => HttpStatusCode.Forbidden,
             _ => HttpStatusCode.InternalServerError,
         };
 

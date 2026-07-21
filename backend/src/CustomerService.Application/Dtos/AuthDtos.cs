@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace CustomerService.Application.Dtos;
 
 /// <summary>Credentials submitted to the login endpoint.</summary>
@@ -13,6 +15,9 @@ public class LoginRequest
 /// <summary>JWT auth result returned on successful login.</summary>
 public class LoginResponse
 {
+    /// <summary>User id (matches the JWT NameIdentifier claim; used for assignment checks).</summary>
+    public string Id { get; set; } = string.Empty;
+
     /// <summary>JWT bearer token.</summary>
     public string Token { get; set; } = string.Empty;
 
@@ -62,6 +67,36 @@ public class CustomerLoginRequest
     public string Password { get; set; } = string.Empty;
 }
 
+/// <summary>
+/// Body for public customer self-registration (signup). No password field —
+/// the customer sets one later via the emailed invite link. Only the profile
+/// fields the customer is allowed to supply are present.
+/// </summary>
+public class RegisterCustomerDto
+{
+    /// <summary>Customer full name.</summary>
+    [Required(ErrorMessage = "Full name is required.")]
+    [StringLength(200, ErrorMessage = "Name must be 200 characters or fewer.")]
+    public string FullName { get; set; } = string.Empty;
+
+    /// <summary>Email address (used as the login identity).</summary>
+    [Required(ErrorMessage = "Email is required.")]
+    [EmailAddress(ErrorMessage = "A valid email is required.")]
+    [StringLength(200, ErrorMessage = "Email must be 200 characters or fewer.")]
+    public string Email { get; set; } = string.Empty;
+
+    /// <summary>Optional phone number.</summary>
+    [StringLength(30, ErrorMessage = "Phone must be 30 characters or fewer.")]
+    public string? Phone { get; set; }
+
+    /// <summary>Optional company name.</summary>
+    [StringLength(150, ErrorMessage = "Company must be 150 characters or fewer.")]
+    public string? Company { get; set; }
+
+    /// <summary>Optional address.</summary>
+    public string? Address { get; set; }
+}
+
 /// <summary>JWT auth result returned on successful customer login.</summary>
 public class CustomerLoginResponse
 {
@@ -79,4 +114,54 @@ public class CustomerLoginResponse
 
     /// <summary>Assigned role (always "Customer").</summary>
     public string Role { get; set; } = "Customer";
+}
+
+/// <summary>
+/// Read model for the signed-in customer's own profile. Email is intentionally
+/// read-only on the client (it is the login identity); only the editable
+/// profile fields are returned here.
+/// </summary>
+public class CustomerProfileDto
+{
+    /// <summary>Customer id.</summary>
+    public int Id { get; set; }
+
+    /// <summary>Customer full name.</summary>
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>Login identity (read-only).</summary>
+    public string Email { get; set; } = string.Empty;
+
+    /// <summary>Optional phone number.</summary>
+    public string? Phone { get; set; }
+
+    /// <summary>Optional company name.</summary>
+    public string? Company { get; set; }
+
+    /// <summary>Optional address.</summary>
+    public string? Address { get; set; }
+}
+
+/// <summary>
+/// Body for updating the signed-in customer's own profile. Email is NOT
+/// accepted here — the customer id is taken strictly from the JWT claim by the
+/// controller, and the email (login identity) is never editable.
+/// </summary>
+public class UpdateCustomerProfileDto
+{
+    /// <summary>Customer full name.</summary>
+    [Required(ErrorMessage = "Name is required.")]
+    [StringLength(200, ErrorMessage = "Name must be 200 characters or fewer.")]
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>Optional phone number.</summary>
+    [StringLength(30, ErrorMessage = "Phone must be 30 characters or fewer.")]
+    public string? Phone { get; set; }
+
+    /// <summary>Optional company name.</summary>
+    [StringLength(150, ErrorMessage = "Company must be 150 characters or fewer.")]
+    public string? Company { get; set; }
+
+    /// <summary>Optional address.</summary>
+    public string? Address { get; set; }
 }

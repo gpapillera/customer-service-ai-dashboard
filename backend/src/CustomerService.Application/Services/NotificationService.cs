@@ -211,11 +211,69 @@ public class NotificationService : INotificationService
         return created;
     }
 
-    /// <inheritdoc/>
-    public async Task<IReadOnlyList<NotificationDto>> GetAllAsync()
+    /// <inheritdoc />
+    public async Task<int> NotifyNewCustomerMessageAsync(Case caseEntity, string customerName)
     {
-        var list = await _notifications.Query()
-            .Where(n => n.Channel == NotificationChannel.InApp)
+        if (caseEntity is null)
+        {
+            _logger.LogWarning("NewCustomerMessage skipped: caseEntity is null.");
+            return 0;
+        }
+
+        if (string.IsNullOrWhiteSpace(caseEntity.AssignedToUserId))
+        {
+            // No agent owns this case, so there is no recipient for the alert.
+            // Log clearly and skip — same resilience pattern as overdue/resolved.
+            _logger.LogWarning(
+                "NewCustomerMessage skipped for case #{CaseId}: case is unassigned (no agent recipient).",
+                caseEntity.Id);
+            return 0;
+        }
+
+        // Idempotent: one open in-app alert per case. If an unread
+        // NewCustomerMessage already exists for this case, do not stack another.
+        var existing = await _notifications.Query()
+            .Where(n => n.CaseId == caseEntity.Id
+                && n.Channel == NotificationChannel.InApp
+                && n.Type == NotificationType.NewCustomerMessage
+                && n.Status == NotificationStatus.Unread)
+            .ToListAsync();
+        if (existing.Any())
+        {
+            return 0;
+        }
+
+        var notification = new Notification
+        {
+            Title = "New customer message",
+            Message = $"{customerName} sent a new message on case #{caseEntity.Id} \"{caseEntity.Subject}\".",
+            Channel = NotificationChannel.InApp,
+            Type = NotificationType.NewCustomerMessage,
+            Status = NotificationStatus.Unread,
+            CreatedAtUtc = DateTime.UtcNow,
+            Link = $"/cases/{caseEntity.Id}",
+            CaseId = caseEntity.Id,
+            Recipient = caseEntity.AssignedToUserId,
+        };
+
+        await _sender.SendAsync(notification);
+        return 1;
+    }
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<NotificationDto>> GetAllAsync(string? recipientUserId = null)
+    {
+        var query = _notifications.Query()
+            .Where(n => n.Channel == NotificationChannel.InApp);
+
+        // When a recipient is specified (Agent), only show notifications
+        // addressed to this user or broadcast notifications (Recipient null).
+        if (!string.IsNullOrWhiteSpace(recipientUserId))
+        {
+            query = query.Where(n => n.Recipient == recipientUserId || n.Recipient == null);
+        }
+
+        var list = await query
             .OrderByDescending(n => n.CreatedAtUtc)
             .Select(n => NotificationDto.FromEntity(n))
             .ToListAsync();
@@ -223,12 +281,20 @@ public class NotificationService : INotificationService
     }
 
     /// <inheritdoc/>
-    public async Task<NotificationSummaryDto> GetSummaryAsync()
+    public async Task<NotificationSummaryDto> GetSummaryAsync(string? recipientUserId = null)
     {
-        var unread = await _notifications.Query()
+        var query = _notifications.Query()
             .Where(n => n.Status == NotificationStatus.Unread)
-            .Where(n => n.Channel == NotificationChannel.InApp)
-            .ToListAsync();
+            .Where(n => n.Channel == NotificationChannel.InApp);
+
+        // When a recipient is specified (Agent), only count notifications
+        // addressed to this user or broadcast notifications (Recipient null).
+        if (!string.IsNullOrWhiteSpace(recipientUserId))
+        {
+            query = query.Where(n => n.Recipient == recipientUserId || n.Recipient == null);
+        }
+
+        var unread = await query.ToListAsync();
         var recent = unread
             .OrderByDescending(n => n.CreatedAtUtc)
             .Take(5)

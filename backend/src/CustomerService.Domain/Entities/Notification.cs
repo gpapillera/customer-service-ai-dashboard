@@ -44,6 +44,12 @@ public enum NotificationType
 
     /// <summary>Customer portal invite (customer-facing).</summary>
     CustomerInvite = 2,
+
+    /// <summary>Customer password-reset link (customer-facing).</summary>
+    CustomerPasswordReset = 3,
+
+    /// <summary>New customer message on a case assigned to an agent (agent-facing, in-app).</summary>
+    NewCustomerMessage = 4,
 }
 
 /// <summary>

@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using CustomerService.Application.Dtos;
 using CustomerService.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -27,27 +28,64 @@ public class CustomersController : ControllerBase
     }
 
     /// <summary>Lists all customers.</summary>
-    /// <returns>All customers.</returns>
+    /// <returns>All customers (scoped to the caller's shared cases for an Agent).</returns>
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<IReadOnlyList<CustomerDto>> GetAll() => await _service.GetAllAsync();
+    public async Task<IReadOnlyList<CustomerDto>> GetAll()
+    {
+        var callerUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var callerRole = User.FindFirst(ClaimTypes.Role)?.Value;
+        return await _service.GetAllAsync(callerRole, callerUserId);
+    }
 
     /// <summary>Gets a customer by id.</summary>
     /// <param name="id">Customer id.</param>
-    /// <returns>The customer or 404.</returns>
+    /// <returns>The customer or 404 (403 if an Agent doesn't share a case).</returns>
     [HttpGet("{id:int}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<CustomerDto>> GetById(int id)
-        => await _service.GetByIdAsync(id) is { } c ? Ok(c) : NotFound();
+    {
+        var callerUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var callerRole = User.FindFirst(ClaimTypes.Role)?.Value;
+        var c = await _service.GetByIdAsync(id, callerRole, callerUserId);
+        return c is null ? NotFound() : Ok(c);
+    }
 
     /// <summary>Searches customers by name/email/phone.</summary>
     /// <param name="term">Search term.</param>
-    /// <returns>Matching customers.</returns>
+    /// <returns>Matching customers (scoped to the caller's shared cases for an Agent).</returns>
     [HttpGet("search")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IReadOnlyList<CustomerDto>> Search([FromQuery] string? term)
-        => await _service.SearchAsync(term);
+    {
+        var callerUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var callerRole = User.FindFirst(ClaimTypes.Role)?.Value;
+        return await _service.SearchAsync(term, callerRole, callerUserId);
+    }
+
+    /// <summary>
+    /// Returns a customer's case history. For an Agent caller, only the cases
+    /// assigned to them are returned (never another agent's cases with the same
+    /// customer). Admin sees the full history.
+    /// </summary>
+    /// <param name="id">Customer id.</param>
+    [HttpGet("{id:int}/cases")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<IReadOnlyList<CaseDto>>> GetCustomerCases(int id)
+    {
+        // Reuse the same scoping as GetById: an Agent must share a case with
+        // the customer before seeing their history.
+        var callerUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var callerRole = User.FindFirst(ClaimTypes.Role)?.Value;
+        var customer = await _service.GetByIdAsync(id, callerRole, callerUserId);
+        if (customer is null) return NotFound();
+        var cases = await _service.GetCustomerCaseHistoryAsync(id, callerRole, callerUserId);
+        return Ok(cases);
+    }
 
     /// <summary>Creates a customer.</summary>
     /// <param name="dto">Create payload.</param>

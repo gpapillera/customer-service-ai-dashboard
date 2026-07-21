@@ -54,7 +54,12 @@ public class CasesController : ControllerBase
         var assignedToUserId = assignedToMe
             ? User.FindFirst(ClaimTypes.NameIdentifier)?.Value
             : null;
-        return await _service.GetAllAsync(status, priority, categoryId, from, to, overdue, assignedToUserId);
+        // Caller identity is also passed so the service can enforce Agent
+        // scoping server-side (Phase 6): an Agent only sees their own + unassigned
+        // cases regardless of any query param. Admin is unaffected.
+        var callerUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var callerRole = User.FindFirst(ClaimTypes.Role)?.Value;
+        return await _service.GetAllAsync(status, priority, categoryId, from, to, overdue, assignedToUserId, callerRole, callerUserId);
     }
 
     /// <summary>Gets a case by id.</summary>
@@ -62,8 +67,30 @@ public class CasesController : ControllerBase
     [HttpGet("{id:int}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<CaseDto>> GetById(int id)
-        => await _service.GetByIdAsync(id) is { } c ? Ok(c) : NotFound();
+    {
+        var callerUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var callerRole = User.FindFirst(ClaimTypes.Role)?.Value;
+        var c = await _service.GetByIdAsync(id, callerRole, callerUserId);
+        return c is null ? NotFound() : Ok(c);
+    }
+
+    /// <summary>
+    /// Agent "Messages" tab: cases assigned to the calling agent that have at
+    /// least one comment, each summarised with the latest comment and an
+    /// unread flag. Agent-only — Admin's global view is a later phase.
+    /// </summary>
+    /// <returns>Conversation summaries, most-recent activity first.</returns>
+    [HttpGet("my-conversations")]
+    [Authorize(Roles = "Agent")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IReadOnlyList<ConversationSummaryDto>> MyConversations()
+    {
+        var agentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? throw new UnauthorizedAccessException("Missing user id claim.");
+        return await _service.GetMyConversationsAsync(agentUserId);
+    }
 
     /// <summary>Creates a case. Priority is ML-suggested when not supplied.</summary>
     /// <param name="dto">Create payload.</param>
@@ -82,9 +109,12 @@ public class CasesController : ControllerBase
     [HttpPut("{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateCaseDto dto)
     {
-        await _service.UpdateAsync(id, dto);
+        var callerUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var callerRole = User.FindFirst(ClaimTypes.Role)?.Value;
+        await _service.UpdateAsync(id, dto, callerRole, callerUserId);
         return NoContent();
     }
 
@@ -146,5 +176,22 @@ public class CasesController : ControllerBase
             // rather than letting it bubble to a 500.
             return BadRequest(new ProblemDetails { Title = "Invalid comment body." });
         }
+    }
+
+    /// <summary>
+    /// Marks a conversation as read for the calling agent. Upserts a
+    /// <c>ConversationReadState</c> record so the Messages tab will no longer
+    /// flag this case as unread.
+    /// </summary>
+    /// <param name="id">Case id.</param>
+    [HttpPost("{id:int}/conversations/mark-read")]
+    [Authorize(Roles = "Agent")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> MarkConversationRead(int id)
+    {
+        var agentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? throw new UnauthorizedAccessException("Missing user id claim.");
+        await _service.MarkConversationReadAsync(id, agentUserId);
+        return NoContent();
     }
 }

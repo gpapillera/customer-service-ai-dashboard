@@ -8,6 +8,9 @@ import {
   CreateCustomerCase,
   CreateCustomerComment,
   ValidateInviteResponse,
+  RegisterCustomer,
+  CustomerProfile,
+  UpdateCustomerProfile,
 } from '../shared/models';
 
 /**
@@ -66,5 +69,25 @@ export class CustomerService {
       token,
       password,
     });
+  }
+
+  /** Public customer self-registration (signup). No token is returned. */
+  register(dto: RegisterCustomer): Observable<void> {
+    return this.http.post<void>(`${this.authUrl}/register`, dto);
+  }
+
+  /** Gets the signed-in customer's own profile (JWT-scoped). */
+  getProfile(): Observable<CustomerProfile> {
+    return this.http.get<CustomerProfile>(`${this.portalUrl}/profile`);
+  }
+
+  /** Updates the signed-in customer's own profile (JWT-scoped). */
+  updateProfile(dto: UpdateCustomerProfile): Observable<void> {
+    return this.http.put<void>(`${this.portalUrl}/profile`, dto);
+  }
+
+  /** Requests a password reset email (JWT-scoped, reuses invite token flow). */
+  requestPasswordReset(): Observable<void> {
+    return this.http.post<void>(`${this.portalUrl}/request-password-reset`, {});
   }
 }

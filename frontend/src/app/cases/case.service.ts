@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
-import { Case, CreateCase, UpdateCase, Category, Agent } from '../shared/models';
+import { Case, CreateCase, UpdateCase, Category, Agent, Conversation, CustomerCaseComment } from '../shared/models';
 import { CATEGORIES } from '../shared/categories';
 
 /**
@@ -87,5 +87,25 @@ export class CaseService {
   /** Lists agents/admins for the assignee dropdown (GET /api/users). */
   agents(): Observable<Agent[]> {
     return this.http.get<Agent[]>('/api/users');
+  }
+
+  /** Agent "Messages" tab: cases assigned to the agent with a comment thread. */
+  myConversations(): Observable<Conversation[]> {
+    return this.http.get<Conversation[]>(`${this.baseUrl}/my-conversations`);
+  }
+
+  /** Gets the shared comment thread for a case (staff view). */
+  getComments(id: number): Observable<CustomerCaseComment[]> {
+    return this.http.get<CustomerCaseComment[]>(`${this.baseUrl}/${id}/comments`);
+  }
+
+  /** Posts a staff reply to a case's shared thread. */
+  postComment(id: number, body: string): Observable<CustomerCaseComment> {
+    return this.http.post<CustomerCaseComment>(`${this.baseUrl}/${id}/comments`, { body });
+  }
+
+  /** Marks a conversation as read for the calling agent. */
+  markConversationRead(id: number): Observable<void> {
+    return this.http.post<void>(`${this.baseUrl}/${id}/conversations/mark-read`, {});
   }
 }

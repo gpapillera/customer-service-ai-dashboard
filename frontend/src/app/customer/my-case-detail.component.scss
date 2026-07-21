@@ -1,7 +1,19 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  /* Fill the parent .content area — subtract its padding (top 1.75rem + bottom 3rem ≈ 4.75rem ≈ 76px) */
+  height: calc(100vh - 76px);
+  min-height: 0;
+}
+
 .page {
-  display: block;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   max-width: 720px;
   margin: 0 auto;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .back-link {
@@ -74,6 +86,32 @@
   box-shadow: var(--cs-shadow);
   padding: 1.1rem 1.25rem;
   margin-bottom: 1.25rem;
+}
+
+/* Chat panel: fills remaining viewport height so the reply box sits at the
+   bottom and the message list scrolls above it. */
+.chat-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.chat-wrap {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0; /* critical for flex overflow in nested contexts */
+}
+
+.chat-scroll {
+  flex: 1;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+  overscroll-behavior: contain;
+  padding-right: 0.25rem; /* breathing room for scrollbar */
+  min-height: 0; /* no forced minimum — let flex handle sizing */
 }
 
 .panel-title {
@@ -152,6 +190,9 @@
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
+  padding-top: 0.75rem;
+  margin-top: auto;            /* stick to bottom of flex container */
+  border-top: 1px solid var(--cs-border);
 }
 
 .reply-input {
@@ -162,7 +203,7 @@
   font: inherit;
   color: var(--cs-text);
   background: var(--cs-surface);
-  resize: vertical;
+  resize: none;                /* fixed-height textarea, no resize */
   transition: border-color 0.2s var(--cs-ease), box-shadow 0.2s var(--cs-ease);
 }
 

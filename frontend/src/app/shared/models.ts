@@ -8,6 +8,7 @@ export interface LoginRequest {
 
 /** Response from POST /api/auth/login. */
 export interface LoginResponse {
+  id: string;
   token: string;
   expiresUtc: string;
   userName: string;
@@ -30,6 +31,15 @@ export interface Customer {
 /** Payload for creating a customer. */
 export interface CreateCustomer {
   name: string;
+  email: string;
+  phone?: string | null;
+  company?: string | null;
+  address?: string | null;
+}
+
+/** Payload for public customer self-registration (signup). No password field. */
+export interface RegisterCustomer {
+  fullName: string;
   email: string;
   phone?: string | null;
   company?: string | null;
@@ -152,6 +162,17 @@ export interface CustomerCaseComment {
   createdAtUtc: string;
 }
 
+/** A single entry in an agent's Messages (conversations) list. */
+export interface Conversation {
+  caseId: number;
+  subject: string;
+  customerName: string;
+  lastCommentSnippet: string;
+  lastCommentAtUtc: string;
+  lastCommentAuthor: string;
+  unread: boolean;
+}
+
 /** Payload for a customer to create a case. */
 export interface CreateCustomerCase {
   subject: string;
@@ -169,6 +190,24 @@ export interface ValidateInviteResponse {
   valid: boolean;
   customerName: string | null;
   customerEmailMasked: string | null;
+}
+
+/** The signed-in customer's own profile (email is read-only). */
+export interface CustomerProfile {
+  id: number;
+  name: string;
+  email: string;
+  phone: string | null;
+  company: string | null;
+  address: string | null;
+}
+
+/** Payload for updating the customer's own profile (no email field). */
+export interface UpdateCustomerProfile {
+  name: string;
+  phone?: string | null;
+  company?: string | null;
+  address?: string | null;
 }
 
 /** A category/count pair for breakdown charts. */

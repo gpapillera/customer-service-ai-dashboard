@@ -4,6 +4,12 @@
 
 @if (loading()) {
   <div class="center"><mat-spinner diameter="36"></mat-spinner></div>
+} @else if (loadError()) {
+  <div class="center error-state">
+    <cs-icon name="lock"></cs-icon>
+    <p>{{ loadError() }}</p>
+    <a class="back" (click)="router.navigateByUrl('/cases')">Back to Cases</a>
+  </div>
 } @else {
   @if (case(); as c) {
     <div class="detail-grid">
@@ -18,9 +24,11 @@
                   <span class="cs-pill" [class]="statusClass(c.status)"><span class="cs-dot"></span>{{ c.status }}</span>
                 </div>
               </div>
-              <button mat-stroked-button class="edit-btn" (click)="edit()">
-                <cs-icon name="edit"></cs-icon> Edit Case
-              </button>
+              @if (canEdit()) {
+                <button mat-stroked-button class="edit-btn" (click)="edit()">
+                  <cs-icon name="edit"></cs-icon> Edit Case
+                </button>
+              }
             </div>
 
             <dl class="facts">
@@ -86,24 +94,83 @@
             <form [formGroup]="logForm" (ngSubmit)="addLog()" class="log-form">
               <mat-form-field appearance="outline" class="dir-field">
                 <mat-label>Direction</mat-label>
-                <mat-select formControlName="direction">
+                <mat-select formControlName="direction" [disabled]="!canEdit()">
                   <mat-option value="Inbound">Inbound</mat-option>
                   <mat-option value="Outbound">Outbound</mat-option>
                 </mat-select>
               </mat-form-field>
               <mat-form-field appearance="outline" class="notes-field">
                 <mat-label>Notes</mat-label>
-                <textarea matInput formControlName="notes" rows="2"></textarea>
+                <textarea matInput formControlName="notes" rows="2" [disabled]="!canEdit()"></textarea>
               </mat-form-field>
-              <button mat-flat-button color="primary" type="submit" [disabled]="savingLog()">
+              <button mat-flat-button color="primary" type="submit" [disabled]="!canEdit() || savingLog()">
                 <cs-icon name="add"></cs-icon> Add
               </button>
             </form>
+            @if (!canEdit()) {
+              <p class="muted small log-readonly">You can only add follow-up logs to cases assigned to you.</p>
+            }
+          </mat-card-content>
+        </mat-card>
+
+        <!-- Gap 3: Comment / conversation thread -->
+        <mat-card class="cs-lift comment-card reveal" appReveal>
+          <mat-card-content>
+            <h2 class="card-title">Conversation ({{ comments().length }})</h2>
+
+            <div class="chat-wrap">
+              <div class="chat-scroll" #chatScroll>
+                @if (comments().length === 0) {
+                  <p class="muted">No comments yet. Start the conversation below.</p>
+                } @else {
+                  <div class="comment-list stagger">
+                    @for (comment of comments(); track comment.id) {
+                      <div class="comment-item" [class.staff]="comment.isStaff">
+                        <div class="comment-head">
+                          <span class="comment-author">{{ comment.authorDisplayName }}</span>
+                          <span class="cs-pill" [class]="comment.isStaff ? 'status-inprogress' : 'status-new'">
+                            {{ comment.isStaff ? 'Staff' : 'Customer' }}
+                          </span>
+                          <span class="muted">{{ formatDate(comment.createdAtUtc) }}</span>
+                        </div>
+                        <div class="comment-body">{{ comment.body }}</div>
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+
+              <form [formGroup]="commentForm" (ngSubmit)="addComment()" class="comment-form">
+                <mat-form-field appearance="outline" class="comment-field">
+                  <mat-label>Reply</mat-label>
+                  <textarea matInput formControlName="body" rows="2"
+                    placeholder="Type your reply to the customer…"></textarea>
+                </mat-form-field>
+                <button mat-flat-button color="primary" type="submit"
+                  [disabled]="commentForm.invalid || savingComment()">
+                  <cs-icon name="send"></cs-icon> Send Reply
+                </button>
+              </form>
+            </div>
           </mat-card-content>
         </mat-card>
       </div>
 
       <div class="side-col">
+        @if (!canEdit()) {
+          <mat-card class="cs-lift side-card reveal readonly-banner" appReveal>
+            <mat-card-content>
+              <div class="readonly-head">
+                <cs-icon name="lock"></cs-icon>
+                <span>Read-only</span>
+              </div>
+              <p class="muted small">
+                This case is not assigned to you, so editing is disabled. Contact an administrator to reassign it.
+              </p>
+            </mat-card-content>
+          </mat-card>
+        }
+
         <mat-card class="cs-lift side-card reveal" appReveal>
           <mat-card-content>
             <h3 class="side-title">Update Status</h3>
@@ -114,6 +181,7 @@
                   class="option-row"
                   [class.active]="c.status === s"
                   (click)="updateStatus(s)"
+                  [disabled]="!canEdit()"
                 >
                   <span class="cs-dot" [class]="'dot-' + s.toLowerCase()"></span>
                   {{ s }}
@@ -133,6 +201,7 @@
                   class="option-row"
                   [class.active]="c.priority === p"
                   (click)="updatePriority(p)"
+                  [disabled]="!canEdit()"
                 >
                   <span class="cs-dot" [class]="'dot-' + p.toLowerCase()"></span>
                   {{ p }}
@@ -142,40 +211,42 @@
           </mat-card-content>
         </mat-card>
 
-        <mat-card class="cs-lift side-card reveal" appReveal>
-          <mat-card-content>
-            <h3 class="side-title">Assignee</h3>
-            <mat-form-field appearance="outline" class="assignee-field">
-              <mat-label>Assign to</mat-label>
-              <mat-select
-                [value]="c.assignedToUserId ?? ''"
-                (selectionChange)="assignTo($event.value || null)"
-                [disabled]="assigning()"
-              >
-                <mat-option value="">Unassigned</mat-option>
-                @for (agent of agents(); track agent.id) {
-                  <mat-option [value]="agent.id">{{ agent.fullName }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
-            <div class="assignee-box">
-              <span class="assignee-name">{{ c.assignedToUserName || 'Unassigned' }}</span>
-              <button
-                type="button"
-                class="unassign-btn"
-                mat-stroked-button
-                (click)="unassign()"
-                [disabled]="!c.assignedToUserId || unassigning() || assigning()"
-              >
-                @if (unassigning()) {
-                  <mat-spinner diameter="18"></mat-spinner>
-                } @else {
-                  <cs-icon name="person_remove"></cs-icon> Unassign
-                }
-              </button>
-            </div>
-          </mat-card-content>
-        </mat-card>
+        @if (auth.getRole() !== 'Agent') {
+          <mat-card class="cs-lift side-card reveal" appReveal>
+            <mat-card-content>
+              <h3 class="side-title">Assignee</h3>
+              <mat-form-field appearance="outline" class="assignee-field">
+                <mat-label>Assign to</mat-label>
+                <mat-select
+                  [value]="c.assignedToUserId ?? ''"
+                  (selectionChange)="assignTo($event.value || null)"
+                  [disabled]="assigning()"
+                >
+                  <mat-option value="">Unassigned</mat-option>
+                  @for (agent of agents(); track agent.id) {
+                    <mat-option [value]="agent.id">{{ agent.fullName }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+              <div class="assignee-box">
+                <span class="assignee-name">{{ c.assignedToUserName || 'Unassigned' }}</span>
+                <button
+                  type="button"
+                  class="unassign-btn"
+                  mat-stroked-button
+                  (click)="unassign()"
+                  [disabled]="!c.assignedToUserId || unassigning() || assigning()"
+                >
+                  @if (unassigning()) {
+                    <mat-spinner diameter="18"></mat-spinner>
+                  } @else {
+                    <cs-icon name="person_remove"></cs-icon> Unassign
+                  }
+                </button>
+              </div>
+            </mat-card-content>
+          </mat-card>
+        }
       </div>
     </div>
   }

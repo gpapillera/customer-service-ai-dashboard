@@ -30,11 +30,18 @@ import {
   Inbox,
   X,
   Mail,
+  MailCheck,
   Phone,
   ChevronLeft,
   Menu,
   Bell,
   BellRing,
+  Settings,
+  KeyRound,
+  Pencil,
+  Check,
+  MessageSquare,
+  Send,
 } from 'lucide-angular/src/icons';
 
 /**
@@ -76,6 +83,8 @@ const ICON_MAP: Record<string, LucideIconData> = {
   menu: Menu,
   notifications: Bell,
   notifications_active: BellRing,
+  forum: MessageSquare,
+  send: Send,
 };
 
 @Component({

@@ -23,9 +23,11 @@
             <div><dt>Customer since</dt><dd>{{ formatDate(c.createdAtUtc) }}</dd></div>
           </dl>
           <div class="actions">
-            <button mat-stroked-button color="primary" (click)="edit()">
-              <cs-icon name="edit"></cs-icon> Edit
-            </button>
+            @if (auth.getRole() !== 'Agent') {
+              <button mat-stroked-button color="primary" (click)="edit()">
+                <cs-icon name="edit"></cs-icon> Edit
+              </button>
+            }
             <button mat-flat-button color="primary" (click)="newCase()">
               <cs-icon name="add"></cs-icon> New Case
             </button>

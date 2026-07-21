@@ -1,5 +1,6 @@
 using CustomerService.Application.Dtos;
 using CustomerService.Application.Interfaces;
+using CustomerService.Domain;
 using CustomerService.Domain.Entities;
 using CustomerService.Domain.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -24,8 +25,19 @@ public class CallLogService : ICallLogService
     }
 
     /// <inheritdoc/>
-    public async Task<IReadOnlyList<CallLogDto>> GetByCaseAsync(int caseId)
+    public async Task<IReadOnlyList<CallLogDto>> GetByCaseAsync(int caseId, string? callerRole = null, string? callerUserId = null)
     {
+        // SERVER-SIDE AGENT SCOPING (Phase 6): an Agent may only read logs for
+        // a case assigned to them (unassigned/other-agent cases are forbidden).
+        // Admin is unaffected.
+        if (string.Equals(callerRole, nameof(UserRole.Agent), StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrEmpty(callerUserId))
+        {
+            var c = await _cases.GetByIdAsync(caseId);
+            if (c is null || c.AssignedToUserId != callerUserId)
+                throw new ForbiddenException("You can only view logs for cases assigned to you.");
+        }
+
         return await _logs.Query()
             .Where(l => l.CaseId == caseId)
             .OrderBy(l => l.CreatedAtUtc)
@@ -43,10 +55,21 @@ public class CallLogService : ICallLogService
     }
 
     /// <inheritdoc/>
-    public async Task<CallLogDto> CreateAsync(CreateCallLogDto dto, string? loggedByUserId)
+    public async Task<CallLogDto> CreateAsync(CreateCallLogDto dto, string? loggedByUserId, string? callerRole = null, string? callerUserId = null)
     {
-        if (await _cases.GetByIdAsync(dto.CaseId) is null)
+        var c = await _cases.GetByIdAsync(dto.CaseId);
+        if (c is null)
             throw new KeyNotFoundException($"Case {dto.CaseId} not found.");
+
+        // SERVER-SIDE AGENT SCOPING (Phase 6): an Agent may only add logs to a
+        // case assigned to them (unassigned/other-agent cases are forbidden).
+        // Admin is unaffected.
+        if (string.Equals(callerRole, nameof(UserRole.Agent), StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrEmpty(callerUserId)
+            && c.AssignedToUserId != callerUserId)
+        {
+            throw new ForbiddenException("You can only add logs to cases assigned to you.");
+        }
 
         var log = new CallLog
         {

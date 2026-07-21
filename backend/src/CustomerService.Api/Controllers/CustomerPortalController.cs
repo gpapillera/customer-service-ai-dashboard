@@ -24,16 +24,22 @@ public class CustomerPortalController : ControllerBase
     private readonly IRepository<Case> _cases;
     private readonly ICaseCommentService _comments;
     private readonly ICaseService _caseService;
+    private readonly ICustomerAuthService _auth;
+    private readonly INotificationService _notifications;
 
     /// <summary>Initializes a new <see cref="CustomerPortalController"/>.</summary>
     public CustomerPortalController(
         IRepository<Case> cases,
         ICaseCommentService comments,
-        ICaseService caseService)
+        ICaseService caseService,
+        ICustomerAuthService auth,
+        INotificationService notifications)
     {
         _cases = cases;
         _comments = comments;
         _caseService = caseService;
+        _auth = auth;
+        _notifications = notifications;
     }
 
     /// <summary>Returns only the cases owned by the calling customer.</summary>
@@ -185,6 +191,27 @@ public class CustomerPortalController : ControllerBase
         try
         {
             var created = await _comments.AddCustomerCommentAsync(id, customerId, dto.Body);
+
+            // Fire-and-forget the agent notification. A notification failure must
+            // never roll back the comment that already succeeded, so it is wrapped
+            // and swallowed — same resilience pattern as the resolved/overdue alerts.
+            try
+            {
+                var caseEntity = await _cases.Query()
+                    .Include(c => c.Customer)
+                    .FirstOrDefaultAsync(c => c.Id == id);
+                if (caseEntity is not null)
+                {
+                    var customerName = caseEntity.Customer?.Name ?? "a customer";
+                    await _notifications.NotifyNewCustomerMessageAsync(caseEntity, customerName);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Logged by the notification service; do not fail the request.
+                _ = ex;
+            }
+
             return CreatedAtAction(nameof(GetComments), new { id }, created);
         }
         catch (KeyNotFoundException)
@@ -197,6 +224,54 @@ public class CustomerPortalController : ControllerBase
             // rather than letting it bubble to a 500.
             return BadRequest(new ProblemDetails { Title = "Invalid comment body." });
         }
+    }
+
+    /// <summary>
+    /// Returns the signed-in customer's own profile. The id is taken strictly
+    /// from the JWT <c>CustomerId</c> claim — never from a query/route value.
+    /// </summary>
+    [HttpGet("profile")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<ActionResult<CustomerProfileDto>> GetProfile()
+    {
+        var customerId = GetCustomerId();
+        return Ok(await _auth.GetProfileAsync(customerId));
+    }
+
+    /// <summary>
+    /// Updates the signed-in customer's own profile. Only the editable fields
+    /// (name/phone/company/address) are accepted; the email (login identity)
+    /// and id are never taken from the body. The id is taken strictly from the
+    /// JWT <c>CustomerId</c> claim.
+    /// </summary>
+    [HttpPut("profile")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> UpdateProfile([FromBody] UpdateCustomerProfileDto dto)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+        var customerId = GetCustomerId();
+        await _auth.UpdateProfileAsync(customerId, dto);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Requests a password reset for the signed-in customer. Regenerates the
+    /// SAME invite token / expiry fields already used by the invite flow and
+    /// emails a reset link; the existing accept-invite endpoint is reused to
+    /// actually set the new password. No email lookup is needed because the
+    /// customer is already authenticated (id from the JWT claim).
+    /// </summary>
+    [HttpPost("request-password-reset")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> RequestPasswordReset()
+    {
+        var customerId = GetCustomerId();
+        await _auth.RequestPasswordResetAsync(customerId);
+        return NoContent();
     }
 
     private int GetCustomerId()

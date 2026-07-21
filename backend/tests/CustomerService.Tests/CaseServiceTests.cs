@@ -1,6 +1,7 @@
 using CustomerService.Application.Dtos;
 using CustomerService.Application.Interfaces;
 using CustomerService.Application.Services;
+using CustomerService.Domain;
 using CustomerService.Domain.Entities;
 using CustomerService.Domain.Interfaces;
 using CustomerService.ML;
@@ -25,9 +26,11 @@ public class CaseServiceTests
         cases = new FakeRepository<Case>();
         customers = new FakeRepository<Customer>();
         categories = new FakeRepository<Category>();
+        var comments = new FakeRepository<CaseComment>();
+        var readStates = new FakeRepository<ConversationReadState>();
         predictor ??= new RuleBasedPriorityPredictor();
         INotificationService notifications = new FakeNotificationService();
-        return new CaseService(cases, customers, categories, predictor, notifications);
+        return new CaseService(cases, customers, categories, comments, readStates, predictor, notifications);
     }
 
     private static Customer SeedCustomer(FakeRepository<Customer> repo, int id = 1)
@@ -192,9 +195,90 @@ public class CaseServiceTests
     {
         public Task<int> GenerateOverdueAsync() => Task.FromResult(0);
         public Task<int> NotifyResolvedAsync(Case caseEntity) => Task.FromResult(0);
-        public Task<IReadOnlyList<NotificationDto>> GetAllAsync() => Task.FromResult<IReadOnlyList<NotificationDto>>(Array.Empty<NotificationDto>());
-        public Task<NotificationSummaryDto> GetSummaryAsync() => Task.FromResult(new NotificationSummaryDto());
+        public Task<int> NotifyNewCustomerMessageAsync(Case caseEntity, string customerName) => Task.FromResult(0);
+        public Task<IReadOnlyList<NotificationDto>> GetAllAsync(string? recipientUserId = null) => Task.FromResult<IReadOnlyList<NotificationDto>>(Array.Empty<NotificationDto>());
+        public Task<NotificationSummaryDto> GetSummaryAsync(string? recipientUserId = null) => Task.FromResult(new NotificationSummaryDto());
         public Task<bool> MarkReadAsync(int id) => Task.FromResult(false);
         public Task<int> MarkAllReadAsync() => Task.FromResult(0);
+    }
+
+    // ---- Phase 6: Agent scoping ----
+
+    [Fact]
+    public async Task GetAllAsync_AgentSeesOnlyOwnAndUnassigned()
+    {
+        var svc = BuildService(out var cases, out var customers, out var categories);
+        SeedCustomer(customers, 1);
+        SeedCategory(categories, 1);
+
+        var mine = await svc.CreateAsync(new CreateCaseDto { Subject = "Mine", CustomerId = 1, CategoryId = 1 });
+        var unassigned = await svc.CreateAsync(new CreateCaseDto { Subject = "None", CustomerId = 1, CategoryId = 1 });
+        var others = await svc.CreateAsync(new CreateCaseDto { Subject = "Other", CustomerId = 1, CategoryId = 1 });
+
+        // Assign: mine -> agent-001, others -> agent-002
+        await svc.UpdateAsync(mine.Id, new UpdateCaseDto { Subject = "Mine", CategoryId = 1, AssignedToUserId = "agent-001" });
+        await svc.UpdateAsync(others.Id, new UpdateCaseDto { Subject = "Other", CategoryId = 1, AssignedToUserId = "agent-002" });
+
+        var agentView = await svc.GetAllAsync(null, null, null, null, null, false, null, "Agent", "agent-001");
+        var ids = agentView.Select(c => c.Id).ToHashSet();
+        Assert.Contains(mine.Id, ids);
+        Assert.Contains(unassigned.Id, ids);
+        Assert.DoesNotContain(others.Id, ids);
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_AgentCannotViewOthersCase_ThrowsForbidden()
+    {
+        var svc = BuildService(out var cases, out var customers, out var categories);
+        SeedCustomer(customers, 1);
+        SeedCategory(categories, 1);
+
+        var others = await svc.CreateAsync(new CreateCaseDto { Subject = "Other", CustomerId = 1, CategoryId = 1 });
+        await svc.UpdateAsync(others.Id, new UpdateCaseDto { Subject = "Other", CategoryId = 1, AssignedToUserId = "agent-002" });
+
+        await Assert.ThrowsAsync<ForbiddenException>(() => svc.GetByIdAsync(others.Id, "Agent", "agent-001"));
+    }
+
+    [Fact]
+    public async Task UpdateAsync_AgentCannotEditUnassigned_ThrowsForbidden()
+    {
+        var svc = BuildService(out var cases, out var customers, out var categories);
+        SeedCustomer(customers, 1);
+        SeedCategory(categories, 1);
+
+        var unassigned = await svc.CreateAsync(new CreateCaseDto { Subject = "None", CustomerId = 1, CategoryId = 1 });
+
+        await Assert.ThrowsAsync<ForbiddenException>(() =>
+            svc.UpdateAsync(unassigned.Id, new UpdateCaseDto { Subject = "None", CategoryId = 1, Status = CaseStatus.InProgress }, "Agent", "agent-001"));
+    }
+
+    [Fact]
+    public async Task UpdateAsync_AgentCannotReassign_ThrowsForbidden()
+    {
+        var svc = BuildService(out var cases, out var customers, out var categories);
+        SeedCustomer(customers, 1);
+        SeedCategory(categories, 1);
+
+        var mine = await svc.CreateAsync(new CreateCaseDto { Subject = "Mine", CustomerId = 1, CategoryId = 1 });
+        await svc.UpdateAsync(mine.Id, new UpdateCaseDto { Subject = "Mine", CategoryId = 1, AssignedToUserId = "agent-001" });
+
+        await Assert.ThrowsAsync<ForbiddenException>(() =>
+            svc.UpdateAsync(mine.Id, new UpdateCaseDto { Subject = "Mine", CategoryId = 1, AssignedToUserId = "agent-002" }, "Agent", "agent-001"));
+    }
+
+    [Fact]
+    public async Task UpdateAsync_AgentCanEditOwnCase()
+    {
+        var svc = BuildService(out var cases, out var customers, out var categories);
+        SeedCustomer(customers, 1);
+        SeedCategory(categories, 1);
+
+        var mine = await svc.CreateAsync(new CreateCaseDto { Subject = "Mine", CustomerId = 1, CategoryId = 1 });
+        await svc.UpdateAsync(mine.Id, new UpdateCaseDto { Subject = "Mine", CategoryId = 1, AssignedToUserId = "agent-001" });
+
+        await svc.UpdateAsync(mine.Id, new UpdateCaseDto { Subject = "Mine", CategoryId = 1, Status = CaseStatus.InProgress }, "Agent", "agent-001");
+
+        var updated = await svc.GetByIdAsync(mine.Id);
+        Assert.Equal(CaseStatus.InProgress, updated!.Status);
     }
 }

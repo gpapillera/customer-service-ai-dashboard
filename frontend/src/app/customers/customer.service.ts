@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Customer, CreateCustomer } from '../shared/models';
+import { Customer, Case, CreateCustomer } from '../shared/models';
 
 /**
  * Talks to the Customers API (list, search, create, update, delete).
@@ -26,6 +26,14 @@ export class CustomerService {
   /** Gets a single customer by id. */
   get(id: number): Observable<Customer> {
     return this.http.get<Customer>(`${this.baseUrl}/${id}`);
+  }
+
+  /**
+   * Gets the case history for a customer. Server-side scoped: an Agent only
+   * receives cases assigned to them (Phase 6 enforcement).
+   */
+  customerCases(id: number): Observable<Case[]> {
+    return this.http.get<Case[]>(`${this.baseUrl}/${id}/cases`);
   }
 
   /** Creates a customer. */

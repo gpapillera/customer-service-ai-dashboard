@@ -9,7 +9,15 @@
     </div>
 
     <div class="topbar-right">
-      <div class="who">
+      <div
+        class="who"
+        role="button"
+        tabindex="0"
+        (click)="openAccount()"
+        (keydown.enter)="openAccount()"
+        (keydown.space)="openAccount()"
+        title="Open my account"
+      >
         <cs-icon name="account_circle"></cs-icon>
         <span class="who-name">{{ name }}</span>
       </div>
@@ -23,4 +31,6 @@
   <main class="content">
     <router-outlet></router-outlet>
   </main>
+
+  <app-account-panel #accountPanel></app-account-panel>
 </div>

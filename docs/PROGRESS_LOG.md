@@ -2,6 +2,162 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 9 — Gap Fixes] Real-Time Polling, Chat Layout & Smooth Scroll (2026-07-21)
+**Status:** ✅ COMPLETE (frontend `ng build` → success; verified via browser at `:4200`)
+**What changed:**
+1. 🟡→✅ **Real-time conversation polling:** Added RxJS 5-second polling on both agent (`case-detail.component.ts`) and customer (`my-case-detail.component.ts`) case-detail pages. New comments are detected by comparing max comment IDs; appended in-memory without a full reload. Polling stops on component destroy via `DestroyRef` + `takeUntilDestroyed`.
+2. 🟡→✅ **Chat-style UI with pinned reply box:** Restructured the comment section into a scrollable message list (`.chat-scroll` with `#chatScroll` ViewChild) and a pinned-at-bottom reply form (`.comment-form` with `margin-top: auto`). New messages auto-scroll to bottom via `scrollToBottom()` using `requestAnimationFrame`.
+3. 🟡→✅ **Smooth scrolling + overscroll containment:** Applied `scroll-behavior: smooth` and `overscroll-behavior: contain` to `.chat-scroll` on both agent and customer case-detail pages for a native-chat feel.
+4. 🟡→✅ **Viewport-constrained chat panels:** Set `:host { height: calc(100vh - 56px) }` (agent) and `calc(100vh - 76px)` (customer) with flex column layouts so the chat fills remaining viewport space without pushing the reply form off-screen. Reverted `.content` and `customer-layout` to their original styles to avoid breaking other pages (dashboard, case list, etc.).
+5. 🟡→✅ **Card reorder (agent case detail):** Moved Call & Follow-up Log above Conversation in `.main-col`. Final order: Case Card → AI Priority → Call Log → Conversation.
+**Files changed (frontend):**
+- `cases/case-detail.component.ts` — RxJS polling (`interval(5000)`), `DestroyRef`, `@ViewChild('chatScroll')`, `scrollToBottom()`
+- `cases/case-detail.component.html` — card reorder (log before conversation), chat-wrap layout
+- `cases/case-detail.component.scss` — `:host` height constraint, `.comment-card` flex column, `.chat-scroll` flex+overflow, `.comment-form` margin-top:auto
+- `customer/my-case-detail.component.ts` — same RxJS polling + `scrollToBottom()` pattern
+- `customer/my-case-detail.component.scss` — `:host` height constraint, `.chat-panel` flex, `.chat-scroll` smooth scroll, `.reply` pinned
+- `shared/layout/layout.component.scss` — reverted to original (no overflow:hidden on `.content`)
+- `customer/customer-layout.component.scss` — reverted to original
+
+## [Phase 9 — Gap Fixes] Agent Conversations Tab + New-Message Notification — Gap Resolution (2026-07-21)
+**Status:** ✅ COMPLETE (backend `dotnet build` → 0 Error(s); `dotnet test` → 64 passed, 0 failed; frontend `ng build` → success)
+**What changed (6 gaps fixed):**
+1. 🔴→✅ **CRITICAL — ConversationReadStates table:** Added `EnsureConversationReadStatesTable()` idempotent DDL helper in `Program.cs` (SQLite + SQL Server), called from `SeedDatabase()`. New databases get the table from `EnsureCreated()`; existing databases get it on next startup.
+2. 🟡→✅ **MEDIUM — Notification recipient filtering:** Updated `INotificationService` + `NotificationService` to accept optional `recipientUserId` parameter on `GetAllAsync()` and `GetSummaryAsync()`. Agents now only see notifications addressed to them or broadcast (Recipient null). `NotificationsController` passes the JWT user ID.
+3. 🟡→✅ **MEDIUM — Comment thread on case detail:** Added full conversation/comment section to `case-detail.component.ts/.html/.scss`. Loads comments on init via existing `getComments()` service method. Staff can post replies via inline form. Apple-like design with staff/customer visual distinction.
+4. 🟡→✅ **MEDIUM — Mark-as-read endpoint + UI:** Added `MarkConversationReadAsync()` to `ICaseService`/`CaseService` (upserts `ConversationReadState`). New `POST /api/cases/{id}/conversations/mark-read` endpoint (Agent-only). Frontend auto-marks conversation as read when an agent opens a case detail view.
+5. 🟢→✅ **LOW — Admin PUT assignment:** Re-inspected `CaseService.UpdateAsync()` code path — the `else` branch correctly handles non-agent (Admin) reassignment. The original test issue was a sequencing artifact. Code verified correct; no change needed.
+6. 🟢→✅ **LOW — Schema drift documentation:** Existing `EnsureCreated()` pattern documented in `AGENTS.md` and `PROGRESS_LOG.md`. The recurring pattern is well-established (6 helpers now). EF Migrations flagged as the production upgrade path.
+**Files changed (backend):**
+- `Api/Program.cs` — new `EnsureConversationReadStatesTable()` method + call from `SeedDatabase()`
+- `Application/Interfaces/INotificationService.cs` — `GetAllAsync`/`GetSummaryAsync` now accept optional `recipientUserId`
+- `Application/Services/NotificationService.cs` — recipient-filtered queries for both methods
+- `Api/Controllers/NotificationsController.cs` — passes `ClaimTypes.NameIdentifier` to service methods
+- `Application/Interfaces/ICaseService.cs` — new `MarkConversationReadAsync()` method
+- `Application/Services/CaseService.cs` — `MarkConversationReadAsync()` implementation (upsert)
+- `Api/Controllers/CasesController.cs` — new `POST /api/cases/{id}/conversations/mark-read` endpoint
+- `tests/.../AuthBoundaryTests.cs` — updated `FakeNotificationService` signatures
+- `tests/.../CaseServiceTests.cs` — updated `FakeNotificationService` signatures
+- `tests/.../Fakes/FakeCaseService.cs` — added `MarkConversationReadAsync` stub
+**Files changed (frontend):**
+- `cases/case.service.ts` — new `markConversationRead()` method
+- `cases/case-detail.component.ts` — loads comments, `addComment()`, `markConversationRead` on init (agent only)
+- `cases/case-detail.component.html` — full comment thread section with reply form
+- `cases/case-detail.component.scss` — comment card/list/item/form styles
+- `shared/cs-icon.component.ts` — added `Send` Lucide icon import + `send` mapping
+
+## [Phase 9 — Verification] Agent Conversations Tab + New-Message Notification — Verification & Gap Report (2026-07-21)
+**Status:** ✅ ALL GAPS RESOLVED — see "Phase 9 — Gap Fixes" entry above  
+**Verification:** Full scenario-by-scenario API + browser + SQL cross-check (see `docs/PHASE9_VERIFICATION.md`)
+**What works:**
+- ✅ Customer comment → `NewCustomerMessage` notification created (idempotent, correct recipient)
+- ✅ Conversation list shows correct cases per agent (data isolation OK)
+- ✅ Unassigned case comment → no crash, no notification (graceful skip)
+- ✅ Click conversation → navigates to correct case detail URL
+- ✅ Backend comment endpoints (GET + POST) work correctly for both staff and customer
+- ✅ Notification summary includes `NewCustomerMessage` type
+**Gaps found:**
+1. 🔴 **CRITICAL:** `ConversationReadStates` table missing — `EnsureCreated()` doesn't add tables to existing DB. Endpoint returns HTTP 500 until table is manually created. Fix: add idempotent DDL or migrate to EF Migrations.
+2. 🟡 **MEDIUM:** `GetAllAsync`/`GetSummaryAsync` don't filter by `Recipient` — all agents see all InApp notifications including `NewCustomerMessage` meant for another agent. Fix: filter by `Recipient == agentUserId OR Recipient IS NULL`.
+3. 🟡 **MEDIUM:** Case detail page has no comment thread section — service methods exist but component never calls them. Fix: add conversation section to `case-detail.component`.
+4. 🟡 **MEDIUM:** No "mark as read" endpoint — `ConversationReadState.LastViewedUtc` never gets updated, conversations stay unread forever. Fix: add `POST /api/cases/{id}/conversations/mark-read`.
+5. 🟢 **LOW:** Admin `PUT` doesn't override auto-assigned case owner (field wiring issue).
+6. 🟢 **LOW:** Systemic `EnsureCreated()` schema drift — recurring issue for new entities.
+
+## [Phase 8] Customer Account Panel, Profile Edit, Password Reset, Status-Pill & Comment-Author Fixes (Phase 8 of 12) — 2026-07-21
+**Status:** Complete (backend `dotnet build CustomerServiceApi.sln` → 0 Error(s); `dotnet test` → 64 passed, 0 failed; frontend `npm run build` → success; verified via curl `:5274` + browser `:4200` + SQL cross-check)
+**Why:** Customers had no self-service way to review/edit their own profile or reset a forgotten password from inside the portal, and two UI correctness issues needed confirming: (1) the customer case-detail status pill must reuse the SAME shared badge CSS as the staff side (Resolved=green, Closed=gray), and (2) each comment must show the REAL staff poster's name, not a hardcoded value.
+**Backend changes:**
+- `Domain/Entities/Notification.cs` — added `CustomerPasswordReset = 3` to `NotificationType` (after `CustomerInvite = 2`).
+- `Application/Dtos/AuthDtos.cs` — added `CustomerProfileDto` (Id, Name, Email, Phone?, Company?, Address?) and `UpdateCustomerProfileDto` (Name required, Phone?/Company?/Address? — NO email field) after `CustomerLoginResponse`.
+- `Application/Interfaces/ICustomerAuthService.cs` — added `GetProfileAsync(int)`, `UpdateProfileAsync(int, UpdateCustomerProfileDto)`, `RequestPasswordResetAsync(int)` (doc comments).
+- `Application/Services/CustomerAuthService.cs`:
+  - Refactored `GenerateAndSendInviteAsync(Customer)` → now `GenerateAndSendInviteAsync(Customer customer, string emailTitle, string emailBodyPrefix, NotificationType type)` (appends link + 48h expiry text). Used by `SendInviteAsync` (CustomerInvite), `RegisterAsync` (CustomerInvite), and the new `RequestPasswordResetAsync` (CustomerPasswordReset).
+  - NEW `GetProfileAsync(int)` → `CustomerProfileDto`; NEW `UpdateProfileAsync(int, dto)` → updates Name/Phone/Company/Address only (email NEVER touched, id from JWT); NEW `RequestPasswordResetAsync(int)` → reuses the SAME `InviteToken`/`InviteTokenExpiresAt`/`InviteTokenUsed` fields from the invite flow (no parallel mechanism).
+- `Api/Controllers/CustomerPortalController.cs` — added `ICustomerAuthService auth` ctor dep; NEW `GET /api/customer-portal/profile` (→ `Ok(GetProfileAsync(customerId))`), `PUT /api/customer-portal/profile` (→ 204/400), `POST /api/customer-portal/request-password-reset` (→ 204). All JWT-scoped (customerId from claim, never a body param).
+- `tests/CustomerService.Tests/Fakes/FakeCustomerAuthService.cs` (NEW) — stub `ICustomerAuthService` for controller tests; `AuthBoundaryTests.cs` updated to pass it as the 4th `CustomerPortalController` arg (3 sites).
+**Frontend changes (standalone components, no NgModules):**
+- `shared/models.ts` — NEW `CustomerProfile` and `UpdateCustomerProfile` interfaces.
+- `customer/customer.service.ts` — NEW `getProfile()`, `updateProfile(dto)` (PUT `/profile`), `requestPasswordReset()` (POST `/request-password-reset`).
+- `customer/account-panel.component.ts/.html/.scss` (NEW) — right-anchored slide-in (position:fixed via CSS, `:host{display:contents}`). Shows Name/Email(read-only)/Phone/Company/Address; Edit mode toggles fields + Save (calls `updateProfile`); "Change password" calls `requestPasswordReset` then shows "Check your email…". Uses `CsIconComponent` + lucide `settings`/`key_round`/`pencil`/`check`/`x` (added to `cs-icon.component.ts`).
+- `customer/customer-layout.component.ts/.html` — NEW "Account" button in the top bar → `openAccount()` opens the inline panel (`<app-account-panel #accountPanel>`).
+- `customer/my-case-detail.component.ts/.html` — **NO change needed**: already uses `cs-pill {{ statusClass(d.status) }}` with `status-' + s.toLowerCase()` + `.cs-dot`, identical to staff `case-detail.component.ts`. Verified correct.
+**Verification (curl `:5274` + browser `:4200` + SQL):**
+- **Profile GET/PUT persistence:** fresh customer (id 17) `GET /profile` → 200 with seeded values; `PUT /profile` {phone,company,address} → 204; `GET` again → persisted (email unchanged). Browser: opened Account panel, edited phone → Save → reload → phone persisted.
+- **Password reset reuse:** `POST /request-password-reset` → 204; SQL confirms `InviteToken` regenerated + `InviteTokenExpiresAt=UtcNow+48h` + `InviteTokenUsed=False`. The SAME `accept-invite` endpoint + frontend component set a new password; `login` with the new password → 200. (Email "FAILED" in `emails.log` is the pre-existing Gmail `BadCredentials` SMTP issue — non-blocking; token is correct in DB.)
+- **Status pills (customer side == staff side):** case 18 set to `Resolved` → pill `color: rgb(4,120,87)` (#047857 green) + dot `rgb(16,185,129)` (`--cs-success`); set to `Closed` → pill `color: rgb(71,85,105)` (#475569 gray) + dot `rgb(148,163,184)` (`--cs-neutral`). Exact match to `styles.scss` `.status-resolved`/`.status-closed`.
+- **Comment authors (two real staff):** `agent` (Grace Agent) and `admin` (Ada Admin) each posted on case 18 via `POST /api/cases/18/comments`; customer `GET /customer-portal/cases/18/comments` returns BOTH with distinct `authorDisplayName` ("Grace Agent", "Ada Admin") and `isStaff:true`. Browser case detail shows both names correctly.
+- **Assigned-to display:** case 18 assigned to `agent-001` via `PUT /api/cases/18`; staff `GET /api/cases/18` returns `assignedToUserName: "Grace Agent"` (resolved from `AssignedToUser`), which `case-detail.component.html` renders as "Assigned to: Grace Agent".
+**Note:** SMTP send still fails (Gmail `BadCredentials`) but does NOT block reset — the `Notification` persists and the token is correct in DB; the dev-redirected SENT entry is logged.
+
+## [Phase 7] Customer Self-Registration (Signup) (Phase 7 of 12) — 2026-07-20
+**Status:** Complete (backend `dotnet build CustomerServiceApi.sln` → 0 Error(s); `dotnet test` → 64 passed, 0 failed; frontend `ng build --configuration development` → success; verified via curl `:5274` + browser `:4200` + SQL cross-check)
+**Why:** Customers currently can only get a portal account via a staff-sent invite. Phase 7 adds a public self-registration path: a customer enters name/email (no password) on the login page, we create the `Customer` + `CustomerAccount` and email an activation link reusing the EXACT same invite logic as `POST /api/customers/{id}/invite`. No password is ever collected at signup.
+**Backend changes:**
+- `Application/Dtos/AuthDtos.cs` — added `using System.ComponentModel.DataAnnotations;`; NEW `RegisterCustomerDto` (`FullName` required, `Email` required+`EmailAddress`, `Phone`/`Company`/`Address` optional). No password field.
+- `Application/Interfaces/ICustomerAuthService.cs` — NEW `Task RegisterAsync(RegisterCustomerDto dto);`
+- `Application/Services/CustomerAuthService.cs`:
+  - `SendInviteAsync(int customerId)` now resolves the `Customer` then calls the shared `GenerateAndSendInviteAsync(customer)`.
+  - NEW `RegisterAsync(RegisterCustomerDto dto)` — normalizes email (trim+lowercase); duplicate check via `_customers.Query().FirstOrDefaultAsync(c => c.Email == normalizedEmail)` → throws `InvalidOperationException("An account with this email already exists — try logging in or use password reset instead.")`; else creates `Customer` (Name/Email/Phone/Company/Address), `AddAsync` + `SaveChangesAsync`, then `GenerateAndSendInviteAsync`.
+  - NEW private `GenerateAndSendInviteAsync(Customer)` — extracted from old `SendInviteAsync` so BOTH `SendInviteAsync` and `RegisterAsync` share one token/email path (no duplication). Sets `InviteToken` (Guid N), `InviteTokenExpiresAt = UtcNow+48h`, `InviteTokenUsed=false`; builds `frontendBase/customer/accept-invite?token=...` link; persists a `CustomerInvite` `Notification`; `await _sender.SendAsync`.
+  - NEW private static `NormalizePhone` (digits, optional `+`).
+- `Api/Controllers/CustomerAuthController.cs` — NEW `POST /api/customer-auth/register` (`[AllowAnonymous]`): `ModelState` → 400; `RegisterAsync` → 204; `InvalidOperationException` → 400 `{ error }`. Public (neither interceptor blocks it).
+**Frontend changes (standalone components, no NgModules):**
+- `shared/models.ts` — NEW `RegisterCustomer` interface (`fullName`, `email`, `phone?`, `company?`, `address?`).
+- `customer/customer.service.ts` — NEW `register(dto: RegisterCustomer)` → `POST ${authUrl}/register`.
+- `customer/signup-dialog.component.ts/.html/.scss` (NEW) — MatDialog modal: reactive form (fullName required, email required+email, phone/company/address optional); `submit()` calls `service.register`, on success `dialogRef.close(dto.email)`, on error shows inline `error` banner from `err?.error?.error`; Cancel closes `false`. Uses `CsIconComponent` + lucide `MailCheck` (added to `cs-icon.component.ts`).
+- `customer/customer-login.component.ts/.html/.scss` — below Sign In, NEW "Don't have an account? **Sign up**" link → `openSignup()` (opens `SignupDialogComponent`, width 440px). On dialog close with an email, `signedUpEmail` signal shows a success panel ("Check your email" + the address + "Click it to set your password…") with a "Back to sign in" button (`backToLogin()`). Staff link preserved.
+**Verification (curl `:5274` + browser `:4200` + SQL):**
+- **New email signup** (`fresh.1784563291@example.com`) → **204**; SQL shows `InviteTokenUsed=False, IsActive=False` (correct pending state); `emails.log` records `SENT (CustomerInvite) TO:glnppllr@gmail.com [DEV-REDIRECT from:<email>]` (dev-override recipient).
+- **accept-invite** with the fresh token → **204**; **login** with the chosen password → **200** + JWT (role `Customer`); **wrong password** → **401**.
+- **Duplicate email** (`browser.test2.phase7@example.com`, already registered) → **400** `{"error":"An account with this email already exists — try logging in or use password reset instead."}`; SQL confirms exactly **1** `Customer` row for that email (no duplicate created).
+- **Staff-side visibility:** Admin `GET /api/customers` lists the new signups (`fresh.1784563291@example.com` id 14, `newuser.test.phase7@example.com` id 13) exactly like seeded customers (caseCount 0).
+- **UI (browser):** Login page shows "Sign up" link → modal opens with all fields + helper text ("no payment or password needed here"). Submit → success panel "Check your email" with the entered address + "Back to sign in" works. Duplicate submit → inline error banner in the modal (no new record). No console errors except the expected 400 for the duplicate attempt.
+**Note:** SMTP send currently fails (Gmail `BadCredentials`) but does NOT block signup — the `Notification` row persists and `emails.log` records the dev-redirected SENT entry; the invite token is readable from SQL for accept-invite testing.
+
+## [Phase 6] Security Hardening: Enforce Agent scoping on Cases & Customers (Phase 6 of 12) — 2026-07-20
+**Status:** Complete (backend `dotnet build` → 0 Error(s); `dotnet test` → 64 passed, 0 failed; frontend `npm run build` → success; verified via curl `:5274` + browser `:4200` + SQL cross-check)
+**Why (CRITICAL FIX):** The Agent personalization in Phase 4 was UI-only (client-side filtering). The server was still a wide-open boundary — an Agent could fetch any case/customer by id or via the unfiltered list. Phase 6 moves the boundary server-side so Agent scoping is enforced regardless of the client.
+**Backend changes:**
+- `Domain/ForbiddenException.cs` (NEW) — `ForbiddenException : Exception`; maps to HTTP 403 in `ApiExceptionMiddleware` (added to the `UnauthorizedAccessException or ForbiddenException => Forbidden` branch).
+- `Application/Interfaces/ICaseService.cs` — `GetAllAsync` gains `callerRole`/`callerUserId`; `GetByIdAsync`/`UpdateAsync` gain them too.
+- `Application/Services/CaseService.cs`:
+  - `GetAllAsync` — Agent scope: `AssignedToUserId == callerUserId || AssignedToUserId == null`. The existing `assignedToUserId` (Phase 4 `assignedToMe`) filter still narrows further; never widens.
+  - `GetByIdAsync` — Agent defense-in-depth: 403 if `AssignedToUserId is not null && != callerUserId`.
+  - `UpdateAsync` — Agent write scope: unassigned → 403 on ANY write; assigned to other → 403; assigned to them → allow, but 403 if `assignedToUserId` changes to a different id or to the unassign sentinel (reassign/unassign is admin-only). Assignee-setting block moved into the non-Agent `else`.
+  - `ToDto` made `internal static` so `CustomerService` can reuse it for case history.
+- `Application/Interfaces/ICustomerService.cs` — `GetAllAsync`/`GetByIdAsync`/`SearchAsync` gain `callerRole`/`callerUserId`; NEW `GetCustomerCaseHistoryAsync(int customerId, string? callerRole, string? callerUserId)`.
+- `Application/Services/CustomerService.cs` — Agent scope via a distinct `customerIds` list from cases where `AssignedToUserId == callerUserId`; `GetByIdAsync` → 403 if no shared case; `GetCustomerCaseHistoryAsync` returns only the customer's cases assigned to the caller (Agent) using `CaseService.ToDto`.
+- `Api/Controllers/CasesController.cs` — `GetAll`/`GetById`/`Update` extract `callerUserId`/`callerRole` from the JWT (`ClaimTypes.NameIdentifier`/`ClaimTypes.Role`) and pass to the service; added `403` response types.
+- `Api/Controllers/CustomersController.cs` — `GetAll`/`GetById`/`Search` pass caller identity; NEW `GET /api/customers/{id}/cases` → `GetCustomerCaseHistoryAsync` (403/404 response types).
+- `Application/Dtos/AuthDtos.cs` + `Application/Services/AuthService.cs` — `LoginResponse` now includes `Id` (the user's GUID, = JWT `NameIdentifier` = `Case.AssignedToUserId`) so the frontend can compare assignment without trusting the client.
+- `tests/CustomerService.Tests/Fakes/FakeCaseService.cs` — updated 3 signatures to match `ICaseService`.
+- `tests/CustomerService.Tests/CaseServiceTests.cs` — 5 new Phase 6 tests (list scope, get 403, update unassigned 403, reassign 403, own-case edit OK).
+- `tests/CustomerService.Tests/CustomerServiceTests.cs` (NEW) — 3 new tests (list scope subset, get 403, case-history scope).
+**Frontend changes (standalone components, no NgModules):**
+- `shared/models.ts` — `LoginResponse` gains `id: string`.
+- `auth/auth.service.ts` — `currentUser()` now exposes `id` (already in the JWT payload).
+- `cases/case-detail.component.ts` — injects `AuthService`; NEW `canEdit` computed = `role !== 'Agent' || assignedToUserId === currentUser().id`. `auth` made `readonly` (used in template).
+- `cases/case-detail.component.html` — Edit button hidden when `!canEdit`; "Update Status"/"Set Priority" buttons `[disabled]="!canEdit()"`; Assignee card rendered only when `auth.getRole() !== 'Agent'`; NEW read-only banner card when `!canEdit()`. NEW `loadError` state shows a friendly "You do not have permission to view this case." message on 403.
+- `cases/case-detail.component.scss` — `.readonly-banner` styling (amber, lock icon).
+- `customers/customer.service.ts` — NEW `customerCases(id)` → `GET /api/customers/{id}/cases` (server-scoped).
+- `customers/customer-detail.component.ts` — uses `customerCases(id)` instead of client-side `caseService.list({}).filter(...)` (was leaking other agents' cases); `auth` made `readonly`; removed now-unused `CaseService` inject.
+- `customers/customer-detail.component.html` — Edit button wrapped in `@if (auth.getRole() !== 'Agent')`; New Case stays visible for Agents.
+**Verification (curl `:5274` + browser `:4200`):**
+- **Agent (agent-001) `GET /api/cases`** → 12 cases, all `agent-001` or `null` (no agent-002 cases). Admin → full set.
+- **Agent `GET /api/cases/4`** (assigned to agent-002) → **403**. Frontend shows the read-only permission message.
+- **Agent `PUT /api/cases/16`** (unassigned) → **403**. **Agent `PUT /api/cases/5`** (own) status change → **204**. **Agent `PUT /api/cases/5`** reassign to agent-002 → **403**.
+- **Agent `GET /api/customers`** → 7 customers (strict subset of admin's 12), only those sharing a case. **Agent `GET /api/customers/{3,4,6,8,12}`** (no shared case) → **403** each.
+- **Agent `GET /api/customers/1/cases`** → 2 cases, both `agent-001` (no other-agent leakage).
+- **UI (browser):** Agent on own case 5 → Edit button + enabled status/priority controls, NO Assign-to dropdown. Agent on customer 1 → no Edit button, New Case visible, case history server-scoped (2 cases). Admin on customer 1 → Edit button present, full history. No console errors (the 403s observed were the expected forbidden case-4 navigation).
+- **Case creation NOT restricted** — Agents can still create cases for customers they can view (per spec; `CreateAsync` untouched).
+- **Follow-up fix (call-log scoping):** Agents could still add/view call logs on read-only (unassigned/other-agent) cases even though the case detail page showed the read-only banner. Now enforced server-side for defense-in-depth (frontend already guarded the form).
+  - `Application/Interfaces/ICallLogService.cs` — `GetByCaseAsync` and `CreateAsync` gain `callerRole`/`callerUserId` (optional, default null → Admin unaffected).
+  - `Application/Services/CallLogService.cs` — Agent scope: if `callerRole == "Agent"`, the case must exist AND `AssignedToUserId == callerUserId`, else `ForbiddenException("You can only add/view logs for cases assigned to you.")`. Applies to both read (`GetByCaseAsync`) and write (`CreateAsync`). Unassigned cases are now forbidden for Agents (matches the read-only banner semantics).
+  - `Api/Controllers/CallLogsController.cs` — `Create` and `GetByCase` extract `ClaimTypes.Role` + `ClaimTypes.NameIdentifier` from the JWT and pass them to the service; added `403` response types.
+  - **Verification:** Agent `POST /api/calllogs` on unassigned case 16 → **403**; on own case 5 → **201**. Agent `GET /api/calllogs/case/16` → **403**; on own case 5 → **200**. Admin unaffected (201 / 200). `dotnet test` → 64 passed.
+**Note:** This is the real security boundary. Frontend changes are belt-and-suspenders; the server rejects violations regardless of client.
+
 ## [Phase 5] Feature: Admin Agent list + Case assignment UI (Phase 5 of 5) — 2026-07-20
 **Status:** Complete (backend `dotnet build` → 0 Error(s); frontend `npm run build` → success, only pre-existing SCSS budget warnings; verified via curl `:5274` + browser `:4200` + SQL Server cross-check)
 **Scope (explicitly bounded — NOT expanded):** Read-only agent visibility (name, email, open-case count) plus enabling case assignment from the Case Detail page. Does **not** include creating staff accounts or editing agent permissions/roles.

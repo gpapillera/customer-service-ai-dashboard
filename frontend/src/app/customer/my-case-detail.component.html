@@ -37,55 +37,59 @@
       </section>
     }
 
-    <section class="panel">
+    <section class="panel chat-panel">
       <h2 class="panel-title">Conversation</h2>
 
-      @if (comments().length === 0) {
-        <p class="muted">No messages yet. Send the first one below.</p>
-      }
+      <div class="chat-wrap">
+        <div class="chat-scroll" #chatScroll>
+          @if (comments().length === 0) {
+            <p class="muted">No messages yet. Send the first one below.</p>
+          }
 
-      <ul class="thread">
-        @for (c of comments(); track c.id) {
-          <li class="msg" [class.staff]="c.isStaff" [class.customer]="!c.isStaff">
-            <div class="msg-head">
-              <span class="msg-author">
-                <cs-icon [name]="c.isStaff ? 'headset' : 'account_circle'"></cs-icon>
-                {{ c.authorDisplayName }}
-              </span>
-              <span class="msg-time">{{ formatDate(c.createdAtUtc) }}</span>
-            </div>
-            <p class="msg-body">{{ c.body }}</p>
-          </li>
-        }
-      </ul>
+          <ul class="thread">
+            @for (c of comments(); track c.id) {
+              <li class="msg" [class.staff]="c.isStaff" [class.customer]="!c.isStaff">
+                <div class="msg-head">
+                  <span class="msg-author">
+                    <cs-icon [name]="c.isStaff ? 'headset' : 'account_circle'"></cs-icon>
+                    {{ c.authorDisplayName }}
+                  </span>
+                  <span class="msg-time">{{ formatDate(c.createdAtUtc) }}</span>
+                </div>
+                <p class="msg-body">{{ c.body }}</p>
+              </li>
+            }
+          </ul>
+        </div>
+
+        <form [formGroup]="commentForm" (ngSubmit)="sendComment()" class="reply">
+          <textarea
+            matInput
+            class="reply-input"
+            formControlName="body"
+            rows="2"
+            placeholder="Write a reply…"
+          ></textarea>
+          <div class="reply-actions">
+            <button
+              mat-flat-button
+              color="primary"
+              type="submit"
+              [disabled]="sending()"
+            >
+              @if (sending()) {
+                <mat-spinner diameter="20"></mat-spinner>
+              } @else {
+                Send
+              }
+            </button>
+          </div>
+        </form>
+      </div>
 
       @if (commentError()) {
         <div class="error-banner" role="alert">{{ commentError() }}</div>
       }
-
-      <form [formGroup]="commentForm" (ngSubmit)="sendComment()" class="reply">
-        <textarea
-          matInput
-          class="reply-input"
-          formControlName="body"
-          rows="3"
-          placeholder="Write a reply…"
-        ></textarea>
-        <div class="reply-actions">
-          <button
-            mat-flat-button
-            color="primary"
-            type="submit"
-            [disabled]="sending()"
-          >
-            @if (sending()) {
-              <mat-spinner diameter="20"></mat-spinner>
-            } @else {
-              Send
-            }
-          </button>
-        </div>
-      </form>
     </section>
   }
 </div>

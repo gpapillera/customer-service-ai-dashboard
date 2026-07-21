@@ -7,12 +7,16 @@ public interface ICallLogService
 {
     /// <summary>Returns all call logs for a case.</summary>
     /// <param name="caseId">Parent case id.</param>
+    /// <param name="callerRole">Caller role (for Agent scoping).</param>
+    /// <param name="callerUserId">Caller user id (for Agent scoping).</param>
     /// <returns>Call logs ordered by creation time.</returns>
-    Task<IReadOnlyList<CallLogDto>> GetByCaseAsync(int caseId);
+    Task<IReadOnlyList<CallLogDto>> GetByCaseAsync(int caseId, string? callerRole = null, string? callerUserId = null);
 
     /// <summary>Adds a call log to a case.</summary>
     /// <param name="dto">Create payload.</param>
     /// <param name="loggedByUserId">Agent id performing the log.</param>
+    /// <param name="callerRole">Caller role (for Agent scoping).</param>
+    /// <param name="callerUserId">Caller user id (for Agent scoping).</param>
     /// <returns>The created <see cref="CallLogDto"/>.</returns>
-    Task<CallLogDto> CreateAsync(CreateCallLogDto dto, string? loggedByUserId);
+    Task<CallLogDto> CreateAsync(CreateCallLogDto dto, string? loggedByUserId, string? callerRole = null, string? callerUserId = null);
 }

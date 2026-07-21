@@ -82,4 +82,34 @@ public class CustomerAuthController : ControllerBase
         var result = await _auth.LoginAsync(request);
         return result is null ? Unauthorized(new { error = "Invalid credentials." }) : Ok(result);
     }
+
+    /// <summary>
+    /// Public customer self-registration (signup). Creates a new customer
+    /// record (no password is collected) and emails an activation link reusing
+    /// the same invite logic as <c>POST /api/customers/{id}/invite</c>. No
+    /// token/JWT is returned — the customer must click the emailed link and set
+    /// a password before they can log in.
+    /// </summary>
+    /// <param name="request">Full name, email, phone, company, address.</param>
+    /// <returns>204 No Content on success, 400 if the email is already in use or the payload is invalid.</returns>
+    [HttpPost("register")]
+    [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> Register([FromBody] RegisterCustomerDto request)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+        try
+        {
+            await _auth.RegisterAsync(request);
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
 }

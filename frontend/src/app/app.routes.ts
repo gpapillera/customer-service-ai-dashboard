@@ -10,6 +10,7 @@ import { CaseListComponent } from './cases/case-list.component';
 import { CaseDetailComponent } from './cases/case-detail.component';
 import { CaseFormComponent } from './cases/case-form.component';
 import { AgentListComponent } from './users/agent-list.component';
+import { ConversationsListComponent } from './cases/conversations-list.component';
 
 // Customer portal (Phase 3) — a separate shell, separate auth, separate routes.
 import { customerAuthGuard } from './customer/customer-auth.guard';
@@ -45,6 +46,7 @@ export const routes: Routes = [
         ],
       },
       { path: 'agents', component: AgentListComponent },
+      { path: 'messages', component: ConversationsListComponent },
       { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
     ],
   },

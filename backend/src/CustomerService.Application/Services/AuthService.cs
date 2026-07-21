@@ -57,6 +57,7 @@ public class AuthService : IAuthService
 
         return new LoginResponse
         {
+            Id = user.Id,
             Token = tokenString,
             ExpiresUtc = expires,
             UserName = user.UserName,

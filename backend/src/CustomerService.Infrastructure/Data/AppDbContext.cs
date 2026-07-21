@@ -39,6 +39,9 @@ public class AppDbContext : DbContext
     /// <summary>System notifications (e.g. overdue follow-up alerts).</summary>
     public DbSet<Notification> Notifications => Set<Notification>();
 
+    /// <summary>Per-agent, per-case "last viewed" markers for the Messages tab.</summary>
+    public DbSet<ConversationReadState> ConversationReadStates => Set<ConversationReadState>();
+
     /// <summary>
     /// Configures the model: relationships, constraints, and value
     /// normalization (e.g. lowercase email) at the database level.
@@ -129,6 +132,17 @@ public class AppDbContext : DbContext
             // Notifications reference a case but must survive case deletion.
             e.HasOne<Case>().WithMany().HasForeignKey(n => n.CaseId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        builder.Entity<ConversationReadState>(e =>
+        {
+            e.HasKey(r => r.Id);
+            // One marker per agent per case.
+            e.HasIndex(r => new { r.AgentUserId, r.CaseId }).IsUnique();
+            e.Property(r => r.AgentUserId).IsRequired().HasMaxLength(100);
+            // The marker references a case but must not block case deletion.
+            e.HasOne<Case>().WithMany().HasForeignKey(r => r.CaseId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

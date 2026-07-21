@@ -1,0 +1,50 @@
+:host {
+  display: block;
+  padding: 0.25rem 0.5rem 0.5rem;
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+}
+
+.modal-head h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--cs-text);
+}
+
+.modal-sub {
+  margin: 0 0 1rem;
+  color: var(--cs-text-muted);
+  font-size: 0.85rem;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.full {
+  width: 100%;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.error-banner {
+  background: var(--cs-danger-bg);
+  color: #b91c1c;
+  border-radius: var(--cs-radius-sm);
+  padding: 0.6rem 0.8rem;
+  font-size: 0.85rem;
+  margin: 0.25rem 0 0.5rem;
+}

@@ -70,6 +70,19 @@
   color: var(--cs-text);
   font-weight: 600;
   font-size: 0.9rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--cs-radius, 12px);
+  cursor: pointer;
+  transition: background 0.2s var(--cs-ease), color 0.2s var(--cs-ease),
+    transform 0.2s var(--cs-ease);
+
+  &:hover,
+  &:focus-visible {
+    background: var(--cs-accent-light);
+    color: var(--cs-accent-strong);
+    transform: translateY(-1px);
+    outline: none;
+  }
 }
 
 .who-name {

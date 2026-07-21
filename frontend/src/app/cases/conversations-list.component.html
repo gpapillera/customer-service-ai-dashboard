@@ -1,0 +1,51 @@
+<div class="page">
+  <header class="head">
+    <h1 class="title">Messages</h1>
+    <p class="subtitle">Conversations on cases assigned to you.</p>
+  </header>
+
+  @if (loading()) {
+    <div class="center"><mat-spinner diameter="36"></mat-spinner></div>
+  } @else if (error()) {
+    <div class="error-banner" role="alert">{{ error() }}</div>
+  } @else if (conversations().length === 0) {
+    <div class="empty cs-lift reveal" appReveal>
+      <cs-icon name="forum"></cs-icon>
+      <p>No conversations yet. When a customer replies on one of your cases, it will appear here.</p>
+    </div>
+  } @else {
+    <ul class="conv-list stagger">
+      @for (c of conversations(); track c.caseId) {
+        <li>
+          <button
+            type="button"
+            class="conv-card cs-lift"
+            [class.unread]="c.unread"
+            (click)="open(c)"
+          >
+            <span class="conv-icon">
+              <cs-icon name="forum"></cs-icon>
+            </span>
+            <span class="conv-main">
+              <span class="conv-top">
+                <span class="conv-subject">{{ c.subject }}</span>
+                @if (c.unread) {
+                  <span class="cs-dot unread-dot"></span>
+                }
+              </span>
+              <span class="conv-snippet">{{ c.lastCommentSnippet }}</span>
+              <span class="conv-meta">
+                <span class="conv-customer">{{ c.customerName }}</span>
+                <span class="dot-sep">·</span>
+                <span>{{ c.lastCommentAuthor }}</span>
+                <span class="dot-sep">·</span>
+                <span>{{ formatDate(c.lastCommentAtUtc) }}</span>
+              </span>
+            </span>
+            <span class="conv-chevron"><cs-icon name="chevron_right"></cs-icon></span>
+          </button>
+        </li>
+      }
+    </ul>
+  }
+</div>

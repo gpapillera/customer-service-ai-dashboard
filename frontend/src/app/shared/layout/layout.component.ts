@@ -54,6 +54,9 @@ export class LayoutComponent {
     { path: '/cases', label: 'Cases', icon: 'confirmation_number' },
     // Agents list is admin-only (Phase 5). Hidden entirely for Agent-role users.
     { path: '/agents', label: 'Agents', icon: 'supervisor_account', adminOnly: true },
+    // Messages (conversations) tab is Agent-only (Phase 9). Admin's equivalent
+    // global view is a later phase, so it is hidden for Admins here.
+    { path: '/messages', label: 'Messages', icon: 'forum', agentOnly: true },
   ];
 
   constructor() {
@@ -99,10 +102,15 @@ export class LayoutComponent {
     return this.auth.currentUser();
   }
 
-  /** Nav links visible to the current user (admin-only items filtered out for agents). */
+  /** Nav links visible to the current user (admin-only items filtered out for agents;
+      agent-only items filtered out for admins). */
   get visibleNavLinks() {
-    const isAdmin = this.auth.getRole() === 'Admin';
-    return this.navLinks.filter((l) => !l.adminOnly || isAdmin);
+    const role = this.auth.getRole();
+    const isAdmin = role === 'Admin';
+    const isAgent = role === 'Agent';
+    return this.navLinks.filter(
+      (l) => (!l.adminOnly || isAdmin) && (!l.agentOnly || isAgent),
+    );
   }
 
   /** Asks for confirmation, then logs the user out (only on confirm). */
