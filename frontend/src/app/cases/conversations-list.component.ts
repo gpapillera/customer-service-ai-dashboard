@@ -74,15 +74,9 @@ export class ConversationsListComponent implements OnInit, OnDestroy {
 
   /** Opens the case's existing Case Detail page (which shows the thread). */
   open(c: Conversation): void {
-    // If unread, navigate with scroll-to-comment hint so the case detail
-    // page auto-scrolls to the latest (unread) comment.
-    if (c.unread) {
-      this.router.navigate(['/cases', c.caseId], {
-        queryParams: { from: 'messages' },
-      });
-    } else {
-      this.router.navigate(['/cases', c.caseId]);
-    }
+    this.router.navigate(['/cases', c.caseId], {
+      queryParams: { from: 'messages' },
+    });
   }
 
   /** Formats an ISO timestamp for display. */

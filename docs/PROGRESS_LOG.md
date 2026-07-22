@@ -2,6 +2,22 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 23c — Reliable Auto-Scroll to Conversation Section] (2026-07-22)
+**Status:** ✅ COMPLETE (frontend `ng build` → 0 errors)
+**What changed:**
+- **Problem:** When clicking a conversation from the Conversations list (Admin) or Messages list (Agent), the case detail page did not reliably scroll to the conversation/comments section. Two root causes:
+  1. The `from` query param was only passed for **unread** conversations — already-read conversations navigated without the scroll hint.
+  2. The scroll attempt checked `this.conversationCard` (ViewChild) immediately, but the card is inside two nested `@if` blocks and may not be in the DOM yet when the comments HTTP response arrives. The single `requestAnimationFrame` + 200ms attempt wasn't robust enough.
+- **Fix:**
+  - Both `conversations-list.component.ts` (Agent) and `admin-conversations.component.ts` (Admin) now **always** pass `from=messages` / `from=conversations` query param, regardless of read status.
+  - `case-detail.component.ts` now uses a retry-based scroll (10 attempts × 250ms = ~2.5s) that keeps trying until the `#conversationCard` element exists in the DOM, handling any HTTP response ordering.
+- **Files changed:**
+  - `cases/case-detail.component.ts` — Replaced single `requestAnimationFrame` scroll with retry-based `setTimeout` loop
+  - `cases/conversations-list.component.ts` — Always pass `from=messages` query param
+  - `cases/admin-conversations.component.ts` — Always pass `from=conversations` query param
+
+---
+
 ## [Phase 23b — Instant Badge Update on Conversation Open] (2026-07-22)
 **Status:** ✅ COMPLETE (frontend `ng build` → 0 errors)
 **What changed:**

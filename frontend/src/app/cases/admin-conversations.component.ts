@@ -70,13 +70,9 @@ export class AdminConversationsComponent implements OnInit, OnDestroy {
   }
 
   open(c: Conversation): void {
-    if (c.unread) {
-      this.router.navigate(['/cases', c.caseId], {
-        queryParams: { from: 'conversations' },
-      });
-    } else {
-      this.router.navigate(['/cases', c.caseId]);
-    }
+    this.router.navigate(['/cases', c.caseId], {
+      queryParams: { from: 'conversations' },
+    });
   }
 
   formatDate(iso: string): string {

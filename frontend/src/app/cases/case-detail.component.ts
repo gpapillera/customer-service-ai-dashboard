@@ -125,16 +125,21 @@ export class CaseDetailComponent implements OnInit {
     });
     this.callLogService.listByCase(id).subscribe((logs) => this.logs.set(logs));
     this.caseService.agents().subscribe((list) => this.agents.set(list));
-    // Gap 3: Load the comment thread.
-    this.caseService.getComments(id).subscribe((list) => {
-      this.comments.set(list);
-      if (fromTab && this.conversationCard) {
-        // Auto-scroll to the conversation card when navigating from Messages/Conversations.
-        requestAnimationFrame(() => {
-          setTimeout(() => {
-            this.conversationCard?.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }, 200);
-        });
+// Load the comment thread.
+  this.caseService.getComments(id).subscribe((list) => {
+    this.comments.set(list);
+    if (fromTab) {
+      // Defer and retry until the conversation card is rendered in the DOM.
+      // The card depends on both loading() being false and case() being set,
+      // which may arrive after the comments response.  Retries up to ~2.5 s.
+      const scrollToCard = (retries = 10) => {
+        if (this.conversationCard?.nativeElement) {
+          this.conversationCard.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else if (retries > 0) {
+          setTimeout(() => scrollToCard(retries - 1), 250);
+        }
+      };
+      setTimeout(() => scrollToCard(), 100);
       } else {
         this.scrollToBottom();
       }
