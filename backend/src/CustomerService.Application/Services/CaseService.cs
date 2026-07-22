@@ -55,7 +55,8 @@ public class CaseService : ICaseService
     {
         IQueryable<Case> q = _cases.Query()
             .Include(c => c.Customer)
-            .Include(c => c.Category);
+            .Include(c => c.Category)
+            .Include(c => c.CallLogs);
 
         // SERVER-SIDE AGENT SCOPING (Phase 6). An Agent may only ever see cases
         // assigned to them OR unassigned — regardless of any query param. This
@@ -110,6 +111,7 @@ public class CaseService : ICaseService
             .Include(c => c.Customer)
             .Include(c => c.Category)
             .Include(c => c.AssignedToUser)
+            .Include(c => c.CallLogs)
             .FirstOrDefaultAsync(x => x.Id == id);
         if (c is null) return null;
 
@@ -241,6 +243,17 @@ public class CaseService : ICaseService
         }
 
         caseEntity.PriorityAutoSuggested = false; // manual override
+
+        // RECALCULATE SLA: when the priority changes while the case is still
+        // open, recompute the follow-up deadline so the SLA window reflects the
+        // new priority (e.g. escalation from Low → High tightens the window).
+        if (caseEntity.Priority != dto.Priority
+            && OverduePolicy.OpenStatuses.Contains(caseEntity.Status))
+        {
+            caseEntity.FollowUpDueUtc = OverduePolicy.ComputeFollowUpDueUtc(
+                dto.Priority, null, caseEntity.CreatedAtUtc);
+        }
+
         caseEntity.UpdatedAtUtc = DateTime.UtcNow;
         _cases.Update(caseEntity);
         await _cases.SaveChangesAsync();
@@ -314,19 +327,31 @@ public class CaseService : ICaseService
             .Where(r => r.AgentUserId == agentUserId && assignedCaseIds.Contains(r.CaseId))
             .ToDictionaryAsync(r => r.CaseId, r => r.LastViewedUtc);
 
+        // Latest NON-SELF comment per case — used for unread detection so
+        // a user's own reply never makes the conversation appear unread to them.
+        var latestNonSelfComments = await _comments.Query()
+            .Where(cm => assignedCaseIds.Contains(cm.CaseId) && cm.AuthorUserId != agentUserId)
+            .GroupBy(cm => cm.CaseId)
+            .Select(g => new { CaseId = g.Key, LatestAt = g.Max(cm => cm.CreatedAtUtc) })
+            .ToDictionaryAsync(x => x.CaseId, x => x.LatestAt);
+
+        // Batch-load all cases in one query to avoid N+1 per-case lookups.
+        var caseEntities = await _cases.Query()
+            .Include(c => c.Customer)
+            .Where(c => assignedCaseIds.Contains(c.Id))
+            .ToDictionaryAsync(c => c.Id);
+
         var result = new List<ConversationSummaryDto>();
         foreach (var comment in latestComments)
         {
-            var caseEntity = await _cases.Query()
-                .Include(c => c.Customer)
-                .FirstOrDefaultAsync(c => c.Id == comment.CaseId);
-            if (caseEntity is null)
+            if (!caseEntities.TryGetValue(comment.CaseId, out var caseEntity))
             {
                 continue;
             }
 
             var lastViewed = readStates.TryGetValue(comment.CaseId, out var v) ? v : DateTime.MinValue;
-            var unread = comment.CreatedAtUtc > lastViewed;
+            var latestNonSelfAt = latestNonSelfComments.TryGetValue(comment.CaseId, out var t) ? t : DateTime.MinValue;
+            var unread = latestNonSelfAt > lastViewed;
 
             result.Add(new ConversationSummaryDto
             {
@@ -374,7 +399,7 @@ public class CaseService : ICaseService
     }
 
     /// <inheritdoc/>
-    public async Task<IReadOnlyList<ConversationSummaryDto>> GetAllConversationsAsync()
+    public async Task<IReadOnlyList<ConversationSummaryDto>> GetAllConversationsAsync(string viewerUserId)
     {
         // All cases that have at least one comment, regardless of assignment.
         var caseIdsWithComments = await _comments.Query()
@@ -395,17 +420,36 @@ public class CaseService : ICaseService
             .Select(g => g.OrderByDescending(cm => cm.CreatedAtUtc).First())
             .ToListAsync();
 
+        var readStates = await _readStates.Query()
+            .Where(r => r.AgentUserId == viewerUserId && caseIdsWithComments.Contains(r.CaseId))
+            .ToDictionaryAsync(r => r.CaseId, r => r.LastViewedUtc);
+
+        // Latest NON-SELF comment per case — used for unread detection so
+        // a user's own reply never makes the conversation appear unread to them.
+        var latestNonSelfComments = await _comments.Query()
+            .Where(cm => caseIdsWithComments.Contains(cm.CaseId) && cm.AuthorUserId != viewerUserId)
+            .GroupBy(cm => cm.CaseId)
+            .Select(g => new { CaseId = g.Key, LatestAt = g.Max(cm => cm.CreatedAtUtc) })
+            .ToDictionaryAsync(x => x.CaseId, x => x.LatestAt);
+
+        // Batch-load all cases in one query to avoid N+1 per-case lookups.
+        var caseEntities = await _cases.Query()
+            .Include(c => c.Customer)
+            .Include(c => c.AssignedToUser)
+            .Where(c => caseIdsWithComments.Contains(c.Id))
+            .ToDictionaryAsync(c => c.Id);
+
         var result = new List<ConversationSummaryDto>();
         foreach (var comment in latestComments)
         {
-            var caseEntity = await _cases.Query()
-                .Include(c => c.Customer)
-                .Include(c => c.AssignedToUser)
-                .FirstOrDefaultAsync(c => c.Id == comment.CaseId);
-            if (caseEntity is null)
+            if (!caseEntities.TryGetValue(comment.CaseId, out var caseEntity))
             {
                 continue;
             }
+
+            var lastViewed = readStates.TryGetValue(comment.CaseId, out var v) ? v : DateTime.MinValue;
+            var latestNonSelfAt = latestNonSelfComments.TryGetValue(comment.CaseId, out var t) ? t : DateTime.MinValue;
+            var unread = latestNonSelfAt > lastViewed;
 
             result.Add(new ConversationSummaryDto
             {
@@ -420,7 +464,7 @@ public class CaseService : ICaseService
                 LastCommentAuthor = comment.AuthorUser?.FullName
                     ?? comment.AuthorCustomer?.Name
                     ?? "Unknown",
-                Unread = false, // Admin global view has no unread tracking
+                Unread = unread,
             });
         }
 

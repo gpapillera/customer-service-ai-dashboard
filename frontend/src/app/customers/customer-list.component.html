@@ -33,7 +33,7 @@
     <p>No customers found.</p>
   </div>
 } @else {
-  <div class="grid stagger">
+  <div class="grid">
     @for (c of customers(); track c.id) {
       <mat-card class="cs-lift customer-card" appReveal [routerLink]="[c.id]">
         <mat-card-content>

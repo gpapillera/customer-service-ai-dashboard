@@ -95,7 +95,8 @@ public class CasesController : ControllerBase
     /// <summary>
     /// Admin "Conversations" view: all cases that have at least one comment,
     /// regardless of assignment. Shows the assigned agent name (or null for
-    /// unassigned). Admin-only — Agent-role users get 403.
+    /// unassigned) and an unread flag per the admin's read state.
+    /// Admin-only — Agent-role users get 403.
     /// </summary>
     /// <returns>Conversation summaries, most-recent activity first.</returns>
     [HttpGet("all-conversations")]
@@ -103,7 +104,9 @@ public class CasesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IReadOnlyList<ConversationSummaryDto>> AllConversations()
     {
-        return await _service.GetAllConversationsAsync();
+        var viewerUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? throw new UnauthorizedAccessException("Missing user id claim.");
+        return await _service.GetAllConversationsAsync(viewerUserId);
     }
 
     /// <summary>Creates a case. Priority is ML-suggested when not supplied.</summary>
@@ -199,13 +202,13 @@ public class CasesController : ControllerBase
     /// </summary>
     /// <param name="id">Case id.</param>
     [HttpPost("{id:int}/conversations/mark-read")]
-    [Authorize(Roles = "Agent")]
+    [Authorize(Roles = "Admin,Agent")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> MarkConversationRead(int id)
     {
-        var agentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
             ?? throw new UnauthorizedAccessException("Missing user id claim.");
-        await _service.MarkConversationReadAsync(id, agentUserId);
+        await _service.MarkConversationReadAsync(id, userId);
         return NoContent();
     }
 }

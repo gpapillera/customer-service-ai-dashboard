@@ -96,15 +96,20 @@ export class CaseDetailComponent implements OnInit {
   readonly savingComment = signal(false);
 
   @ViewChild('chatScroll') private chatScroll!: ElementRef<HTMLDivElement>;
+  @ViewChild('conversationCard') private conversationCard!: ElementRef<HTMLElement>;
 
   ngOnInit(): void {
     const id = Number(this.route.snapshot.paramMap.get('id'));
+    const scrollToCommentId = this.route.snapshot.queryParamMap.get('scrollToComment');
+    const fromTab = this.route.snapshot.queryParamMap.get('from');
+
     this.caseService.get(id).subscribe({
       next: (c) => {
         this.case.set(c);
         this.loading.set(false);
-        // Gap 4: When an agent navigates to this case, mark the conversation as read.
-        if (this.auth.getRole() === 'Agent') {
+        // Mark conversation as read for both Agent and Admin users.
+        const role = this.auth.getRole();
+        if (role === 'Agent' || role === 'Admin') {
           this.caseService.markConversationRead(id).subscribe();
         }
       },
@@ -118,7 +123,16 @@ export class CaseDetailComponent implements OnInit {
     // Gap 3: Load the comment thread.
     this.caseService.getComments(id).subscribe((list) => {
       this.comments.set(list);
-      this.scrollToBottom();
+      if (fromTab && this.conversationCard) {
+        // Auto-scroll to the conversation card when navigating from Messages/Conversations.
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            this.conversationCard?.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }, 200);
+        });
+      } else {
+        this.scrollToBottom();
+      }
     });
 
     // Poll for new comments every 5 seconds so messages appear in real-time.
@@ -152,6 +166,26 @@ export class CaseDetailComponent implements OnInit {
     if (el) {
       requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; });
     }
+  }
+
+  /** Scrolls to a specific comment by id (for auto-scroll from Messages tab). */
+  private scrollToComment(commentId: number): void {
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        const el = this.chatScroll?.nativeElement;
+        if (!el) return;
+        const items = el.querySelectorAll<HTMLElement>('.comment-item');
+        if (items.length === 0) return;
+        // The comments array index matches DOM index.
+        const idx = this.comments().findIndex((c) => c.id === commentId);
+        if (idx >= 0 && items[idx]) {
+          items[idx].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else {
+          // Fallback: scroll to top of chat area
+          el.scrollTop = 0;
+        }
+      }, 100);
+    });
   }
 
   /** Adds a call / follow-up log to the case. */

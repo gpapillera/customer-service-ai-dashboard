@@ -1,4 +1,4 @@
-import { Component, inject, signal, viewChild } from '@angular/core';
+import { Component, effect, inject, signal, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { MatSidenavModule } from '@angular/material/sidenav';
@@ -6,11 +6,13 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatDialog } from '@angular/material/dialog';
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Title } from '@angular/platform-browser';
 import { CsIconComponent } from '../cs-icon.component';
 import { AuthService } from '../../auth/auth.service';
 import { ConfirmDialogComponent } from '../confirm-dialog.component';
 import { NotificationBellComponent } from '../notification-bell.component';
 import { StaffAccountPanelComponent } from '../staff-account-panel.component';
+import { NavBadgeService } from '../nav-badge.service';
 
 /**
  * Application shell: a white sidenav with navigation (active = light indigo
@@ -40,7 +42,9 @@ export class LayoutComponent {
   private readonly router = inject(Router);
   private readonly dialog = inject(MatDialog);
   private readonly breakpointObserver = inject(BreakpointObserver);
+  private readonly titleService = inject(Title);
   private readonly accountPanel = viewChild(StaffAccountPanelComponent);
+  readonly navBadges = inject(NavBadgeService);
 
   /** True on narrow viewports (<768px); the sidenav switches to overlay mode. */
   readonly isHandset = signal(false);
@@ -83,6 +87,14 @@ export class LayoutComponent {
           this.opened.set(false);
         }
       });
+
+    // Set the browser tab title to "{userName} - Customer Service" when the
+    // user changes (login/logout). On logout the title reverts to "Customer Service".
+    effect(() => {
+      const user = this.auth.currentUser();
+      const name = user?.fullName?.trim();
+      this.titleService.setTitle(name ? `${name} - Customer Service` : 'Customer Service');
+    });
   }
 
   /** Collapse/expand the sidenav (works in both side and overlay modes). */

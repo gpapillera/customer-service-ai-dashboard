@@ -14,7 +14,7 @@
   <div class="center"><mat-spinner diameter="40"></mat-spinner></div>
 } @else {
   @if (data(); as d) {
-    <div class="kpis stagger">
+    <div class="kpis">
       @for (k of kpis; track k.label) {
         <button type="button" class="kpi-card cs-lift" appReveal [class]="'tone-' + k.tone" (click)="openKpi(k.link)">
           <div class="kpi-icon"><cs-icon [name]="k.icon" [size]="26"></cs-icon></div>

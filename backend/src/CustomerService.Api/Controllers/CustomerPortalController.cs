@@ -57,6 +57,10 @@ public class CustomerPortalController : ControllerBase
                 Subject = c.Subject,
                 Status = c.Status,
                 CreatedAtUtc = c.CreatedAtUtc,
+                LastStaffCommentAtUtc = c.Comments!
+                    .Where(cm => cm.AuthorUserId != null)
+                    .Max(cm => (DateTime?)cm.CreatedAtUtc),
+                CommentCount = c.Comments!.Count,
             })
             .ToListAsync();
 
@@ -103,6 +107,7 @@ public class CustomerPortalController : ControllerBase
                 Subject = created.Subject,
                 Status = created.Status,
                 CreatedAtUtc = created.CreatedAtUtc,
+                CommentCount = 0,
             };
             return CreatedAtAction(nameof(GetMyCase), new { id = created.Id }, summary);
         }

@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
@@ -30,13 +30,16 @@ import { Conversation } from '../shared/models';
   templateUrl: './conversations-list.component.html',
   styleUrl: './conversations-list.component.scss',
 })
-export class ConversationsListComponent implements OnInit {
+export class ConversationsListComponent implements OnInit, OnDestroy {
   private readonly service = inject(CaseService);
   private readonly router = inject(Router);
 
   readonly conversations = signal<Conversation[]>([]);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
+
+  private pollTimer: ReturnType<typeof setInterval> | null = null;
+  private readonly POLL_MS = 30_000;
 
   ngOnInit(): void {
     this.service.myConversations().subscribe({
@@ -49,11 +52,37 @@ export class ConversationsListComponent implements OnInit {
         this.loading.set(false);
       },
     });
+    if (typeof window !== 'undefined') {
+      this.pollTimer = window.setInterval(() => this.refresh(), this.POLL_MS);
+    }
+  }
+
+  ngOnDestroy(): void {
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer);
+      this.pollTimer = null;
+    }
+  }
+
+  /** Silent refresh — does not show loading spinner. */
+  private refresh(): void {
+    this.service.myConversations().subscribe({
+      next: (list) => this.conversations.set(list),
+      error: () => { /* ignore polling errors */ },
+    });
   }
 
   /** Opens the case's existing Case Detail page (which shows the thread). */
   open(c: Conversation): void {
-    this.router.navigateByUrl(`/cases/${c.caseId}`);
+    // If unread, navigate with scroll-to-comment hint so the case detail
+    // page auto-scrolls to the latest (unread) comment.
+    if (c.unread) {
+      this.router.navigate(['/cases', c.caseId], {
+        queryParams: { from: 'messages' },
+      });
+    } else {
+      this.router.navigate(['/cases', c.caseId]);
+    }
   }
 
   /** Formats an ISO timestamp for display. */

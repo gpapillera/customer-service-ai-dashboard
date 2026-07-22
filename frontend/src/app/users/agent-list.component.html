@@ -9,7 +9,7 @@
   @if (loading()) {
     <div class="center"><mat-spinner diameter="36"></mat-spinner></div>
   } @else {
-    <div class="grid stagger">
+    <div class="grid">
       @for (agent of agents(); track agent.id) {
         <mat-card class="cs-lift agent-card reveal" appReveal (click)="openAgent(agent)" style="cursor:pointer">
           <mat-card-content>

@@ -339,14 +339,38 @@
   }
 }
 
+/* ── Responsive: single-column + natural scroll ────────────────────── */
+@media (max-width: 980px) {
+  :host {
+    height: auto;
+    min-height: calc(100vh - 56px);
+  }
+  .detail-grid {
+    flex: none;              /* override the desktop flex:1 so it doesn't shrink */
+  }
+  .main-col,
+  .side-col {
+    min-height: auto;
+  }
+  .chat-scroll {
+    max-height: 40vh;        /* slightly tighter on mid-size screens */
+  }
+}
+@media (max-width: 600px) {
+  .center {
+    padding: 1.5rem;
+  }
+  .chat-scroll {
+    max-height: 35vh;        /* more room for stacked cards on phones */
+  }
+}
+
 /* Comment / conversation thread */
 .comment-card {
   border-radius: var(--cs-radius);
   box-shadow: var(--cs-shadow);
   display: flex;
   flex-direction: column;
-  flex: 1;
-  min-height: 0;
   overflow: hidden;
 }
 
@@ -354,16 +378,13 @@
 .chat-wrap {
   display: flex;
   flex-direction: column;
-  flex: 1;
-  min-height: 0; /* allow shrinking below content size */
 }
 .chat-scroll {
-  flex: 1;
+  max-height: 50vh;
   overflow-y: auto;
   overflow-x: hidden;
   scroll-behavior: smooth;
   overscroll-behavior: contain;
-  min-height: 0;
   padding-right: 0.25rem;
 }
 .comment-list {

@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
@@ -28,7 +28,7 @@ import { CustomerCaseSummary } from '../shared/models';
   templateUrl: './my-cases-list.component.html',
   styleUrl: './my-cases-list.component.scss',
 })
-export class MyCasesListComponent implements OnInit {
+export class MyCasesListComponent implements OnInit, OnDestroy {
   private readonly customerService = inject(CustomerService);
   private readonly router = inject(Router);
 
@@ -36,8 +36,29 @@ export class MyCasesListComponent implements OnInit {
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
 
+  private pollTimer: ReturnType<typeof setInterval> | null = null;
+  private readonly POLL_MS = 30_000;
+
   ngOnInit(): void {
     this.load();
+    if (typeof window !== 'undefined') {
+      this.pollTimer = window.setInterval(() => this.refresh(), this.POLL_MS);
+    }
+  }
+
+  ngOnDestroy(): void {
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer);
+      this.pollTimer = null;
+    }
+  }
+
+  /** Silent refresh — does not show loading spinner. */
+  private refresh(): void {
+    this.customerService.listCases().subscribe({
+      next: (list) => this.cases.set(list),
+      error: () => { /* ignore polling errors */ },
+    });
   }
 
   load(): void {
@@ -56,6 +77,18 @@ export class MyCasesListComponent implements OnInit {
   }
 
   open(id: number): void {
+    // Mark this case as read in localStorage before navigating.
+    const c = this.cases().find((x) => x.id === id);
+    if (c?.lastStaffCommentAtUtc) {
+      try {
+        localStorage.setItem(`cs_customer_read_${id}`, c.lastStaffCommentAtUtc);
+      } catch { /* quota or SSR */ }
+    } else {
+      // No staff comments yet — mark as read using the case creation time.
+      try {
+        localStorage.setItem(`cs_customer_read_${id}`, c?.createdAtUtc || new Date().toISOString());
+      } catch { /* quota or SSR */ }
+    }
     this.router.navigateByUrl(`/customer/cases/${id}`);
   }
 
@@ -69,5 +102,17 @@ export class MyCasesListComponent implements OnInit {
 
   formatDate(value: string): string {
     return new Date(value).toLocaleString();
+  }
+
+  /** Checks if a case has unread staff messages (for the red dot indicator). */
+  hasUnread(c: CustomerCaseSummary): boolean {
+    if (!c.lastStaffCommentAtUtc) return false;
+    try {
+      const lastRead = localStorage.getItem(`cs_customer_read_${c.id}`);
+      if (!lastRead) return true; // Never viewed — unread if there's a staff comment.
+      return new Date(c.lastStaffCommentAtUtc).getTime() > new Date(lastRead).getTime();
+    } catch {
+      return false;
+    }
   }
 }

@@ -147,6 +147,47 @@
   flex: 0 0 auto;
 }
 
+/* Badge dot / count next to nav items */
+.nav-badge {
+  margin-left: auto;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--cs-danger, #ef4444);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+  flex: 0 0 auto;
+  animation: badge-pop 0.25s var(--cs-ease);
+}
+
+@keyframes badge-pop {
+  0% { transform: scale(0); }
+  60% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+/* Badge on collapsed rail */
+.rail-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 7px;
+  background: var(--cs-danger, #ef4444);
+  color: #fff;
+  font-size: 0.55rem;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+  animation: badge-pop 0.25s var(--cs-ease);
+}
+
 .sidenav-user {
   border-top: 1px solid var(--cs-border);
   padding: 0.75rem;
@@ -173,6 +214,44 @@
 .signout-btn:hover {
   background: var(--cs-danger-bg);
   color: var(--cs-danger);
+}
+
+/* Account button: first-letter avatar + user name */
+.account-btn {
+  color: var(--cs-text);
+  margin-bottom: 0.2rem;
+}
+
+.account-btn:hover {
+  background: rgba(79, 70, 229, 0.06);
+  color: var(--cs-accent);
+}
+
+.user-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--cs-accent-gradient);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  flex: 0 0 auto;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.user-name {
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: var(--cs-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 140px;
 }
 
 .content {
@@ -253,6 +332,7 @@
 }
 
 .rail-item {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;

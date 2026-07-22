@@ -67,8 +67,11 @@ public interface ICaseService
     /// <summary>
     /// Returns all cases that have at least one comment, regardless of
     /// assignment. Each entry includes the assigned agent name (or null for
-    /// unassigned cases). Intended for the Admin "Conversations" view.
+    /// unassigned cases) and an <c>unread</c> flag based on the caller's
+    /// <see cref="ConversationReadState"/>. Intended for the Admin
+    /// "Conversations" view.
     /// </summary>
+    /// <param name="viewerUserId">The admin's User.Id for read-state tracking.</param>
     /// <returns>Conversation summaries, most-recent activity first.</returns>
-    Task<IReadOnlyList<ConversationSummaryDto>> GetAllConversationsAsync();
+    Task<IReadOnlyList<ConversationSummaryDto>> GetAllConversationsAsync(string viewerUserId);
 }

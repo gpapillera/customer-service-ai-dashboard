@@ -128,6 +128,21 @@ body {
   }
 }
 
+/* ---- Unread message pulse animation (used across all message features) ---- */
+.unread-dot {
+  flex: 0 0 auto;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--cs-accent-strong, #4338ca);
+  animation: unread-pulse 2s ease-in-out infinite;
+}
+
+@keyframes unread-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.75); }
+}
+
 /* Page title spacing used across modules. */
 .page-title {
   margin: 0 0 1.25rem;

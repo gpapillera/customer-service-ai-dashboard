@@ -80,14 +80,23 @@ public static class OverduePolicy
     /// <summary>
     /// Days past the follow-up reference point (rounded up, minimum 1). For a
     /// scheduled case this is days past the deadline; for a stale case it is
-    /// days past the stale threshold.
+    /// days since the last call log (or case creation if no logs exist).
     /// </summary>
     public static int DaysOverdue(Case c, DateTime? now = null)
     {
         var t = now ?? DateTime.UtcNow;
-        var reference = c.FollowUpDueUtc.HasValue
-            ? c.FollowUpDueUtc.Value
-            : t.AddDays(-StaleDays);
+        DateTime reference;
+        if (c.FollowUpDueUtc.HasValue)
+        {
+            reference = c.FollowUpDueUtc.Value;
+        }
+        else
+        {
+            // Stale path: days since last activity (last call log or creation).
+            reference = c.CallLogs.Any()
+                ? c.CallLogs.Max(cl => cl.CreatedAtUtc)
+                : c.CreatedAtUtc;
+        }
         var days = (int)Math.Ceiling((t - reference).TotalDays);
         return days < 1 ? 1 : days;
     }

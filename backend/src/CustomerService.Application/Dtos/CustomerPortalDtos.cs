@@ -21,6 +21,12 @@ public class CustomerCaseSummaryDto
 
     /// <summary>Created timestamp (UTC).</summary>
     public DateTime CreatedAtUtc { get; set; }
+
+    /// <summary>Timestamp of the most recent staff comment (UTC), or null if no staff comments exist.</summary>
+    public DateTime? LastStaffCommentAtUtc { get; set; }
+
+    /// <summary>Total number of comments in the thread.</summary>
+    public int CommentCount { get; set; }
 }
 
 /// <summary>

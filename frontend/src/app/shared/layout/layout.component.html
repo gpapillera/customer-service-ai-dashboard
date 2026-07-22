@@ -27,6 +27,9 @@
           >
             <cs-icon [name]="link.icon" class="nav-icon"></cs-icon>
             <span class="nav-label">{{ link.label }}</span>
+            @if (navBadges.getCount(link.path) > 0) {
+              <span class="nav-badge">{{ navBadges.getCount(link.path) }}</span>
+            }
           </a>
         }
       </nav>
@@ -34,9 +37,9 @@
 
     @if (user) {
       <div class="sidenav-user">
-        <button type="button" class="signout-btn" (click)="openAccount()">
-          <cs-icon name="account_circle"></cs-icon>
-          <span>Account</span>
+        <button type="button" class="signout-btn account-btn" (click)="openAccount()">
+          <span class="user-avatar">{{ user.fullName.charAt(0) || '?' }}</span>
+          <span class="user-name">{{ user.fullName }}</span>
         </button>
         <button type="button" class="signout-btn" (click)="logout()">
           <cs-icon name="logout"></cs-icon>
@@ -83,6 +86,9 @@
               [attr.aria-label]="link.label"
             >
               <cs-icon [name]="link.icon"></cs-icon>
+              @if (navBadges.getCount(link.path) > 0) {
+                <span class="rail-badge">{{ navBadges.getCount(link.path) }}</span>
+              }
             </a>
           }
         </div>

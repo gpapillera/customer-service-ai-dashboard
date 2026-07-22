@@ -40,6 +40,12 @@
             <span class="case-subject">{{ c.subject }}</span>
             <span class="case-date">{{ formatDate(c.createdAtUtc) }}</span>
           </div>
+          @if (hasUnread(c)) {
+            <span class="unread-badge">
+              <cs-icon name="circle-alert" class="unread-icon"></cs-icon>
+              <span class="unread-dot"></span>
+            </span>
+          }
           <span class="cs-pill {{ statusClass(c.status) }}">
             <span class="cs-dot"></span>{{ c.status }}
           </span>

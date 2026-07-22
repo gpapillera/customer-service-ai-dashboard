@@ -128,11 +128,7 @@
 }
 
 .unread-dot {
-  flex: 0 0 auto;
-  width: 9px;
-  height: 9px;
-  background: var(--cs-accent-strong, #4338ca);
-  border-radius: 50%;
+  /* Inherits global .unread-dot styles including pulse animation */
 }
 
 .conv-snippet {

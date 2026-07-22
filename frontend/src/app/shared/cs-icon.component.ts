@@ -42,6 +42,7 @@ import {
   Check,
   MessageSquare,
   Send,
+  UserCheck,
 } from 'lucide-angular/src/icons';
 
 /**
@@ -85,6 +86,7 @@ const ICON_MAP: Record<string, LucideIconData> = {
   notifications_active: BellRing,
   forum: MessageSquare,
   send: Send,
+  supervisor_account: UserCheck,
 };
 
 @Component({

@@ -116,3 +116,22 @@
 .case-chevron {
   color: var(--cs-text-muted);
 }
+
+/* Unread staff message indicator */
+.unread-badge {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  position: relative;
+}
+
+.unread-icon {
+  color: var(--cs-danger, #ef4444);
+  font-size: 1.2rem;
+}
+
+.unread-dot {
+  /* Overrides global .unread-dot background to danger-red for customer context */
+  background: var(--cs-danger, #ef4444);
+}

@@ -2,6 +2,164 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 22 — Dynamic Browser Tab Title with User Name] (2026-07-22)
+**Status:** ✅ COMPLETE
+**What changed:**
+1. ✅ **Browser tab title now shows `"{Name} - Customer Service"`:** When a user logs in, the document title (browser tab) dynamically displays their full name (e.g., "Ada Admin - Customer Service"). On logout, it reverts to "Customer Service".
+2. ✅ **Implements via Angular `effect()` + `Title` service:** The `LayoutComponent` constructor watches `auth.currentUser()` reactively and updates the title whenever the user changes — no manual calls needed.
+
+**Files changed (frontend):**
+- `shared/layout/layout.component.ts` — Added `Title` service injection + `effect()` to set document title based on current user
+
+## [Phase 21 — GitHub Actions CI/CD Pipeline] (2026-07-23)
+**Status:** ✅ COMPLETE
+**What changed:**
+1. ✅ **GitHub Actions workflow created** at `.github/workflows/ci.yml` — runs on push/PR to `main`/`develop`.
+2. ✅ **Backend job:** .NET 8 SDK restore → build (Release) → unit tests (64 tests) with NuGet caching and TRX artifact upload.
+3. ✅ **Frontend job:** Node.js 20 LTS → `npm ci` → `ng build --configuration production` → `ng test` (ChromeHeadless) with dist artifact upload.
+4. ✅ **Jobs run in parallel** (no inter-dependency) for faster CI feedback.
+
+**Files added:**
+- `.github/workflows/ci.yml` — CI pipeline definition
+
+## [Phase 20 — N+1 Query Fix + EF Logging Gating + Manual Test Checklist (23/23)] (2026-07-23)
+**Status:** ✅ COMPLETE (all 23 checklist items verified via browser + curl)
+**What changed:**
+1. ✅ **N+1 query fix in `CaseService.cs`:** `GetMyConversationsAsync()` and `GetAllConversationsAsync()` now batch-load cases into dictionaries before loops instead of per-case queries.
+2. ✅ **EF logging gating:** `appsettings.json` sets `Microsoft.EntityFrameworkCore` to Warning (production); `appsettings.Development.json` keeps it at Information (dev debugging). Eliminates verbose query log noise in production.
+3. ✅ **Manual Test Checklist (23/23):** All items verified end-to-end — Auth (4/4), Customers (6/6), Cases (8/8), Dashboard (4/4), API (3/3), ML (2/2).
+4. ✅ **Customer Portal Frontend (confirmed):** Already fully implemented in a prior phase — login, signup, my-cases, new-case, case detail, account panel. Builds clean (1.24 MB). Routes at `/customer/*`.
+
+**Files changed (backend):**
+- `CustomerService.Application/Services/CaseService.cs` — Batch-loaded cases into dictionaries before loops
+- `CustomerService.Api/appsettings.json` — `Microsoft.EntityFrameworkCore` → Warning
+- `CustomerService.Api/appsettings.Development.json` — `Microsoft.EntityFrameworkCore` → Information
+
+**Files added:**
+- `.github/workflows/ci.yml` — GitHub Actions CI pipeline (parallel backend + frontend jobs)
+
+**Files changed (docs):**
+- `docs/MANUAL_TEST_CHECKLIST.md` — All 23 items marked ✅
+- `docs/PROGRESS_LOG.md` — Phase 20 + 21 entries added
+
+---
+
+## [Phase 19 — Fix: Overdue Case Days Count Not Advancing + SLA Recalculation] (2026-07-22)
+**Status:** ✅ COMPLETE (backend build → 0 errors, 64 tests passed; frontend rebuild → 0 errors)
+**What changed:**
+1. ✅ **`DaysOverdue()` stale-path bug fixed:** The previous implementation computed `reference = now - StaleDays`, which always resulted in exactly 3 days overdue regardless of elapsed time. Now uses the actual last call-log date (or `CreatedAtUtc` if no logs exist) so the count grows dynamically as days pass.
+2. ✅ **SLA deadline recalculation on priority change:** `CaseService.UpdateAsync()` now recalculates `FollowUpDueUtc` when an open case's priority changes (e.g., Low → High), tightening the SLA window to match the new priority.
+3. ✅ **CallLogs loaded in case listing:** Added `.Include(c => c.CallLogs)` to `CaseService.GetAllAsync()` so `ToDto()` can accurately evaluate `NeedsFollowUp()` and `DaysOverdue()` for every case returned by the list endpoint — previously stale cases always fell back to `CreatedAtUtc` because the navigation was unloaded.
+
+**Root cause:** `OverduePolicy.DaysOverdue()` used `now - StaleDays` as the reference point for stale cases (no `FollowUpDueUtc`), producing a constant value of 3. Additionally, `GetAllAsync` did not `.Include(CallLogs)`, so the in-memory `ToDto()` call always saw an empty collection.
+
+**Files changed (backend):**
+- `CustomerService.Domain/OverduePolicy.cs` — Fixed `DaysOverdue()` stale path to use last call-log date or `CreatedAtUtc`
+- `CustomerService.Application/Services/CaseService.cs` — Added `.Include(c => c.CallLogs)` in `GetAllAsync()`; added `FollowUpDueUtc` recalculation in `UpdateAsync()` on priority change
+
+---
+
+## [Phase 18 — Sidenav Account Tab: Profile Avatar + User Name] (2026-07-22)
+**Status:** ✅ COMPLETE (frontend build → 1.24 MB, 0 errors; browser verification)
+**What changed:**
+1. ✅ **Account icon replaced with first-letter avatar:** The generic `account_circle` Material icon on the sidenav account button is now a 30px circular gradient avatar displaying the first letter of the user's full name (uppercase).
+2. ✅ **"Account" label replaced with user's full name:** The button now shows the logged-in user's `fullName` (e.g., "Ada Admin") instead of the static "Account" text, making it immediately clear which account is active.
+3. ✅ **Account panel still opens on click:** The `openAccount()` handler is unchanged — clicking the avatar/name button still opens the `StaffAccountPanelComponent` side panel with profile details, edit, and password-reset functionality.
+
+**Files changed (frontend):**
+- `shared/layout/layout.component.html` — Replaced `<cs-icon name="account_circle">` + `<span>Account</span>` with `<span class="user-avatar">` (first-letter circle) + `<span class="user-name">` (full name)
+- `shared/layout/layout.component.scss` — Added `.account-btn`, `.user-avatar` (30px circle, accent gradient background, white uppercase letter), and `.user-name` styles
+
+---
+
+## [Phase 17 — Fix: Own Replies No Longer Show as Unread Conversations] (2026-07-21)
+**Status:** ✅ COMPLETE (backend build → 0 errors; server restart verified)
+**What changed:**
+1. ✅ **Self-notification bug fixed:** When an admin or agent replies to a customer's conversation, the message no longer incorrectly marks that conversation as "unread" for the author. Previously, the unread check compared the overall latest comment timestamp (including the viewer's own) against `ConversationReadState.LastViewedUtc`. Now it only considers the latest comment from *other* users.
+
+**Root cause:** `GetMyConversationsAsync` (Agent) and `GetAllConversationsAsync` (Admin) both checked `comment.CreatedAtUtc > lastViewed` using the overall latest comment — which included the viewer's own reply. Since posting updates the comment timestamp but doesn't update `LastViewedUtc`, the conversation always appeared unread after replying.
+
+**Fix:** Added a `latestNonSelfComments` query in both methods that filters `cm.AuthorUserId != viewerUserId`, then uses this filtered timestamp for the unread check. Customer comments (where `AuthorUserId` is null) are correctly excluded from the viewer's "self" comparison since `null != anyStaffUserId`.
+
+**Files changed (backend):**
+- `CustomerService.Application/Services/CaseService.cs` — Added `latestNonSelfComments` dictionary query + modified unread logic in both `GetMyConversationsAsync` and `GetAllConversationsAsync`
+
+---
+
+## [Phase 16 — Fix: Sidenav Badge Persists Until Conversation Opened] (2026-07-21)
+**Status:** ✅ COMPLETE (frontend `ng build` → 1.24 MB, 0 errors; only budget warnings)
+**What changed:**
+1. ✅ **Sidenav badge no longer disappears on tab click:** Fixed a bug where `NavBadgeService.resetBadge(path)` was called on every `NavigationEnd` event, instantly zeroing the badge when the user clicked the Conversations/Messages tab — even though no individual conversations were opened or marked read. Now the badge reset is skipped for `/conversations` and `/messages` routes, so the badge persists until the user actually opens individual unread conversations (which triggers `markConversationRead` server-side), and the next 30s poll naturally reduces the count.
+
+**Files changed (frontend):**
+- `shared/nav-badge.service.ts` — Added guard to skip `resetBadge()` for conversation/message paths so badge count is only reduced by server-side read state changes
+
+---
+
+## [Phase 15 — Real-Time Polling & Global Unread Animation] (2026-07-21)
+**Status:** ✅ COMPLETE (frontend `ng build` → 1.24 MB, 0 errors; only budget warnings)
+**What changed:**
+1. ✅ **Auto-refresh polling on customer case list:** Added 30-second `setInterval` polling in `MyCasesListComponent` with `OnDestroy` cleanup. Calls `refresh()` which silently re-fetches cases without showing a loading spinner. New messages from staff now appear without requiring a manual page refresh.
+2. ✅ **Auto-refresh polling on agent conversations list:** Same 30-second polling pattern applied to `ConversationsListComponent`. The agent's Messages tab now stays current with new comments.
+3. ✅ **Auto-refresh polling on admin conversations list:** Same 30-second polling pattern applied to `AdminConversationsComponent`. The admin's Conversations tab now stays current with new comments across all cases.
+4. ✅ **Global `unread-pulse` animation:** Extracted the `unread-pulse` keyframe animation from component-local SCSS files into `styles.scss` so it's available app-wide. Defined a global `.unread-dot` class with `width: 9px; height: 9px; border-radius: 50%; background: var(--cs-accent-strong); animation: unread-pulse 2s ease-in-out infinite;`.
+5. ✅ **Scoped pulse animation to unread dots only:** Applied the global `unread-pulse` animation to:
+   - Customer unread dots (`my-cases-list.component.scss`) — background override to danger color
+   - Agent unread dots (`conversations-list.component.scss`) — inherits global styles
+   - Admin unread dots (`admin-conversations.component.scss`) — inherits global styles
+   - Notification bell badge (`notification-bell.component.scss`) — no pulse (removed)
+   - Notification bell unread items (`notification-bell.component.scss`) — no pulse (removed)
+   - Sidenav nav badges (`layout.component.scss`) — no pulse, only `badge-pop` animation (removed)
+   - Sidenav rail badges (`layout.component.scss`) — no pulse, only `badge-pop` animation (removed)
+6. ✅ **Removed duplicate local animations:** Cleaned up redundant local `@keyframes unread-pulse` and `.unread-dot` definitions from `my-cases-list.component.scss`, `conversations-list.component.scss`, and `admin-conversations.component.scss` — all now reference the single global definition.
+
+**Files changed (frontend):**
+- `styles.scss` — Added global `.unread-dot` class and `@keyframes unread-pulse`
+- `customer/my-cases-list.component.ts` — Added `OnDestroy`, 30s polling timer, `refresh()` method, `ngOnDestroy()` cleanup
+- `customer/my-cases-list.component.scss` — Removed local unread-pulse, now uses global `.unread-dot` with danger color override
+- `cases/conversations-list.component.ts` — Added `OnDestroy`, 30s polling timer, `refresh()` method, `ngOnDestroy()` cleanup
+- `cases/conversations-list.component.scss` — Removed local unread-pulse, now uses global `.unread-dot`
+- `cases/admin-conversations.component.ts` — Added `OnDestroy`, 30s polling timer, `refresh()` method, `ngOnDestroy()` cleanup
+- `cases/admin-conversations.component.scss` — Removed local unread-pulse, now uses global `.unread-dot`
+- `shared/notification-bell.component.scss` — Added `unread-pulse` animation to badge and unread item title dot
+- `shared/layout/layout.component.scss` — Added `unread-pulse` animation to `.nav-badge` and `.rail-badge`
+
+---
+
+## [Phase 14 — Conversation UI/UX: Scroll, Read/Unread, Badges] (2026-07-21)
+**Status:** ✅ COMPLETE (backend `dotnet build` → 0 errors, `dotnet test` → 64 passed; frontend `ng build` → 1.24 MB success)
+**What changed:**
+1. ✅ **Conversation card scroll fix (Task 1):** Removed `flex: 1; min-height: 0` from `.comment-card` in `case-detail.component.scss` so the card no longer overlaps other cards. Set `.chat-scroll` to `max-height: 50vh` for a bounded scroll area that doesn't fight with the page layout.
+2. ✅ **Admin read/unread conversations (Task 2.1):** Updated `ICaseService.GetAllConversationsAsync()` to accept `viewerUserId`. `CaseService` now loads `ConversationReadState` records for the admin user and computes `Unread` the same way as the agent endpoint. `CasesController.AllConversations()` passes the admin's JWT user ID. `MarkConversationRead` endpoint now allows both `Admin` and `Agent` roles. Frontend `CaseDetailComponent` now calls `markConversationRead` for admins too (not just agents).
+3. ✅ **Auto-scroll to conversation (Task 2):** Added `?from=messages` / `?from=conversations` query params when navigating from the Messages/Conversations tabs. `CaseDetailComponent` detects this param and calls `scrollIntoView()` on the conversation card. Unread conversations in both `ConversationsListComponent` and `AdminConversationsComponent` now pass this query param.
+4. ✅ **Nav badge notifications (Task 3):** Created `NavBadgeService` that polls every 30s for unread conversation counts (agent: `myConversations()`, admin: `allConversations()`). Uses localStorage to track "last visited" timestamps per section for new-case/new-customer counts. Badge elements added to both wide sidenav and collapsed rail. Badges auto-reset on navigation. Red dot with number, pop animation on appear.
+5. ✅ **Customer unread messages (Task 2.2):** Added `LastStaffCommentAtUtc` and `CommentCount` fields to `CustomerCaseSummaryDto`. Backend `CustomerPortalController.GetMyCases()` now queries comments to compute the latest staff comment timestamp. Frontend `CustomerCaseSummary` model updated. `MyCasesListComponent` uses localStorage to track per-case read state. Shows a red pulsing dot + alert icon when there are unread staff messages. Read state is cleared when the user opens a case.
+
+**Files changed (backend):**
+- `ICaseService.cs` — `GetAllConversationsAsync()` now requires `viewerUserId` parameter
+- `CaseService.cs` — `GetAllConversationsAsync()` loads `ConversationReadState` for the viewer
+- `CasesController.cs` — `AllConversations()` passes user ID; `MarkConversationRead()` allows Admin role
+- `FakeCaseService.cs` — Updated `GetAllConversationsAsync` signature
+- `CustomerPortalDtos.cs` — Added `LastStaffCommentAtUtc` and `CommentCount` to `CustomerCaseSummaryDto`
+- `CustomerPortalController.cs` — `GetMyCases()` queries comments for unread tracking; `CreateCase()` includes new fields
+
+**Files changed (frontend):**
+- `cases/case-detail.component.ts` — Admin mark-read, auto-scroll to conversation card, `scrollToComment` helper
+- `cases/case-detail.component.html` — Added `#conversationCard` template ref
+- `cases/case-detail.component.scss` — Fixed `.comment-card` overflow and `.chat-scroll` height
+- `cases/conversations-list.component.ts` — `open()` passes `?from=messages` query param for unread cases
+- `cases/admin-conversations.component.ts` — `open()` passes `?from=conversations` query param for unread cases
+- `shared/models.ts` — Added `lastStaffCommentAtUtc` and `commentCount` to `CustomerCaseSummary`
+- `shared/nav-badge.service.ts` — **NEW** — Polling badge service for sidenav notifications
+- `shared/layout/layout.component.ts` — Injected `NavBadgeService`
+- `shared/layout/layout.component.html` — Badge elements on nav items (wide + rail)
+- `shared/layout/layout.component.scss` — Badge styling with pop animation
+- `customer/my-cases-list.component.ts` — `hasUnread()` method, read-state tracking on open
+- `customer/my-cases-list.component.html` — Red dot indicator for unread staff messages
+- `customer/my-cases-list.component.scss` — Unread badge + pulsing dot styling
+
+---
+
 ## [Phase 13 — Admin UI Polish Sweep] (2026-07-21)
 **Status:** ✅ COMPLETE (frontend `ng build` → 1.23 MB success; browser verified all pages render correctly)
 **What changed:**

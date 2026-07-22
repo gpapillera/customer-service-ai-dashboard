@@ -147,6 +147,8 @@ export interface CustomerCaseSummary {
   subject: string;
   status: 'New' | 'InProgress' | 'Escalated' | 'Resolved' | 'Closed';
   createdAtUtc: string;
+  lastStaffCommentAtUtc: string | null;
+  commentCount: number;
 }
 
 /** Customer-facing case detail. */
