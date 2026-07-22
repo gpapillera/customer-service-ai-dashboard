@@ -136,10 +136,22 @@ export class CaseDetailComponent implements OnInit {
         el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
       };
 
-      /** Adds a one-shot pulse animation to the target comment element. */
+      /**
+       * One-shot pulse on the comment the user clicked in the conversation
+       * list.  Falls back to the last comment in the list when no specific
+       * comment id was passed (e.g. before the first backend restart after
+       * deploy), so the user always sees a visual cue.
+       */
       const pulseComment = () => {
-        if (!scrollToCommentId) return;
-        const el = document.querySelector(`[data-comment-id="${scrollToCommentId}"]`);
+        let el: Element | null = null;
+        if (scrollToCommentId) {
+          el = document.querySelector(`[data-comment-id="${scrollToCommentId}"]`);
+        }
+        // Fallback: pulse the very last comment in the chat area.
+        if (!el) {
+          const all = document.querySelectorAll<HTMLElement>('.comment-item');
+          el = all.length > 0 ? all[all.length - 1] : null;
+        }
         if (!el) return;
         el.classList.add('comment-pulse');
         el.addEventListener('animationend', () => {
@@ -172,7 +184,8 @@ export class CaseDetailComponent implements OnInit {
             const inner = document.querySelector<HTMLElement>('.chat-scroll');
             if (inner) scrollToBottom(inner);
           }, 450);
-          // Phase 3: pulse the target comment if we have one.
+          // Phase 3: pulse the last comment (or the specific one).
+          setTimeout(pulseComment, 800);
           setTimeout(pulseComment, 800);
           return;
         }
