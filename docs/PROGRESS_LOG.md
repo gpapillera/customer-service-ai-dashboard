@@ -2,6 +2,18 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 23h — Fix Reveal Animation Conflicting with Pulse] (2026-07-22)
+**Status:** ✅ COMPLETE (frontend `ng build` → 0 errors)
+**What changed:**
+- **Problem:** The `.comment-card` had the `reveal` class + `appReveal` directive, which starts the card at `opacity: 0; transform: translateY(16px)`. When the user navigated from a conversation tab, scrolling to the card triggered IntersectionObserver, which played the full fade+rise entrance animation — making it look like the card "disappeared then flew in from bottom-top." This completely overpowered the subtle pulse animation.
+- **Fix:** Added `cardEl.classList.add('is-visible')` before the scroll logic when `fromTab` is set, so the comment card is immediately visible and never plays the entrance animation.
+- **Also fixed:** Removed a duplicate `setTimeout(pulseComment, 800)` call in the card fallback path. Bumped pulse scale from 1.015→1.025 and shadow radius 8→12px for a slightly more perceptible cue. Added `opacity: 1 !important; transform: none !important` on `.comment-item.comment-pulse` to prevent any inherited reveal styles from interfering.
+- **Files changed:**
+  - `case-detail.component.ts` — Added early `is-visible` class to comment card; removed duplicate pulse call
+  - `case-detail.component.scss` — Enhanced pulse animation keyframes
+
+---
+
 ## [Phase 23g — Pulse Fallback When scrollToCommentId Is Missing] (2026-07-22)
 **Status:** ✅ COMPLETE (frontend `ng build` → 0 errors; backend running :5274)
 **What changed:**
