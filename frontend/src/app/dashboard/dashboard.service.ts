@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Dashboard } from '../shared/models';
+import { Dashboard, AgentWorkload } from '../shared/models';
 
 /**
  * Talks to the Dashboard API (aggregated KPIs + trends + breakdown).
@@ -10,9 +10,15 @@ import { Dashboard } from '../shared/models';
 export class DashboardService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = '/api/dashboard';
+  private readonly usersBaseUrl = '/api/users';
 
   /** Returns the full dashboard payload. */
   get(): Observable<Dashboard> {
     return this.http.get<Dashboard>(this.baseUrl);
+  }
+
+  /** Returns per-agent workload summaries (admin only). */
+  getAgentWorkload(): Observable<AgentWorkload[]> {
+    return this.http.get<AgentWorkload[]>(`${this.usersBaseUrl}/agent-workload`);
   }
 }

@@ -318,7 +318,7 @@ The priority-prediction model is a multiclass classifier (Decision Tree / Random
 - [x] Email/SMS notification *sending* for overdue follow-ups (detection + dashboard surfacing + in-app records were already done; the `INotificationSender` seam now routes to demo Email/SMS senders that log + write an outbox file — enable via `Notifications:Channels` in appsettings)
 - [ ] Role-based dashboard views
 - [x] Docker Compose for one-command local setup
-- [ ] CI/CD pipeline for automated testing
+- [x] CI/CD pipeline for automated testing
 - [ ] Retrain the model on real historical case data
 
 ---

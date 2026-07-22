@@ -186,3 +186,100 @@
   letter-spacing: 0.01em;
   flex: 0 0 auto;
 }
+
+/* ─── Chart toggle button (agent only) ─── */
+
+.charts-toggle {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1.25rem;
+}
+
+.toggle-charts-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.5rem 1.25rem;
+  border: 1px solid var(--cs-border);
+  border-radius: var(--cs-radius-pill);
+  background: var(--cs-surface);
+  color: var(--cs-accent);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s var(--cs-ease), box-shadow 0.2s var(--cs-ease);
+}
+.toggle-charts-btn:hover {
+  background: var(--cs-accent-light);
+  box-shadow: var(--cs-shadow);
+}
+
+/* ─── Agent Workload section (admin only) ─── */
+
+.workload-card {
+  border-radius: var(--cs-radius);
+  box-shadow: var(--cs-shadow);
+  margin-top: 1.25rem;
+}
+
+.workload-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+.workload-icon {
+  color: var(--cs-accent);
+}
+
+.workload-grid {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--cs-border);
+  border-radius: var(--cs-radius);
+  overflow: hidden;
+}
+
+.workload-head {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+  gap: 0.5rem;
+  padding: 0.7rem 1rem;
+  background: var(--cs-accent-light);
+  font-weight: 700;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--cs-text-muted);
+}
+
+.workload-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+  gap: 0.5rem;
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid var(--cs-border);
+  font-size: 0.92rem;
+  transition: background 0.15s var(--cs-ease);
+}
+.workload-row:last-child {
+  border-bottom: none;
+}
+.workload-row:hover {
+  background: rgba(79, 70, 229, 0.04);
+}
+
+.workload-col {
+  display: flex;
+  align-items: center;
+}
+
+.workload-name {
+  font-weight: 600;
+}
+
+.overdue-warn {
+  color: var(--cs-danger);
+  font-weight: 700;
+}

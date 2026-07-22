@@ -69,6 +69,28 @@ public class DashboardDto
     public List<OverdueFollowUpDto> OverdueFollowUpsList { get; set; } = new();
 }
 
+/// <summary>Per-agent workload summary for the Admin dashboard Agent Workload section.</summary>
+public class AgentWorkloadDto
+{
+    /// <summary>Agent user id.</summary>
+    public string AgentId { get; set; } = string.Empty;
+
+    /// <summary>Agent full name.</summary>
+    public string FullName { get; set; } = string.Empty;
+
+    /// <summary>Open (not Resolved/Closed) cases assigned to this agent.</summary>
+    public int OpenCaseCount { get; set; }
+
+    /// <summary>High-priority cases assigned to this agent.</summary>
+    public int HighPriorityCount { get; set; }
+
+    /// <summary>Resolved cases assigned to this agent.</summary>
+    public int ResolvedCount { get; set; }
+
+    /// <summary>Overdue follow-ups on this agent's cases.</summary>
+    public int OverdueCount { get; set; }
+}
+
 /// <summary>Summary of a case with an overdue follow-up (dashboard list item).</summary>
 public class OverdueFollowUpDto
 {

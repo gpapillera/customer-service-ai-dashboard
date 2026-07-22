@@ -2,6 +2,30 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 23 — Role-Based Dashboard Views] (2026-07-22)
+**Status:** ✅ COMPLETE (backend `dotnet build` → 0 errors, `dotnet test` → 64 passed; frontend `ng build` → 0 errors)
+**What changed:**
+1. ✅ **Role-aware page heading:** Agents see **"My Dashboard"** with subtitle *"Your assigned cases and performance overview"*; Admins see **"Dashboard"** with the original subtitle.
+2. ✅ **Agent simplified chart view:** Agents see only 2 charts by default (Weekly Trend + Priority Distribution) — the most relevant for their workload. A **"Show all charts"** toggle button reveals the remaining 2 (Category + Status). Toggle hides them again with **"Show fewer charts"**.
+3. ✅ **Agent sections hidden:** Recent Cases and Overdue Follow-ups cards are hidden for agents (their KPI cards already show this data).
+4. ✅ **Admin-only Agent Workload section:** New section at the bottom of the Admin dashboard showing a compact table with all agents and their case metrics — Open, High Priority, Resolved, and Overdue counts. Overdue counts are highlighted in red when > 0. Data loaded from a new backend endpoint.
+5. ✅ **New backend endpoint `GET /api/users/agent-workload`:** Admin-only, returns `List<AgentWorkloadDto>` with per-agent aggregate metrics computed in a single database round-trip (no N+1 queries). Uses four grouped queries for open, high-priority, resolved, and overdue counts.
+
+**Files added/removed (backend):**
+- `Application/Dtos/DashboardDtos.cs` — Added `AgentWorkloadDto` class
+
+**Files changed (backend):**
+- `Api/Controllers/UsersController.cs` — Added `GetAgentWorkload()` endpoint with `[Authorize(Roles = "Admin")]`
+
+**Files changed (frontend):**
+- `shared/models.ts` — Added `AgentWorkload` interface
+- `dashboard/dashboard.service.ts` — Added `getAgentWorkload()` method
+- `dashboard/dashboard.component.ts` — Added `isAgent` computed, `showAllCharts` signal, `agentWorkload` signal, `pageTitle`/`pageSubtitle` computeds, `loadAgentWorkload()` and `toggleCharts()` methods; updated entrance animation for 2-chart view
+- `dashboard/dashboard.component.html` — Role-conditional heading, chart visibility toggle, hidden agent sections, Agent Workload table for Admins
+- `dashboard/dashboard.component.scss` — Added `.charts-toggle`, `.toggle-charts-btn`, `.workload-card`, `.workload-grid`, `.workload-head`, `.workload-row`, `.overdue-warn` styles
+
+---
+
 ## [Phase 22 — Dynamic Browser Tab Title with User Name] (2026-07-22)
 **Status:** ✅ COMPLETE
 **What changed:**

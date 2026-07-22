@@ -11,7 +11,7 @@ import { RevealDirective } from '../shared/reveal.directive';
 import { CsIconComponent } from '../shared/cs-icon.component';
 import { RouteLoadingService } from '../shared/route-loading.service';
 import { DashboardService } from './dashboard.service';
-import { Dashboard, RecentCase } from '../shared/models';
+import { Dashboard, RecentCase, AgentWorkload } from '../shared/models';
 import { CATEGORIES } from '../shared/categories';
 import { LayoutComponent } from '../shared/layout/layout.component';
 import { AuthService } from '../auth/auth.service';
@@ -55,6 +55,25 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   private readonly dataLoading = signal(true);
   /** True while the dashboard is loading OR a route navigation is in progress. */
   readonly loading = computed(() => this.dataLoading() || this.routeLoading.loading());
+
+  /** Whether the current user is an Agent (vs Admin). */
+  readonly isAgent = computed(() => this.auth.getRole() === 'Agent');
+
+  /** When true, agents see all 4 charts instead of the default 2. */
+  readonly showAllCharts = signal(false);
+
+  /** Per-agent workload data (admin-only — populated from /api/users/agent-workload). */
+  readonly agentWorkload = signal<AgentWorkload[]>([]);
+
+  /** Role-aware page heading. */
+  readonly pageTitle = computed(() => this.isAgent() ? 'My Dashboard' : 'Dashboard');
+
+  /** Role-aware page subtitle. */
+  readonly pageSubtitle = computed(() =>
+    this.isAgent()
+      ? 'Your assigned cases and performance overview'
+      : 'Overview of customer service operations and AI-assisted case management'
+  );
 
   /** Chart.js directive instances, used to replay the entrance animation. */
   @ViewChildren(BaseChartDirective) private chartRefs!: QueryList<BaseChartDirective>;
@@ -148,6 +167,10 @@ export class DashboardComponent implements OnInit, AfterViewInit {
         this.statusChart.data.datasets[0].backgroundColor = statusOrder.map((s) => statusColors[s]);
 
         this.dataLoading.set(false);
+        // Load per-agent workload data for the Admin dashboard.
+        if (!this.isAgent()) {
+          this.loadAgentWorkload();
+        }
         // Replay a clear entrance animation once all four chart canvases exist.
         this.tryPlayEntrance();
       },
@@ -187,6 +210,19 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   /** Navigate to the page backing a KPI card (with pre-applied filters). */
   openKpi(link: string): void {
     this.router.navigateByUrl(link);
+  }
+
+  /** Loads per-agent workload data for the Admin dashboard Agent Workload section. */
+  private loadAgentWorkload(): void {
+    this.service.getAgentWorkload().subscribe({
+      next: (data) => this.agentWorkload.set(data),
+      error: () => { /* silently ignore — the section simply won't render */ },
+    });
+  }
+
+  /** Toggles the agent's chart view between 2 (default) and all 4 charts. */
+  toggleCharts(): void {
+    this.showAllCharts.update((v) => !v);
   }
 
   /**
@@ -256,13 +292,13 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     this.tryPlayEntrance();
   }
 
-  /** Force a visible "grow-in" entrance animation on all four charts. */
+  /** Force a visible "grow-in" entrance animation on all visible charts. */
   private tryPlayEntrance(): void {
     if (this.entrancePlayed) return;
     const refs = this.chartRefs;
-    // Wait until all four chart canvases are registered, otherwise the
-    // later-created charts would render their final frame instantly.
-    if (!refs || refs.length < 4) {
+    // Agents start with 2 charts (can toggle to 4); admins have 4.
+    const expected = this.isAgent() && !this.showAllCharts() ? 2 : 4;
+    if (!refs || refs.length < expected) {
       setTimeout(() => this.tryPlayEntrance(), 30);
       return;
     }

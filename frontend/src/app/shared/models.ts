@@ -265,6 +265,16 @@ export interface OverdueFollowUp {
   daysOverdue: number;
 }
 
+/** Per-agent workload summary for the Admin dashboard Agent Workload section (matches AgentWorkloadDto). */
+export interface AgentWorkload {
+  agentId: string;
+  fullName: string;
+  openCaseCount: number;
+  highPriorityCount: number;
+  resolvedCount: number;
+  overdueCount: number;
+}
+
 /** Full dashboard payload (matches DashboardDto). */
 export interface Dashboard {
   totalCases: number;

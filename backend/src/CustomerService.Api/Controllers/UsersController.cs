@@ -1,5 +1,6 @@
 using CustomerService.Application.Dtos;
 using CustomerService.Application.Interfaces;
+using CustomerService.Domain;
 using CustomerService.Domain.Entities;
 using CustomerService.Domain.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -150,6 +151,78 @@ public class UsersController : ControllerBase
                 a.Email,
                 a.Role.ToString(),
                 countById.TryGetValue(a.Id, out var n) ? n : 0))
+            .ToList();
+    }
+
+    /// <summary>
+    /// Returns a per-agent workload summary for the Admin dashboard Agent
+    /// Workload section. Includes open, high-priority, resolved, and overdue
+    /// follow-up counts for every agent — computed in a single round-trip.
+    /// Admin-only.
+    /// </summary>
+    [HttpGet("agent-workload")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IReadOnlyList<AgentWorkloadDto>> GetAgentWorkload()
+    {
+        var agents = await _users.Query()
+            .Where(u => u.Role == UserRole.Agent)
+            .OrderBy(u => u.FullName)
+            .Select(u => new { u.Id, u.FullName })
+            .ToListAsync();
+
+        var openStatuses = new[] { (int)CaseStatus.New, (int)CaseStatus.InProgress, (int)CaseStatus.Escalated };
+        var allCases = _cases.Query().Where(c => c.AssignedToUserId != null);
+
+        // Open case count per agent
+        var openCounts = await allCases
+            .Where(c => openStatuses.Contains((int)c.Status))
+            .GroupBy(c => c.AssignedToUserId)
+            .Select(g => new { AgentId = g.Key!, Count = g.Count() })
+            .ToListAsync();
+
+        // High-priority count per agent
+        var highCounts = await allCases
+            .Where(c => c.Priority == Domain.Entities.Priority.High)
+            .GroupBy(c => c.AssignedToUserId)
+            .Select(g => new { AgentId = g.Key!, Count = g.Count() })
+            .ToListAsync();
+
+        // Resolved count per agent
+        var resolvedCounts = await allCases
+            .Where(c => c.Status == CaseStatus.Resolved)
+            .GroupBy(c => c.AssignedToUserId)
+            .Select(g => new { AgentId = g.Key!, Count = g.Count() })
+            .ToListAsync();
+
+        // Overdue follow-up counts — load all open cases with includes, then
+        // evaluate OverduePolicy.NeedsFollowUp in memory (same approach as
+        // GetOverdueFollowUpsAsync in DashboardRepository).
+        var now = DateTime.UtcNow;
+        var openCases = await _cases.Query()
+            .Include(c => c.CallLogs)
+            .Where(c => openStatuses.Contains((int)c.Status) && c.AssignedToUserId != null)
+            .ToListAsync();
+
+        var overdueByAgent = openCases
+            .Where(c => OverduePolicy.NeedsFollowUp(c, now))
+            .GroupBy(c => c.AssignedToUserId)
+            .ToDictionary(g => g.Key!, g => g.Count());
+
+        var openById = openCounts.ToDictionary(x => x.AgentId, x => x.Count);
+        var highById = highCounts.ToDictionary(x => x.AgentId, x => x.Count);
+        var resolvedById = resolvedCounts.ToDictionary(x => x.AgentId, x => x.Count);
+
+        return agents
+            .Select(a => new AgentWorkloadDto
+            {
+                AgentId = a.Id,
+                FullName = a.FullName,
+                OpenCaseCount = openById.TryGetValue(a.Id, out var oc) ? oc : 0,
+                HighPriorityCount = highById.TryGetValue(a.Id, out var hc) ? hc : 0,
+                ResolvedCount = resolvedById.TryGetValue(a.Id, out var rc) ? rc : 0,
+                OverdueCount = overdueByAgent.TryGetValue(a.Id, out var od) ? od : 0,
+            })
             .ToList();
     }
 }
