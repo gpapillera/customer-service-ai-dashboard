@@ -131,6 +131,12 @@ export class CaseDetailComponent implements OnInit {
       // Scroll to the specific comment when navigating from Messages/Conversations.
       // Use a retry loop with direct DOM query to avoid ViewChild/@if timing issues.
       const doScroll = (retries = 15) => {
+        // Scroll the inner chat container to the bottom so the latest messages
+        // are visible within the scrollable area.
+        const chatScrollEl = document.querySelector<HTMLElement>('.chat-scroll');
+        if (chatScrollEl) {
+          chatScrollEl.scrollTop = chatScrollEl.scrollHeight;
+        }
         // Prefer scrolling to the exact comment element.
         if (scrollToCommentId) {
           const el = document.querySelector(`[data-comment-id="${scrollToCommentId}"]`);
@@ -143,6 +149,13 @@ export class CaseDetailComponent implements OnInit {
         const card = document.getElementById('conversation-card');
         if (card) {
           card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          // Extra push inside the card to show the bottom of the chat area.
+          // After a brief delay, scroll the inner container again since
+          // scrollIntoView on the card may have shifted layout.
+          setTimeout(() => {
+            const inner = document.querySelector<HTMLElement>('.chat-scroll');
+            if (inner) inner.scrollTop = inner.scrollHeight;
+          }, 300);
           return;
         }
         if (retries > 0) {

@@ -2,6 +2,16 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 23e — Show Latest Message Inside Chat Scroll Container] (2026-07-22)
+**Status:** ✅ COMPLETE (frontend `ng build` → 0 errors)
+**What changed:**
+- **Problem:** After scrolling to the conversation card, the `.chat-scroll` inner container was at the top, hiding the latest messages.
+- **Fix:** The scroll logic now sets `chatScrollEl.scrollTop = chatScrollEl.scrollHeight` to push the inner scroll container to the bottom immediately. For the card fallback, a second scroll happens after 300ms to account for layout shifts from `scrollIntoView`.
+- **Files changed:**
+  - `cases/case-detail.component.ts` — Added inner `.chat-scroll` scroll-to-bottom before/after page-level scroll
+
+---
+
 ## [Phase 23d — Scroll to Specific Comment on Conversation Click] (2026-07-22)
 **Status:** ✅ COMPLETE (backend `dotnet build` → 0 errors, `dotnet test` → 64 passed; frontend `ng build` → 0 errors)
 **What changed:**
