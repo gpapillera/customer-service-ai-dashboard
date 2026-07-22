@@ -128,20 +128,38 @@ export class CaseDetailComponent implements OnInit {
   this.caseService.getComments(id).subscribe((list) => {
     this.comments.set(list);
     if (fromTab) {
-      // Scroll to the specific comment when navigating from Messages/Conversations.
-      // Use a retry loop with direct DOM query to avoid ViewChild/@if timing issues.
+      // Animated two-phase scroll: 1) page scrolls to card, 2) inner chat
+      // scrolls to bottom so the latest message is visible, 3) pulse the
+      // target comment bubble.  Uses a retry loop with direct DOM queries
+      // to handle any HTTP response ordering.
+      const scrollToBottom = (el: HTMLElement) => {
+        el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+      };
+
+      /** Adds a one-shot pulse animation to the target comment element. */
+      const pulseComment = () => {
+        if (!scrollToCommentId) return;
+        const el = document.querySelector(`[data-comment-id="${scrollToCommentId}"]`);
+        if (!el) return;
+        el.classList.add('comment-pulse');
+        el.addEventListener('animationend', () => {
+          el.classList.remove('comment-pulse');
+        }, { once: true });
+      };
+
       const doScroll = (retries = 15) => {
-        // Scroll the inner chat container to the bottom so the latest messages
-        // are visible within the scrollable area.
-        const chatScrollEl = document.querySelector<HTMLElement>('.chat-scroll');
-        if (chatScrollEl) {
-          chatScrollEl.scrollTop = chatScrollEl.scrollHeight;
-        }
-        // Prefer scrolling to the exact comment element.
+        // Phase 1: scroll page to the card (or exact comment).
         if (scrollToCommentId) {
           const el = document.querySelector(`[data-comment-id="${scrollToCommentId}"]`);
           if (el) {
             el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // Phase 2: after the page settles, scroll inner container.
+            setTimeout(() => {
+              const inner = document.querySelector<HTMLElement>('.chat-scroll');
+              if (inner) scrollToBottom(inner);
+            }, 450);
+            // Phase 3: pulse the comment bubble after the dust settles.
+            setTimeout(pulseComment, 800);
             return;
           }
         }
@@ -149,13 +167,13 @@ export class CaseDetailComponent implements OnInit {
         const card = document.getElementById('conversation-card');
         if (card) {
           card.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          // Extra push inside the card to show the bottom of the chat area.
-          // After a brief delay, scroll the inner container again since
-          // scrollIntoView on the card may have shifted layout.
+          // Phase 2: after the card arrives, scroll inner chat to bottom.
           setTimeout(() => {
             const inner = document.querySelector<HTMLElement>('.chat-scroll');
-            if (inner) inner.scrollTop = inner.scrollHeight;
-          }, 300);
+            if (inner) scrollToBottom(inner);
+          }, 450);
+          // Phase 3: pulse the target comment if we have one.
+          setTimeout(pulseComment, 800);
           return;
         }
         if (retries > 0) {

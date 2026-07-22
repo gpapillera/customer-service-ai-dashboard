@@ -2,6 +2,18 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 23f — Pulse Animation on Clicked Comment] (2026-07-22)
+**Status:** ✅ COMPLETE (frontend `ng build` → 0 errors)
+**What changed:**
+- **Problem:** After auto-scrolling to the conversation card, there was no visual feedback to distinguish which specific comment the user had clicked from the conversation list.
+- **Fix:** Added a subtle one-shot `comment-pulse` animation (gentle scale + blue glow) that plays on the target comment bubble after the scroll completes. The class is automatically removed after `animationend` so it only plays once.
+- **Animation:** `comment-pulse` — 750ms ease-out: scales up 1.5% with a fading blue box-shadow ring, creating a soft "attention" effect without being distracting.
+- **Files changed:**
+  - `cases/case-detail.component.scss` — Added `@keyframes comment-pulse` and `.comment-item.comment-pulse` class
+  - `cases/case-detail.component.ts` — Added `pulseComment()` helper that adds/removes the class after the inner scroll finishes
+
+---
+
 ## [Phase 23e — Show Latest Message Inside Chat Scroll Container] (2026-07-22)
 **Status:** ✅ COMPLETE (frontend `ng build` → 0 errors)
 **What changed:**

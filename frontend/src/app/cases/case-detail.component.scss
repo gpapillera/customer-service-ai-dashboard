@@ -424,6 +424,17 @@
   overflow-wrap: break-word;
   word-break: break-word;
 }
+
+/* Subtle one-shot pulse for the comment bubble the user navigated to. */
+@keyframes comment-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(0, 113, 227, 0.35); transform: scale(1); }
+  50%  { box-shadow: 0 0 0 8px rgba(0, 113, 227, 0);   transform: scale(1.015); }
+  100% { box-shadow: 0 0 0 0 rgba(0, 113, 227, 0);     transform: scale(1); }
+}
+.comment-item.comment-pulse {
+  animation: comment-pulse 0.75s ease-out;
+}
+
 .comment-form {
   display: flex;
   flex-direction: column;
