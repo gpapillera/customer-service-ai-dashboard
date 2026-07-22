@@ -453,13 +453,17 @@ seed data.
 **What you're building and why:** A case isn't closed in one call — agents log
 follow-ups over time, and the system should nudge them about cases whose
 follow-up is overdue. Call logs are simple child records of a case
-(`CallLogsController` → `ICallLogService`). Notifications are generated **on
-demand** (when the client asks for them) rather than by a background worker, so
-the demo runs with zero infrastructure — `NotificationService.GenerateOverdueAsync`
-scans open cases with a past follow-up deadline and writes `Notification` rows
-via `InAppNotificationSender`. The frontend computes the "needs follow-up" list
-**live** from the cases API (`overdue: true` filter) and keeps a session-scoped
-"mark all read" set, so the red badge reflects reality and resets on logout.
+(`CallLogsController` → `ICallLogService`). Notifications are generated via a
+strategy pattern — `INotificationSender` with `CompositeNotificationSender`
+routing by channel to three concrete senders: `InAppNotificationSender`
+(persists a row for the bell), `EmailNotificationSender` (MailKit SMTP with
+retry), and `SmsNotificationSender` (demo stub logging to an outbox file).
+A background worker (`OverdueEmailHostedService`) triggers overdue checks every
+30 minutes (configurable), and the `NotificationsController` also generates
+notifications on read so the bell stays fresh without waiting for the timer.
+The frontend computes the "needs follow-up" list **live** from the cases API
+(`overdue: true` filter) and keeps a session-scoped "mark all read" set, so the
+red badge reflects reality and resets on logout.
 
 **Step-by-step to build it:**
 1. Backend: `CallLogsController` — `GetByCase(caseId)` and `Create` (reads the
@@ -469,9 +473,10 @@ via `InAppNotificationSender`. The frontend computes the "needs follow-up" list
 4. Frontend: surface call logs inside `case-detail.component` (list + add form).
 5. Backend: `NotificationsController` — `GetSummary` / `GetAll` first call
    `GenerateOverdueAsync()`, plus `MarkRead(id)`.
-6. Backend: `NotificationService` + `InAppNotificationSender` (the only
-   `INotificationSender` implementation — Email/SMS can be added later behind
-   the same interface).
+6. Backend: `NotificationService` + `InAppNotificationSender` (in-app bell).
+   Later: `EmailNotificationSender` (MailKit SMTP with retry), `SmsNotificationSender`
+   (demo stub — swap in a real Twilio sender), wired via `CompositeNotificationSender`
+   and a background timer (`OverdueEmailHostedService`).
 7. Frontend: `notification-state.service.ts` — `refresh()` calls
    `caseService.list({ overdue: true })`, holds the live list in a signal, and
    tracks `readIds` in `sessionStorage` (`cs_read_overdue_ids`) for the badge.
@@ -481,11 +486,12 @@ via `InAppNotificationSender`. The frontend computes the "needs follow-up" list
    (seed data already has some), open the bell, see it, mark all read (badge
    clears), log out and back in (badge returns).
 
-> ⚠️ **Common mistake:** assuming notifications are pushed by a background job.
-> They're generated **on read** (`GenerateOverdueAsync` runs inside the
-> `GetSummary`/`GetAll` endpoints). If you add a new overdue condition, callers
-> still get fresh data without any scheduler — but don't go looking for a
-> worker that doesn't exist.
+> ⚠️ **Note:** Notifications have two generation paths — the background timer
+> (`OverdueEmailHostedService` fires every 30 min) and the on-read trigger inside
+> `GetSummary`/`GetAll`. The on-read trigger keeps the bell fresh without waiting
+> for the timer; the background worker ensures email/SMS overdue alerts are sent
+> even when no one opens the notification center. If you add a new overdue
+> condition, callers still get fresh data on both paths.
 
 > ⚠️ **Common mistake:** persisting "read" state in the database. Here "mark all
 > read" is **session-scoped** (`sessionStorage`), deliberately — the unit of
@@ -496,9 +502,13 @@ via `InAppNotificationSender`. The frontend computes the "needs follow-up" list
 **📍 Find it in the code:**
 - `backend/src/CustomerService.Api/Controllers/CallLogsController.cs` — call-log endpoints.
 - `backend/src/CustomerService.Application/Services/CallLogService.cs` — `GetByCaseAsync`, `CreateAsync`.
-- `backend/src/CustomerService.Api/Controllers/NotificationsController.cs` — `GetSummary`/`GetAll` (call `GenerateOverdueAsync`), `MarkRead`.
-- `backend/src/CustomerService.Application/Services/NotificationService.cs` — `GenerateOverdueAsync`, `GetSummaryAsync`.
-- `backend/src/CustomerService.Application/Services/InAppNotificationSender.cs` — `INotificationSender` implementation (persists `Notification`).
+- `backend/src/CustomerService.Api/Controllers/NotificationsController.cs` — `GetSummary`/`GetAll` (call `GenerateOverdueAsync`), `MarkRead`, `TestEmail`.
+- `backend/src/CustomerService.Application/Services/NotificationService.cs` — `GenerateOverdueAsync`, `NotifyResolvedAsync`, `NotifyNewCustomerMessageAsync`.
+- `backend/src/CustomerService.Application/Services/CompositeNotificationSender.cs` — routes by `NotificationChannel` to the correct sender.
+- `backend/src/CustomerService.Application/Services/InAppNotificationSender.cs` — `INotificationSender` (persists `Notification` for the bell).
+- `backend/src/CustomerService.Application/Services/EmailNotificationSender.cs` — `INotificationSender` (MailKit SMTP with retry + templates per type).
+- `backend/src/CustomerService.Application/Services/SmsNotificationSender.cs` — `INotificationSender` (demo stub; logs to `sms.log` outbox).
+- `backend/src/CustomerService.Application/Services/OverdueEmailHostedService.cs` — background worker (triggers `GenerateOverdueAsync` on a timer).
 - `frontend/src/app/cases/call-log.service.ts` — Angular call-log HTTP service.
 - `frontend/src/app/shared/notification-state.service.ts` — live overdue list + session-scoped read set.
 - `frontend/src/app/shared/notification-bell.component.ts` — the bell UI + badge.

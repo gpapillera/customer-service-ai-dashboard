@@ -2,6 +2,31 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 23n — Email/SMS Notification System: Fix Gaps & Document] (2026-07-22)
+**Status:** ✅ COMPLETE (`dotnet build` → 0 errors, `dotnet test` → 64/64 PASS)
+
+**What changed:**
+- **Problem:** The notification system had evolved organically and was more complete than documented, but had gaps:
+  1. `CustomerPasswordReset` notification type fell through to the `CaseOverdue` email template in `EmailNotificationSender.BuildContent()`, sending wrong text.
+  2. The `Sms` channel was not enabled in any config (even dev), so `SmsNotificationSender` was never exercised.
+  3. Documentation (`DIY.md`) still described the notification system as if only `InAppNotificationSender` existed.
+
+**Fix (3 changes):**
+1. **`EmailNotificationSender.cs`** — Added a `CustomerPasswordReset` email template (matching the `StaffPasswordReset` pattern but customer-facing). Previously this type fell through to the `CaseOverdue` default template, which would send "Case # is overdue" text for a password reset link.
+2. **`appsettings.Development.json`** — Added `"Sms"` to the `Notifications:Channels` array so the demo SMS outbox logger is exercised in development.
+3. **`docs/DIY.md`** — Updated Part 7 (Notification docs) to reflect the real architecture:
+   - Strategy pattern with 3 `INotificationSender` implementations (InApp, Email, SMS)
+   - `CompositeNotificationSender` routing by channel
+   - `OverdueEmailHostedService` background worker
+   - Updated "Find it in the code" listing
+   - Replaced "background job doesn't exist" caveat with an accurate dual-path note
+
+**Verification:**
+- `dotnet build CustomerServiceApi.sln` → 0 errors
+- `dotnet test CustomerServiceApi.sln` → 64/64 PASS
+
+---
+
 ## [Phase 23m — Fast Badge Auto-Refresh After Sending Messages] (2026-07-22)
 **Status:** ✅ COMPLETE (`ng build` → 0 errors, `ng test` → 13/13 SUCCESS)
 **What changed:**
