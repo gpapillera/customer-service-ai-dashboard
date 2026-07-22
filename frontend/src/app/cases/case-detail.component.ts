@@ -128,6 +128,11 @@ export class CaseDetailComponent implements OnInit {
   this.caseService.getComments(id).subscribe((list) => {
     this.comments.set(list);
     if (fromTab) {
+      // Prevent the comment card's reveal animation from competing with the
+      // pulse — mark it visible immediately so it doesn't fly in from below.
+      const cardEl = document.getElementById('conversation-card');
+      if (cardEl) cardEl.classList.add('is-visible');
+
       // Animated two-phase scroll: 1) page scrolls to card, 2) inner chat
       // scrolls to bottom so the latest message is visible, 3) pulse the
       // target comment bubble.  Uses a retry loop with direct DOM queries
@@ -185,7 +190,6 @@ export class CaseDetailComponent implements OnInit {
             if (inner) scrollToBottom(inner);
           }, 450);
           // Phase 3: pulse the last comment (or the specific one).
-          setTimeout(pulseComment, 800);
           setTimeout(pulseComment, 800);
           return;
         }
