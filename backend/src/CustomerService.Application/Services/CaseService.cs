@@ -358,6 +358,7 @@ public class CaseService : ICaseService
                 CaseId = comment.CaseId,
                 Subject = caseEntity.Subject,
                 CustomerName = caseEntity.Customer?.Name ?? string.Empty,
+                LastCommentId = comment.Id,
                 LastCommentSnippet = comment.Body.Length > 140
                     ? comment.Body[..140] + "…"
                     : comment.Body,
@@ -457,6 +458,7 @@ public class CaseService : ICaseService
                 Subject = caseEntity.Subject,
                 CustomerName = caseEntity.Customer?.Name ?? string.Empty,
                 AssignedAgentName = caseEntity.AssignedToUser?.FullName,
+                LastCommentId = comment.Id,
                 LastCommentSnippet = comment.Body.Length > 140
                     ? comment.Body[..140] + "…"
                     : comment.Body,

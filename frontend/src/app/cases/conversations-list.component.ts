@@ -75,7 +75,7 @@ export class ConversationsListComponent implements OnInit, OnDestroy {
   /** Opens the case's existing Case Detail page (which shows the thread). */
   open(c: Conversation): void {
     this.router.navigate(['/cases', c.caseId], {
-      queryParams: { from: 'messages' },
+      queryParams: { from: 'messages', scrollToComment: c.lastCommentId },
     });
   }
 

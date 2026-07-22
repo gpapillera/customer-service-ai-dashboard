@@ -2,6 +2,28 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 23d — Scroll to Specific Comment on Conversation Click] (2026-07-22)
+**Status:** ✅ COMPLETE (backend `dotnet build` → 0 errors, `dotnet test` → 64 passed; frontend `ng build` → 0 errors)
+**What changed:**
+- **Problem:** Clicking a conversation from the Messages/Conversations list scrolled to the conversation card at best, and often failed entirely due to ViewChild/@if rendering timing. The user wanted to scroll directly to the **specific comment** that was clicked.
+- **Fix (4 layers):**
+  1. **Backend DTO** (`ConversationSummaryDto`) — Added `LastCommentId` property
+  2. **Backend service** (`CaseService.cs`) — Both `GetMyConversationsAsync` and `GetAllConversationsAsync` now populate `LastCommentId = comment.Id`
+  3. **Frontend model** (`models.ts`) — Added `lastCommentId` to `Conversation` interface
+  4. **Frontend conversation lists** — Both agent (`conversations-list.component.ts`) and admin (`admin-conversations.component.ts`) now pass `scrollToComment` query param with the exact comment ID
+  5. **Frontend detail** (`case-detail.component.ts`) — Rewrote scroll logic to use `document.querySelector([data-comment-id="..."])` with a retry loop (15 attempts × 200ms), bypassing Angular ViewChild update timing entirely. Falls back to `#conversation-card` by `document.getElementById` if the exact comment isn't found.
+  6. **Frontend template** — Added `id="conversation-card"` to the comment section `<mat-card>` and `[attr.data-comment-id]="comment.id"` to each comment item
+- **Files changed:**
+  - `backend/Application/Dtos/CaseDtos.cs` — Added `LastCommentId`
+  - `backend/Application/Services/CaseService.cs` — Populate `LastCommentId` in both conversation query methods
+  - `frontend/shared/models.ts` — Added `lastCommentId` to `Conversation`
+  - `frontend/cases/conversations-list.component.ts` — Pass `scrollToComment` query param
+  - `frontend/cases/admin-conversations.component.ts` — Pass `scrollToComment` query param
+  - `frontend/cases/case-detail.component.ts` — Rewrote scroll logic with DOM selector + retry
+  - `frontend/cases/case-detail.component.html` — Added `id="conversation-card"` and `[attr.data-comment-id]`
+
+---
+
 ## [Phase 23c — Reliable Auto-Scroll to Conversation Section] (2026-07-22)
 **Status:** ✅ COMPLETE (frontend `ng build` → 0 errors)
 **What changed:**

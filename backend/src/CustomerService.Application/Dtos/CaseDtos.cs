@@ -145,6 +145,9 @@ public class ConversationSummaryDto
     /// <summary>Customer display name (case owner).</summary>
     public string CustomerName { get; set; } = string.Empty;
 
+    /// <summary>Id of the most recent comment in the conversation.</summary>
+    public int LastCommentId { get; set; }
+
     /// <summary>Truncated body of the most recent comment.</summary>
     public string LastCommentSnippet { get; set; } = string.Empty;
 

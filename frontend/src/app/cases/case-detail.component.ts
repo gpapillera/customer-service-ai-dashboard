@@ -98,7 +98,6 @@ export class CaseDetailComponent implements OnInit {
   readonly savingComment = signal(false);
 
   @ViewChild('chatScroll') private chatScroll!: ElementRef<HTMLDivElement>;
-  @ViewChild('conversationCard') private conversationCard!: ElementRef<HTMLElement>;
 
   ngOnInit(): void {
     const id = Number(this.route.snapshot.paramMap.get('id'));
@@ -125,25 +124,37 @@ export class CaseDetailComponent implements OnInit {
     });
     this.callLogService.listByCase(id).subscribe((logs) => this.logs.set(logs));
     this.caseService.agents().subscribe((list) => this.agents.set(list));
-// Load the comment thread.
+  // Load the comment thread.
   this.caseService.getComments(id).subscribe((list) => {
     this.comments.set(list);
     if (fromTab) {
-      // Defer and retry until the conversation card is rendered in the DOM.
-      // The card depends on both loading() being false and case() being set,
-      // which may arrive after the comments response.  Retries up to ~2.5 s.
-      const scrollToCard = (retries = 10) => {
-        if (this.conversationCard?.nativeElement) {
-          this.conversationCard.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        } else if (retries > 0) {
-          setTimeout(() => scrollToCard(retries - 1), 250);
+      // Scroll to the specific comment when navigating from Messages/Conversations.
+      // Use a retry loop with direct DOM query to avoid ViewChild/@if timing issues.
+      const doScroll = (retries = 15) => {
+        // Prefer scrolling to the exact comment element.
+        if (scrollToCommentId) {
+          const el = document.querySelector(`[data-comment-id="${scrollToCommentId}"]`);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return;
+          }
+        }
+        // Fall back to the conversation card.
+        const card = document.getElementById('conversation-card');
+        if (card) {
+          card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          return;
+        }
+        if (retries > 0) {
+          setTimeout(() => doScroll(retries - 1), 200);
         }
       };
-      setTimeout(() => scrollToCard(), 100);
-      } else {
-        this.scrollToBottom();
-      }
-    });
+      // First attempt after a short yield for rendering.
+      setTimeout(() => doScroll(), 150);
+    } else {
+      this.scrollToBottom();
+    }
+  });
 
     // Poll for new comments every 5 seconds so messages appear in real-time.
     this.startCommentsPolling(id);

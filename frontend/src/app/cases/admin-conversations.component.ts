@@ -71,7 +71,7 @@ export class AdminConversationsComponent implements OnInit, OnDestroy {
 
   open(c: Conversation): void {
     this.router.navigate(['/cases', c.caseId], {
-      queryParams: { from: 'conversations' },
+      queryParams: { from: 'conversations', scrollToComment: c.lastCommentId },
     });
   }
 

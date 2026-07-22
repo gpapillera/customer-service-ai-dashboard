@@ -177,6 +177,7 @@ export interface Conversation {
   subject: string;
   customerName: string;
   assignedAgentName: string | null;
+  lastCommentId: number;
   lastCommentSnippet: string;
   lastCommentAtUtc: string;
   lastCommentAuthor: string;

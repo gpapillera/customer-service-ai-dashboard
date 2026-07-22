@@ -114,7 +114,7 @@
         </mat-card>
 
         <!-- Gap 3: Comment / conversation thread -->
-        <mat-card class="cs-lift comment-card reveal" appReveal #conversationCard>
+        <mat-card class="cs-lift comment-card reveal" appReveal id="conversation-card">
           <mat-card-content>
             <h2 class="card-title">Conversation ({{ comments().length }})</h2>
 
@@ -125,7 +125,7 @@
                 } @else {
                   <div class="comment-list stagger">
                     @for (comment of comments(); track comment.id) {
-                      <div class="comment-item" [class.staff]="comment.isStaff">
+                      <div class="comment-item" [class.staff]="comment.isStaff" [attr.data-comment-id]="comment.id">
                         <div class="comment-head">
                           <span class="comment-author">{{ comment.authorDisplayName }}</span>
                           <span class="cs-pill" [class]="comment.isStaff ? 'status-inprogress' : 'status-new'">
