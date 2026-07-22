@@ -2,6 +2,16 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 23g — Pulse Fallback When scrollToCommentId Is Missing] (2026-07-22)
+**Status:** ✅ COMPLETE (frontend `ng build` → 0 errors; backend running :5274)
+**What changed:**
+- **Problem:** The pulse animation only fired when `scrollToCommentId` was present in query params. If the Angular dev server served stale JS that didn't include the `lastCommentId` property on the `Conversation` model, no pulse would play — the user saw no visual feedback at all.
+- **Fix:** `pulseComment()` now falls back to pulsing the **last `.comment-item`** in the DOM when `scrollToCommentId` is falsy or the matching element isn't found. This guarantees a visual cue on every conversation click, whether or not the fresh model has been picked up.
+- **Files changed:**
+  - `case-detail.component.ts` — `pulseComment()` now falls back to `document.querySelectorAll('.comment-item')` last element if the specific `scrollToCommentId` target is missing
+
+---
+
 ## [Phase 23f — Pulse Animation on Clicked Comment] (2026-07-22)
 **Status:** ✅ COMPLETE (frontend `ng build` → 0 errors)
 **What changed:**
