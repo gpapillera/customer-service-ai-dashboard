@@ -14,6 +14,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatDialog } from '@angular/material/dialog';
 import { RevealDirective } from '../shared/reveal.directive';
 import { CsIconComponent } from '../shared/cs-icon.component';
+import { NavBadgeService } from '../shared/nav-badge.service';
 import { CaseService } from './case.service';
 import { CallLogService } from './call-log.service';
 import { CaseFormComponent, CaseFormDialogData } from './case-form.component';
@@ -52,6 +53,7 @@ export class CaseDetailComponent implements OnInit {
   private readonly dialog = inject(MatDialog);
   private readonly fb = inject(FormBuilder);
   readonly auth = inject(AuthService);
+  private readonly navBadgeService = inject(NavBadgeService);
   private readonly destroyRef = inject(DestroyRef);
   private commentsPolling: Subscription | null = null;
 
@@ -110,7 +112,10 @@ export class CaseDetailComponent implements OnInit {
         // Mark conversation as read for both Agent and Admin users.
         const role = this.auth.getRole();
         if (role === 'Agent' || role === 'Admin') {
-          this.caseService.markConversationRead(id).subscribe();
+          this.caseService.markConversationRead(id).subscribe({
+            next: () => this.navBadgeService.refresh(),
+            error: () => { /* badge will correct on next poll */ },
+          });
         }
       },
       error: () => {

@@ -2,6 +2,16 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 23b — Instant Badge Update on Conversation Open] (2026-07-22)
+**Status:** ✅ COMPLETE (frontend `ng build` → 0 errors)
+**What changed:**
+- **Problem:** The red badge count on Conversations/Messages nav item only updated every 30 seconds (poll cycle), so opening a conversation left the stale count visible for up to 30 seconds.
+- **Fix:** `CaseDetailComponent` now calls `navBadgeService.refresh()` immediately when `markConversationRead()` succeeds, so the badge decrements right after opening a conversation.
+- **Files changed:**
+  - `cases/case-detail.component.ts` — Injected `NavBadgeService`; added `refresh()` call on `markConversationRead` success
+
+---
+
 ## [Phase 23 — Role-Based Dashboard Views] (2026-07-22)
 **Status:** ✅ COMPLETE (backend `dotnet build` → 0 errors, `dotnet test` → 64 passed; frontend `ng build` → 0 errors)
 **What changed:**
