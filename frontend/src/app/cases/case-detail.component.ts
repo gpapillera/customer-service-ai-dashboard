@@ -1,6 +1,6 @@
 import { Component, computed, DestroyRef, ElementRef, inject, OnInit, signal, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute, RouterLink, Router } from '@angular/router';
+import { ActivatedRoute, RouterLink, Router, NavigationStart } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { interval, Subscription } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -99,6 +99,35 @@ export class CaseDetailComponent implements OnInit {
 
   @ViewChild('chatScroll') private chatScroll!: ElementRef<HTMLDivElement>;
 
+  /** Handle Enter/Shift+Enter on textareas for form submission. */
+  onTextareaKeydown(event: KeyboardEvent, formType: 'comment' | 'log'): void {
+    // Enter (without Shift) submits the form
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      if (formType === 'comment' && this.commentForm.valid && !this.savingComment()) {
+        this.addComment();
+      } else if (formType === 'log' && this.logForm.valid && !this.savingLog()) {
+        this.addLog();
+      }
+      return;
+    }
+    // Shift+Enter inserts a new line (browser default — do nothing)
+    // Ctrl+Enter also submits (backward compat)
+    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+      event.preventDefault();
+      if (formType === 'comment' && this.commentForm.valid && !this.savingComment()) {
+        this.addComment();
+      } else if (formType === 'log' && this.logForm.valid && !this.savingLog()) {
+        this.addLog();
+      }
+    }
+  }
+
+  /** Navigate back to the cases list. */
+  goBack(): void {
+    this.router.navigateByUrl('/cases');
+  }
+
   ngOnInit(): void {
     const id = Number(this.route.snapshot.paramMap.get('id'));
     const scrollToCommentId = this.route.snapshot.queryParamMap.get('scrollToComment');
@@ -128,31 +157,13 @@ export class CaseDetailComponent implements OnInit {
   this.caseService.getComments(id).subscribe((list) => {
     this.comments.set(list);
     if (fromTab) {
-      // Prevent the comment card's reveal animation from competing with the
-      // pulse — mark it visible immediately so it doesn't fly in from below.
-      const cardEl = document.getElementById('conversation-card');
-      if (cardEl) cardEl.classList.add('is-visible');
-
-      // Animated two-phase scroll: 1) page scrolls to card, 2) inner chat
-      // scrolls to bottom so the latest message is visible, 3) pulse the
-      // target comment bubble.  Uses a retry loop with direct DOM queries
-      // to handle any HTTP response ordering.
-      const scrollToBottom = (el: HTMLElement) => {
-        el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
-      };
-
-      /**
-       * One-shot pulse on the comment the user clicked in the conversation
-       * list.  Falls back to the last comment in the list when no specific
-       * comment id was passed (e.g. before the first backend restart after
-       * deploy), so the user always sees a visual cue.
-       */
+      // --- From Conversations/Messages tab: scroll the inner chat container
+      //     to show the target comment, then pulse it. ---
       const pulseComment = () => {
         let el: Element | null = null;
         if (scrollToCommentId) {
           el = document.querySelector(`[data-comment-id="${scrollToCommentId}"]`);
         }
-        // Fallback: pulse the very last comment in the chat area.
         if (!el) {
           const all = document.querySelectorAll<HTMLElement>('.comment-item');
           el = all.length > 0 ? all[all.length - 1] : null;
@@ -165,47 +176,104 @@ export class CaseDetailComponent implements OnInit {
       };
 
       const doScroll = (retries = 15) => {
-        // Phase 1: scroll page to the card (or exact comment).
-        if (scrollToCommentId) {
-          const el = document.querySelector(`[data-comment-id="${scrollToCommentId}"]`);
-          if (el) {
-            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            // Phase 2: after the page settles, scroll inner container.
-            setTimeout(() => {
-              const inner = document.querySelector<HTMLElement>('.chat-scroll');
-              if (inner) scrollToBottom(inner);
-            }, 450);
-            // Phase 3: pulse the comment bubble after the dust settles.
-            setTimeout(pulseComment, 800);
-            return;
-          }
-        }
-        // Fall back to the conversation card.
-        const card = document.getElementById('conversation-card');
-        if (card) {
-          card.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          // Phase 2: after the card arrives, scroll inner chat to bottom.
-          setTimeout(() => {
-            const inner = document.querySelector<HTMLElement>('.chat-scroll');
-            if (inner) scrollToBottom(inner);
-          }, 450);
-          // Phase 3: pulse the last comment (or the specific one).
-          setTimeout(pulseComment, 800);
+        const inner = this.chatScroll?.nativeElement;
+        if (!inner) {
+          if (retries > 0) { setTimeout(() => doScroll(retries - 1), 200); }
           return;
         }
-        if (retries > 0) {
-          setTimeout(() => doScroll(retries - 1), 200);
+        // The page body has `overflow: hidden` — the actual scrollable
+        // container is the `.content` div inside the layout shell.
+        const scrollContainer = document.querySelector('.content');
+        const cardEl = document.getElementById('conversation-card');
+        if (scrollContainer && cardEl) {
+          const cardRect = cardEl.getBoundingClientRect();
+          const containerRect = scrollContainer.getBoundingClientRect();
+          const cardTopInContainer = cardRect.top - containerRect.top + scrollContainer.scrollTop;
+          scrollContainer.scrollTo({ top: Math.max(0, cardTopInContainer - 16), behavior: 'smooth' });
         }
+        // Small delay so the container smooth-scroll starts before the inner scroll.
+        setTimeout(() => {
+          if (scrollToCommentId) {
+            const el = document.querySelector(`[data-comment-id="${scrollToCommentId}"]`);
+            if (el) {
+              // Scroll the chat container so the target comment is visible.
+              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              setTimeout(pulseComment, 800);
+              return;
+            }
+          }
+          // Fall back: scroll the inner chat to the bottom.
+          inner.scrollTo({ top: inner.scrollHeight, behavior: 'smooth' });
+          setTimeout(pulseComment, 800);
+        }, 100);
       };
-      // First attempt after a short yield for rendering.
-      setTimeout(() => doScroll(), 150);
+      // Wait for Angular to render the DOM, disable entrance animations,
+      // then start the scroll + pulse sequence.
+      setTimeout(() => {
+        const cardEl = document.getElementById('conversation-card');
+        if (cardEl) cardEl.classList.add('is-visible');
+        const listEl = document.querySelector('.comment-list');
+        if (listEl) listEl.classList.remove('stagger');
+        document.querySelectorAll<HTMLElement>('.comment-item').forEach((el) => {
+          el.style.opacity = '1';
+          el.style.transform = 'none';
+        });
+        doScroll();
+      }, 500);
     } else {
-      this.scrollToBottom();
+      // --- Normal navigation: when the card enters view, smoothly scroll
+      //     to the latest message so the user sees it happen. ---
+      const observer = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            if (entry.isIntersecting) {
+              // Small delay so the user perceives the smooth scroll.
+              setTimeout(() => this.scrollToBottom(), 300);
+              observer.disconnect();
+              break;
+            }
+          }
+        },
+        { threshold: 0.85 },
+      );
+      // Check periodically until the card exists.
+      const waitForCard = setInterval(() => {
+        const card = document.getElementById('conversation-card');
+        if (card) {
+          // If already in view, fire after a brief pause so the user sees it.
+          const rect = card.getBoundingClientRect();
+          const visible = rect.top < window.innerHeight && rect.bottom > 0;
+          if (visible) {
+            setTimeout(() => this.scrollToBottom(), 600);
+          }
+          observer.observe(card);
+          clearInterval(waitForCard);
+        }
+      }, 200);
+      // Safety: clean up after 10 s.
+      setTimeout(() => {
+        clearInterval(waitForCard);
+        observer.disconnect();
+      }, 10000);
+      // Also clean up on destroy so we never leak.
+      this.destroyRef.onDestroy(() => {
+        clearInterval(waitForCard);
+        observer.disconnect();
+      });
     }
   });
 
     // Poll for new comments every 5 seconds so messages appear in real-time.
     this.startCommentsPolling(id);
+
+    // Reset the chat-scroll position when navigating away, so the next visit
+    // starts from the top (instead of being stuck at the bottom).
+    this.router.events.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((e) => {
+      if (e instanceof NavigationStart) {
+        const el = document.querySelector<HTMLElement>('.chat-scroll');
+        if (el) el.scrollTop = 0;
+      }
+    });
   }
 
   /** Polls for new comments every 5 s and appends any that are new. */
@@ -221,6 +289,7 @@ export class CaseDetailComponent implements OnInit {
             const newer = fresh.filter((c) => c.id > maxId);
             if (newer.length > 0) {
               setTimeout(() => this.scrollToBottom());
+              this.navBadgeService.refresh();
               return [...existing, ...newer];
             }
             return existing;
@@ -233,7 +302,7 @@ export class CaseDetailComponent implements OnInit {
   private scrollToBottom(): void {
     const el = this.chatScroll?.nativeElement;
     if (el) {
-      requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; });
+      requestAnimationFrame(() => { el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' }); });
     }
   }
 
@@ -296,6 +365,7 @@ export class CaseDetailComponent implements OnInit {
         this.commentForm.reset({ body: '' });
         this.savingComment.set(false);
         this.scrollToBottom();
+        this.navBadgeService.refresh();
       },
       error: () => this.savingComment.set(false),
     });

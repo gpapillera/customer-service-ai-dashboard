@@ -12,8 +12,10 @@ import { AuthService } from '../auth/auth.service';
  * For Dashboard/Customers/Cases tabs: counts items created since the last
  * time the user visited that section (tracked via localStorage timestamps).
  *
- * Polls every 30 s while the browser tab is visible. Resets a section's
- * badge to zero when the user navigates to it.
+ * Polls every 10 s while the browser tab is visible. Also listens for
+ * custom `cs:comment-posted` DOM events for immediate refresh when a
+ * message is sent from any page. Resets a section's badge to zero when
+ * the user navigates to it.
  */
 @Injectable({ providedIn: 'root' })
 export class NavBadgeService {
@@ -25,7 +27,7 @@ export class NavBadgeService {
   readonly badges = signal<Record<string, number>>({});
 
   private pollTimer: ReturnType<typeof setInterval> | null = null;
-  private readonly POLL_MS = 30_000;
+  private readonly POLL_MS = 10_000;
   private readonly LS_PREFIX = 'cs_nav_badge_';
 
   constructor() {
@@ -47,6 +49,11 @@ export class NavBadgeService {
         this.setVisited(path);
       });
 
+    // Listen for comment-posted events from any page.
+    if (typeof window !== 'undefined' && typeof window.addEventListener !== 'undefined') {
+      window.addEventListener('cs:comment-posted', () => this.refresh());
+    }
+
     // Initial fetch + periodic polling.
     this.refresh();
     if (typeof window !== 'undefined' && typeof window.setInterval !== 'undefined') {
@@ -62,7 +69,8 @@ export class NavBadgeService {
     if (role === 'Agent') {
       this.caseService.myConversations().subscribe({
         next: (list) => {
-          const unreadCount = list.filter((c) => c.unread).length;
+          const unreadCount = list.reduce(
+            (sum, c) => sum + (c.unreadCount ?? (c.unread ? 1 : 0)), 0);
           this.updateBadge('/messages', unreadCount);
         },
         error: () => { /* ignore polling errors */ },
@@ -70,7 +78,8 @@ export class NavBadgeService {
     } else if (role === 'Admin') {
       this.caseService.allConversations().subscribe({
         next: (list) => {
-          const unreadCount = list.filter((c) => c.unread).length;
+          const unreadCount = list.reduce(
+            (sum, c) => sum + (c.unreadCount ?? (c.unread ? 1 : 0)), 0);
           this.updateBadge('/conversations', unreadCount);
         },
         error: () => { /* ignore polling errors */ },

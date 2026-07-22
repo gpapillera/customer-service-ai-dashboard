@@ -14,9 +14,9 @@
   <div class="center"><mat-spinner diameter="40"></mat-spinner></div>
 } @else {
   @if (data(); as d) {
-    <div class="kpis">
+    <div class="kpis" appKbdNav kbdNavItem="button.kpi-card" [kbdNavWrap]="true">
       @for (k of kpis; track k.label) {
-        <button type="button" class="kpi-card cs-lift" appReveal [class]="'tone-' + k.tone" (click)="openKpi(k.link)">
+        <button type="button" class="kpi-card cs-lift" appReveal [class]="'tone-' + k.tone" (click)="openKpi(k.link)" tabindex="-1">
           <div class="kpi-icon"><cs-icon [name]="k.icon" [size]="26"></cs-icon></div>
           <div class="kpi-value">{{ k.value }}</div>
           <div class="kpi-label">{{ k.label }}</div>
@@ -96,9 +96,9 @@
             <h2 class="chart-title">Recent Cases</h2>
             <a class="view-all" routerLink="/cases">View all &rarr;</a>
           </div>
-          <div class="recent-list">
+          <div class="recent-list" appKbdNav kbdNavItem="a.recent-item" [kbdNavWrap]="true">
             @for (c of recentCases; track c.id) {
-              <a class="recent-item" [routerLink]="['/cases', c.id]">
+              <a class="recent-item" [routerLink]="['/cases', c.id]" tabindex="-1">
                 <div class="recent-main">
                   <span class="recent-title">
                     @if (c.priorityAutoSuggested) { <cs-icon name="auto_awesome" class="ai-spark"></cs-icon> }
@@ -123,9 +123,9 @@
               <h2 class="chart-title overdue-title"><cs-icon name="schedule" class="overdue-icon"></cs-icon> Overdue Follow-ups</h2>
               <a class="view-all" routerLink="/cases">View all cases &rarr;</a>
             </div>
-            <div class="recent-list">
+            <div class="recent-list" appKbdNav kbdNavItem="a.recent-item" [kbdNavWrap]="true">
               @for (o of d.overdueFollowUpsList; track o.caseId) {
-                <a class="recent-item" [routerLink]="['/cases', o.caseId]">
+                <a class="recent-item" [routerLink]="['/cases', o.caseId]" tabindex="-1">
                   <div class="recent-main">
                     <span class="recent-title">
                       @if (o.daysOverdue === 1) { <span class="overdue-badge">1 day overdue</span> }

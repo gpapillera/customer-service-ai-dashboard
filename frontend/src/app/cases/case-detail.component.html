@@ -1,4 +1,4 @@
-<a class="back" (click)="router.navigateByUrl('/cases')">
+<a class="back" tabindex="0" (click)="goBack()" (keydown.enter)="goBack()">
   <cs-icon name="arrow_back"></cs-icon> Back to Cases
 </a>
 
@@ -144,7 +144,8 @@
                 <mat-form-field appearance="outline" class="comment-field">
                   <mat-label>Reply</mat-label>
                   <textarea matInput formControlName="body" rows="2"
-                    placeholder="Type your reply to the customer…"></textarea>
+                    placeholder="Type your reply to the customer…"
+                    (keydown)="onTextareaKeydown($event, 'comment')"></textarea>
                 </mat-form-field>
                 <button mat-flat-button color="primary" type="submit"
                   [disabled]="commentForm.invalid || savingComment()">

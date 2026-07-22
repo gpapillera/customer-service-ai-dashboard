@@ -10,6 +10,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { RevealDirective } from '../shared/reveal.directive';
 import { CsIconComponent } from '../shared/cs-icon.component';
 import { RouteLoadingService } from '../shared/route-loading.service';
+import { KbdNavDirective } from '../shared/keyboard-nav.directive';
 import { CaseService } from './case.service';
 import { CaseFormComponent } from './case-form.component';
 import { Case } from '../shared/models';
@@ -34,6 +35,7 @@ import { LayoutComponent } from '../shared/layout/layout.component';
     MatProgressSpinnerModule,
     RevealDirective,
     CsIconComponent,
+    KbdNavDirective,
     SearchFilterToolbarComponent,
   ],
   templateUrl: './case-list.component.html',

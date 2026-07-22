@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Router, RouterLink, RouterOutlet } from '@angular/router';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { CsIconComponent } from '../shared/cs-icon.component';
+import { KbdNavDirective } from '../shared/keyboard-nav.directive';
 import { ConfirmDialogComponent } from '../shared/confirm-dialog.component';
 import { CustomerAuthService } from './customer-auth.service';
 import { AccountPanelComponent } from './account-panel.component';
@@ -16,7 +17,7 @@ import { AccountPanelComponent } from './account-panel.component';
 @Component({
   selector: 'app-customer-layout',
   standalone: true,
-  imports: [CommonModule, RouterLink, RouterOutlet, CsIconComponent, AccountPanelComponent, MatDialogModule],
+  imports: [CommonModule, RouterLink, RouterOutlet, CsIconComponent, AccountPanelComponent, MatDialogModule, KbdNavDirective],
   templateUrl: './customer-layout.component.html',
   styleUrl: './customer-layout.component.scss',
 })

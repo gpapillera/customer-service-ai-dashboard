@@ -5,6 +5,8 @@ import { MatCardModule } from '@angular/material/card';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { RevealDirective } from '../shared/reveal.directive';
 import { CsIconComponent } from '../shared/cs-icon.component';
+import { KbdNavDirective } from '../shared/keyboard-nav.directive';
+import { NavBadgeService } from '../shared/nav-badge.service';
 import { CaseService } from './case.service';
 import { Conversation } from '../shared/models';
 
@@ -23,6 +25,7 @@ import { Conversation } from '../shared/models';
     MatProgressSpinnerModule,
     RevealDirective,
     CsIconComponent,
+    KbdNavDirective,
   ],
   templateUrl: './admin-conversations.component.html',
   styleUrl: './admin-conversations.component.scss',
@@ -30,6 +33,7 @@ import { Conversation } from '../shared/models';
 export class AdminConversationsComponent implements OnInit, OnDestroy {
   private readonly service = inject(CaseService);
   private readonly router = inject(Router);
+  private readonly navBadgeService = inject(NavBadgeService);
 
   readonly conversations = signal<Conversation[]>([]);
   readonly loading = signal(true);
@@ -64,7 +68,10 @@ export class AdminConversationsComponent implements OnInit, OnDestroy {
   /** Silent refresh — does not show loading spinner. */
   private refresh(): void {
     this.service.allConversations().subscribe({
-      next: (list) => this.conversations.set(list),
+      next: (list) => {
+        this.conversations.set(list);
+        this.navBadgeService.refresh();
+      },
       error: () => { /* ignore polling errors */ },
     });
   }

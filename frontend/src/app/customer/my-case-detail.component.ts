@@ -9,6 +9,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { interval, Subscription } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CsIconComponent } from '../shared/cs-icon.component';
+import { KbdNavDirective } from '../shared/keyboard-nav.directive';
 import { CustomerService } from './customer.service';
 import { CustomerCaseDetail, CustomerCaseComment } from '../shared/models';
 
@@ -29,6 +30,7 @@ import { CustomerCaseDetail, CustomerCaseComment } from '../shared/models';
     MatProgressSpinnerModule,
     MatIconModule,
     CsIconComponent,
+    KbdNavDirective,
   ],
   templateUrl: './my-case-detail.component.html',
   styleUrl: './my-case-detail.component.scss',
@@ -140,6 +142,8 @@ export class MyCaseDetailComponent implements OnInit {
         this.commentForm.reset();
         this.sending.set(false);
         this.scrollToBottom();
+        // Notify the nav badge service (if staff is viewing the same browser).
+        window.dispatchEvent(new CustomEvent('cs:comment-posted'));
       },
       error: () => {
         this.sending.set(false);
@@ -158,5 +162,25 @@ export class MyCaseDetailComponent implements OnInit {
 
   formatDate(value: string): string {
     return new Date(value).toLocaleString();
+  }
+
+  /** Handle Enter/Shift+Enter on the reply textarea. */
+  onCommentKeydown(event: KeyboardEvent): void {
+    // Enter (without Shift) sends the message
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      if (this.commentForm.valid && !this.sending()) {
+        this.sendComment();
+      }
+      return;
+    }
+    // Shift+Enter inserts a new line (browser default — do nothing)
+    // Ctrl+Enter also sends (backward compat)
+    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+      event.preventDefault();
+      if (this.commentForm.valid && !this.sending()) {
+        this.sendComment();
+      }
+    }
   }
 }

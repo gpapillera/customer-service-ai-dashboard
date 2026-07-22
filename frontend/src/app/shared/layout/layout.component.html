@@ -17,12 +17,13 @@
         </button>
         <app-notification-bell></app-notification-bell>
       </div>
-      <nav class="nav">
+      <nav class="nav" appKbdNav kbdNavItem="a.nav-item" [kbdNavWrap]="true">
         @for (link of visibleNavLinks; track link.path) {
           <a
             class="nav-item"
             [routerLink]="link.path"
             routerLinkActive="active"
+            tabindex="-1"
             (click)="isHandset() && toggleSidenav()"
           >
             <cs-icon [name]="link.icon" class="nav-icon"></cs-icon>
@@ -77,12 +78,13 @@
           <app-notification-bell></app-notification-bell>
         </div>
 
-        <div class="rail-nav">
+        <div class="rail-nav" appKbdNav kbdNavItem="a.rail-item" [kbdNavWrap]="true">
           @for (link of visibleNavLinks; track link.path) {
             <a
               class="rail-item"
               [routerLink]="link.path"
               routerLinkActive="active"
+              tabindex="-1"
               [attr.aria-label]="link.label"
             >
               <cs-icon [name]="link.icon"></cs-icon>

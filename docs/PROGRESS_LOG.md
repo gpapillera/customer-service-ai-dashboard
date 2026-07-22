@@ -2,6 +2,85 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 23m — Fast Badge Auto-Refresh After Sending Messages] (2026-07-22)
+**Status:** ✅ COMPLETE (`ng build` → 0 errors, `ng test` → 13/13 SUCCESS)
+**What changed:**
+- **Problem:** The red dot badge on Conversations/Messages nav items only refreshed every 30 seconds. When a user sent a message from any page (case detail, customer portal), the badge stayed stale until the next 30s poll cycle or until clicking the sidebar tab manually.
+- **Root cause:** `NavBadgeService` had a single 30s `setInterval` for its own polling. While `case-detail.component.ts` (staff) already called `navBadgeService.refresh()` after sending a comment, the independent poll would overwrite counts. The customer-side `my-case-detail.component.ts` had no badge refresh mechanism at all.
+- **Fix (3 changes):**
+  1. **`nav-badge.service.ts`** — Reduced polling interval from 30s → 10s for faster badge updates. Added a `window.addEventListener('cs:comment-posted')` listener so any component can trigger an immediate refresh via a custom DOM event without importing the service.
+  2. **`my-case-detail.component.ts`** (customer portal) — After `sendComment()` succeeds, dispatches `window.dispatchEvent(new CustomEvent('cs:comment-posted'))` which the NavBadgeService catches and refreshes immediately.
+  3. **`nav-badge.service.ts`** — Already had wiring: `case-detail` calls `navBadgeService.refresh()` directly; `conversations-list` and `admin-conversations` call `navBadgeService.refresh()` in their 5s comment polls.
+- **Verification:**
+  - `ng build` → 0 errors, `ng test` → 13/13 SUCCESS
+
+---
+
+## [Phase 23l — Add Keyboard Navigation & Tab Order Across the App] (2026-07-22)
+**Status:** ✅ COMPLETE (`ng build` → 0 errors, `ng test` → 13/13 SUCCESS)
+**What changed:**
+- **Problem:** The app had no keyboard navigation support — users who prefer keyboard over mouse could not navigate lists, tables, or nav items with arrow keys. There was no consistent focus indicator for keyboard users.
+- **Solution:** Created a reusable `KbdNavDirective` (roving tabindex pattern) and applied it across all major components. Added global keyboard shortcuts and `:focus-visible` styles.
+- **Files created:**
+  1. **`frontend/src/app/shared/keyboard-nav.directive.ts`** — `@Directive({ selector: '[appKbdNav]' })` with:
+     - Arrow Up/Down navigation between focusable children
+     - Home/End to jump to first/last item
+     - Optional wrap-around (`kbdNavWrap`)
+     - `@Input() kbdNavItem` selector configurable
+     - Roving tabindex: only one item in the Tab order at a time
+  2. **`styles.scss`** — Added `:focus-visible` global styles (indigo accent outline on keyboard focus only), focus styles for `[appKbdNav]` items, and `<kbd>` hint styling.
+- **Components updated:**
+  - **Layout (`layout.component.ts`)** — Added `KbdNavDirective` import, `appKbdNav` to nav list and rail nav with arrow-key support. Added `@HostListener('document:keydown')` for global shortcuts: `Ctrl+B` / `Cmd+B` to toggle sidenav, `Escape` to close overlay on mobile.
+  - **Case list (`case-list.component.ts/html`)** — Added `appKbdNav` to `<tbody>` for arrow-key row navigation. Added `(keydown.enter)="open(c.id)"` on each row.
+  - **Conversations list (`conversations-list.component.ts/html`)** — Added `appKbdNav` to the button list with arrow-key navigation.
+  - **Admin conversations (`admin-conversations.component.ts/html`)** — Same as conversations list.
+  - **Dashboard (`dashboard.component.ts/html`)** — Added `appKbdNav` to KPI cards (arrow-key navigation between KPIs) and both recent-cases / overdue-follow-ups lists.
+  - **Case detail (`case-detail.component.ts/html`)** — Added `goBack()` method with `(keydown.enter)` on back link. Added `onTextareaKeydown()` for `Ctrl+Enter` on comment and log forms.
+  - **Customer my-cases-list** — Added `appKbdNav` to case list `<ul>` with `(keydown.enter)` on rows.
+  - **Customer my-case-detail** — Added `onCommentKeydown()` for `Ctrl+Enter` on reply textarea.
+  - **Customer layout** — Already had `(keydown.enter)` on account button.
+- **Verification:**
+  - `ng build` → 0 errors, `ng test` → 13/13 SUCCESS
+
+---
+
+## [Phase 23k — Fix Notification Badge Counting Unread Messages per Conversation] (2026-07-22)
+**Status:** ✅ COMPLETE (`dotnet test` → 64/64 PASS, `ng test` → 13/13 SUCCESS)
+**What changed:**
+- **Problem:** The nav badge (red dot + number) on `/messages` and `/conversations` links only counted conversations with `unread === true` (a boolean), so even if a single case had 10 new messages, the badge only showed "1". The user reported "if I send more than one message coming from same customer or same case the red dot w/ number notification still count only one."
+- **Root cause:** `NavBadgeService` used `list.filter((c) => c.unread).length` which counts conversations, not individual messages. The backend DTO (`ConversationSummaryDto`) only had a `bool Unread` field — no count.
+- **Fix (4 files):**
+  1. **`ConversationSummaryDto`** (backend DTO) — Added `public int UnreadCount { get; set; }` with XML doc explaining it counts non-self comments after the last-viewed marker.
+  2. **`CaseService.cs`** (backend) — In both `GetMyConversationsAsync` and `GetAllConversationsAsync`, added a second query that fetches all non-self comment timestamps per case, groups by case, and counts those with `CreatedAtUtc > lastViewed`. Populated `UnreadCount` in the DTO.
+  3. **`models.ts`** (frontend) — Added `unreadCount: number` to the `Conversation` interface.
+  4. **`nav-badge.service.ts`** (frontend) — Changed from `list.filter((c) => c.unread).length` to `list.reduce((sum, c) => sum + (c.unreadCount ?? (c.unread ? 1 : 0)), 0)` with backward compatibility fallback.
+- **Verification:**
+  - `dotnet build` → 0 errors, `dotnet test` → 64/64 PASS
+  - `ng build` → 0 errors (5 pre-existing SCSS budget warnings), `ng test` → 13/13 SUCCESS
+
+---
+
+## [Phase 23j — Fix Broken Dashboard Unit Tests] (2026-07-22)
+**Status:** ✅ COMPLETE (`ng test --watch=false` → 13/13 SUCCESS)
+**What changed:**
+- **Problem 1:** `DashboardComponent` injects `LayoutComponent` via `inject(LayoutComponent)` to read `opened` and `brandAnimate` signals. The test's `TestBed` had no provider for `LayoutComponent`, causing `NullInjectorError: No provider for LayoutComponent!` on component creation.
+- **Problem 2:** The "loads the dashboard from the API on init" test only expected one HTTP request (`/api/dashboard`), but `ngOnInit` now makes a second call to `/api/users/agent-workload` (admin workload data), causing `httpMock.verify()` to fail with "Expected no open requests, found 1".
+- **Fix:** Added `{ provide: LayoutComponent, useValue: mockLayout }` with a mock object containing `opened` and `brandAnimate` signals. Updated the API init test to also expect and flush the `/api/users/agent-workload` request.
+- **Files changed:**
+  - `dashboard.component.spec.ts` — Added `LayoutComponent` mock provider; flushed workload request in API init test.
+
+---
+
+## [Phase 23i — Fix Page Not Scrolling to Conversation Card from Conversations Tab] (2026-07-22)
+**Status:** ✅ COMPLETE (frontend `ng build` → 0 errors)
+**What changed:**
+- **Problem:** The `fromTab` scroll path used `window.scrollTo()` and `window.scrollY` to scroll the page to the conversation card, but those are no-ops because `body { overflow: hidden }` in `styles.scss`. The actual scrollable container is the `.content` element on `mat-sidenav-content` (`overflow: auto`). The conversation card was never scrolled into view — only the inner `.chat-scroll` moved.
+- **Fix:** Replaced `window.scrollTo()` with `document.querySelector('.content').scrollTo()`, calculating the card's position within the scroll container using `getBoundingClientRect()` offsets.
+- **Files changed:**
+  - `case-detail.component.ts` — `doScroll()` now scrolls `.content` (the real scroll container) to show the conversation card before scrolling inside the chat container
+
+---
+
 ## [Phase 23h — Fix Reveal Animation Conflicting with Pulse] (2026-07-22)
 **Status:** ✅ COMPLETE (frontend `ng build` → 0 errors)
 **What changed:**

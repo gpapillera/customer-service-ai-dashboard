@@ -164,6 +164,13 @@ public class ConversationSummaryDto
     public bool Unread { get; set; }
 
     /// <summary>
+    /// Total number of unread comments (messages) in this conversation —
+    /// i.e. non-self comments created after the agent's last-viewed marker.
+    /// Used by the nav badge to show an aggregate count across all conversations.
+    /// </summary>
+    public int UnreadCount { get; set; }
+
+    /// <summary>
     /// Display name of the agent assigned to the case, or null when
     /// the case is unassigned.
     /// </summary>

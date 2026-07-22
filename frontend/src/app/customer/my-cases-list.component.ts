@@ -6,6 +6,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatIconModule } from '@angular/material/icon';
 import { CsIconComponent } from '../shared/cs-icon.component';
 import { RevealDirective } from '../shared/reveal.directive';
+import { KbdNavDirective } from '../shared/keyboard-nav.directive';
 import { CustomerService } from './customer.service';
 import { CustomerCaseSummary } from '../shared/models';
 
@@ -24,6 +25,7 @@ import { CustomerCaseSummary } from '../shared/models';
     MatIconModule,
     CsIconComponent,
     RevealDirective,
+    KbdNavDirective,
   ],
   templateUrl: './my-cases-list.component.html',
   styleUrl: './my-cases-list.component.scss',

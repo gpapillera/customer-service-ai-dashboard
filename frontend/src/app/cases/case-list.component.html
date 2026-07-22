@@ -78,9 +78,14 @@
           <th>Created</th>
         </tr>
       </thead>
-      <tbody>
+      <tbody appKbdNav kbdNavItem="tr.row-link" [kbdNavWrap]="false">
         @for (c of cases(); track c.id) {
-          <tr (click)="open(c.id)" class="row-link">
+          <tr
+            (click)="open(c.id)"
+            class="row-link"
+            tabindex="-1"
+            (keydown.enter)="open(c.id)"
+          >
             <td>
               <div class="cell-title">
                 @if (c.priorityAutoSuggested) { <cs-icon name="auto_awesome" class="ai-spark"></cs-icon> }

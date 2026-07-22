@@ -118,9 +118,9 @@ public class AuthBoundaryTests
     {
         var controller = BuildPortal(out var cases, out _, customerId: 1);
         // Customer 1 owns cases 1 and 5; customer 2 owns case 2.
-        (cases as IRepository<Case>).AddAsync(new Case { Id = 1, CustomerId = 1, Subject = "A" }).Wait();
-        (cases as IRepository<Case>).AddAsync(new Case { Id = 5, CustomerId = 1, Subject = "B" }).Wait();
-        (cases as IRepository<Case>).AddAsync(new Case { Id = 2, CustomerId = 2, Subject = "C" }).Wait();
+        await (cases as IRepository<Case>).AddAsync(new Case { Id = 1, CustomerId = 1, Subject = "A" });
+        await (cases as IRepository<Case>).AddAsync(new Case { Id = 5, CustomerId = 1, Subject = "B" });
+        await (cases as IRepository<Case>).AddAsync(new Case { Id = 2, CustomerId = 2, Subject = "C" });
 
         var result = await controller.GetMyCases();
 
@@ -134,14 +134,14 @@ public class AuthBoundaryTests
     public async Task GetMyCase_ReturnsCase_WhenOwnedByCallingCustomer()
     {
         var controller = BuildPortal(out var cases, out _, customerId: 1);
-        (cases as IRepository<Case>).AddAsync(new Case
+        await (cases as IRepository<Case>).AddAsync(new Case
         {
             Id = 1,
             CustomerId = 1,
             Subject = "Double charged",
             Description = "URGENT refund",
             Status = CaseStatus.InProgress,
-        }).Wait();
+        });
 
         var action = await controller.GetMyCase(1);
 
@@ -156,7 +156,7 @@ public class AuthBoundaryTests
     public async Task GetMyCase_Returns404_ForCaseOwnedByAnotherCustomer()
     {
         var controller = BuildPortal(out var cases, out _, customerId: 1);
-        (cases as IRepository<Case>).AddAsync(new Case { Id = 2, CustomerId = 2, Subject = "Other" }).Wait();
+        await (cases as IRepository<Case>).AddAsync(new Case { Id = 2, CustomerId = 2, Subject = "Other" });
 
         var action = await controller.GetMyCase(2);
 
@@ -177,7 +177,7 @@ public class AuthBoundaryTests
     public async Task GetMyCase_CustomerDto_OmitsPriorityAndInternalFields()
     {
         var controller = BuildPortal(out var cases, out _, customerId: 1);
-        (cases as IRepository<Case>).AddAsync(new Case
+        await (cases as IRepository<Case>).AddAsync(new Case
         {
             Id = 1,
             CustomerId = 1,
@@ -189,7 +189,7 @@ public class AuthBoundaryTests
             PriorityReason = "urgent",
             CategoryId = 3,                     // internal — must NOT surface
             AssignedToUserId = "agent-1",       // internal — must NOT surface
-        }).Wait();
+        });
 
         var action = await controller.GetMyCase(1);
         var ok = Assert.IsType<OkObjectResult>(action.Result);
@@ -209,7 +209,7 @@ public class AuthBoundaryTests
     {
         var comments = new FakeCaseCommentService();
         var controller = BuildPortal(out var cases, out _, customerId: 1, comments);
-        (cases as IRepository<Case>).AddAsync(new Case { Id = 2, CustomerId = 2, Subject = "Other" }).Wait();
+        await (cases as IRepository<Case>).AddAsync(new Case { Id = 2, CustomerId = 2, Subject = "Other" });
 
         var action = await controller.PostComment(2, new CreateCaseCommentDto { Body = "hi" });
 
@@ -226,7 +226,7 @@ public class AuthBoundaryTests
         // before the service is reached.
         var comments = new FakeCaseCommentService();
         var controller = BuildPortal(out var cases, out _, customerId: 1, comments);
-        (cases as IRepository<Case>).AddAsync(new Case { Id = 1, CustomerId = 1, Subject = "S" }).Wait();
+        await (cases as IRepository<Case>).AddAsync(new Case { Id = 1, CustomerId = 1, Subject = "S" });
         controller.ModelState.AddModelError(nameof(CreateCaseCommentDto.Body), "Comment body is required.");
 
         var action = await controller.PostComment(1, new CreateCaseCommentDto { Body = "" });
@@ -241,8 +241,8 @@ public class AuthBoundaryTests
         // Whitespace passes [Required] but the service rejects it; the controller
         // must map that ArgumentException to 400 (not 500).
         var svc = BuildCommentService(out var cases, out _, out _, out var customers);
-        (cases as IRepository<Case>).AddAsync(new Case { Id = 1, CustomerId = 1, Subject = "S" }).Wait();
-        (customers as IRepository<Customer>).AddAsync(new Customer { Id = 1, Name = "Juan" }).Wait();
+        await (cases as IRepository<Case>).AddAsync(new Case { Id = 1, CustomerId = 1, Subject = "S" });
+        await (customers as IRepository<Customer>).AddAsync(new Customer { Id = 1, Name = "Juan" });
 
         var controller = new CustomerPortalController(cases, svc, new FakeCaseService(), new FakeCustomerAuthService(), new FakeNotificationService());
         var identity = new ClaimsIdentity(new[]
@@ -266,7 +266,7 @@ public class AuthBoundaryTests
     {
         var comments = new FakeCaseCommentService();
         var controller = BuildPortal(out var cases, out _, customerId: 7, comments);
-        (cases as IRepository<Case>).AddAsync(new Case { Id = 1, CustomerId = 7, Subject = "S" }).Wait();
+        await (cases as IRepository<Case>).AddAsync(new Case { Id = 1, CustomerId = 7, Subject = "S" });
 
         var action = await controller.PostComment(1, new CreateCaseCommentDto { Body = "Thanks!" });
 
@@ -313,8 +313,8 @@ public class AuthBoundaryTests
     public async Task AddStaffCommentAsync_SetsOnlyAuthorUserId()
     {
         var svc = BuildCommentService(out var cases, out var comments, out var users, out _);
-        (cases as IRepository<Case>).AddAsync(new Case { Id = 1, CustomerId = 1, Subject = "S" }).Wait();
-        (users as IRepository<User>).AddAsync(new User { Id = "agent-1", FullName = "Grace Agent" }).Wait();
+        await (cases as IRepository<Case>).AddAsync(new Case { Id = 1, CustomerId = 1, Subject = "S" });
+        await (users as IRepository<User>).AddAsync(new User { Id = "agent-1", FullName = "Grace Agent" });
 
         var dto = await svc.AddStaffCommentAsync(1, "agent-1", "Looking into this");
 
@@ -329,8 +329,8 @@ public class AuthBoundaryTests
     public async Task AddCustomerCommentAsync_SetsOnlyAuthorCustomerId()
     {
         var svc = BuildCommentService(out var cases, out var comments, out _, out var customers);
-        (cases as IRepository<Case>).AddAsync(new Case { Id = 1, CustomerId = 9, Subject = "S" }).Wait();
-        (customers as IRepository<Customer>).AddAsync(new Customer { Id = 9, Name = "Juan" }).Wait();
+        await (cases as IRepository<Case>).AddAsync(new Case { Id = 1, CustomerId = 9, Subject = "S" });
+        await (customers as IRepository<Customer>).AddAsync(new Customer { Id = 9, Name = "Juan" });
 
         var dto = await svc.AddCustomerCommentAsync(1, 9, "Any update?");
 
@@ -347,8 +347,8 @@ public class AuthBoundaryTests
     public async Task AddStaffCommentAsync_RejectsEmptyBody(string body)
     {
         var svc = BuildCommentService(out var cases, out var comments, out var users, out _);
-        (cases as IRepository<Case>).AddAsync(new Case { Id = 1, CustomerId = 1, Subject = "S" }).Wait();
-        (users as IRepository<User>).AddAsync(new User { Id = "agent-1", FullName = "Grace" }).Wait();
+        await (cases as IRepository<Case>).AddAsync(new Case { Id = 1, CustomerId = 1, Subject = "S" });
+        await (users as IRepository<User>).AddAsync(new User { Id = "agent-1", FullName = "Grace" });
 
         await Assert.ThrowsAsync<ArgumentException>(() => svc.AddStaffCommentAsync(1, "agent-1", body));
         Assert.Empty(comments.Query());
@@ -358,7 +358,7 @@ public class AuthBoundaryTests
     public async Task AddCustomerCommentAsync_Throws_WhenCaseMissing()
     {
         var svc = BuildCommentService(out var cases, out var comments, out _, out var customers);
-        (customers as IRepository<Customer>).AddAsync(new Customer { Id = 9, Name = "Juan" }).Wait();
+        await (customers as IRepository<Customer>).AddAsync(new Customer { Id = 9, Name = "Juan" });
 
         await Assert.ThrowsAsync<KeyNotFoundException>(() => svc.AddCustomerCommentAsync(404, 9, "hi"));
         Assert.Empty(comments.Query());
@@ -368,7 +368,7 @@ public class AuthBoundaryTests
     public async Task AddStaffCommentAsync_Throws_WhenUserMissing()
     {
         var svc = BuildCommentService(out var cases, out var comments, out var users, out _);
-        (cases as IRepository<Case>).AddAsync(new Case { Id = 1, CustomerId = 1, Subject = "S" }).Wait();
+        await (cases as IRepository<Case>).AddAsync(new Case { Id = 1, CustomerId = 1, Subject = "S" });
 
         await Assert.ThrowsAsync<KeyNotFoundException>(() => svc.AddStaffCommentAsync(1, "ghost", "hi"));
         Assert.Empty(comments.Query());

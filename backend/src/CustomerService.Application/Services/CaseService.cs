@@ -335,6 +335,17 @@ public class CaseService : ICaseService
             .Select(g => new { CaseId = g.Key, LatestAt = g.Max(cm => cm.CreatedAtUtc) })
             .ToDictionaryAsync(x => x.CaseId, x => x.LatestAt);
 
+        // All non-self comments with timestamps — used to count the actual
+        // number of unread messages per conversation (vs the boolean flag).
+        var allNonSelfComments = await _comments.Query()
+            .Where(cm => assignedCaseIds.Contains(cm.CaseId) && cm.AuthorUserId != agentUserId)
+            .Select(cm => new { cm.CaseId, cm.CreatedAtUtc })
+            .ToListAsync();
+
+        var nonSelfByCase = allNonSelfComments
+            .GroupBy(cm => cm.CaseId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
         // Batch-load all cases in one query to avoid N+1 per-case lookups.
         var caseEntities = await _cases.Query()
             .Include(c => c.Customer)
@@ -353,6 +364,12 @@ public class CaseService : ICaseService
             var latestNonSelfAt = latestNonSelfComments.TryGetValue(comment.CaseId, out var t) ? t : DateTime.MinValue;
             var unread = latestNonSelfAt > lastViewed;
 
+            var unreadCount = 0;
+            if (nonSelfByCase.TryGetValue(comment.CaseId, out var caseComments))
+            {
+                unreadCount = caseComments.Count(cm => cm.CreatedAtUtc > lastViewed);
+            }
+
             result.Add(new ConversationSummaryDto
             {
                 CaseId = comment.CaseId,
@@ -367,6 +384,7 @@ public class CaseService : ICaseService
                     ?? comment.AuthorCustomer?.Name
                     ?? "Unknown",
                 Unread = unread,
+                UnreadCount = unreadCount,
             });
         }
 
@@ -433,6 +451,17 @@ public class CaseService : ICaseService
             .Select(g => new { CaseId = g.Key, LatestAt = g.Max(cm => cm.CreatedAtUtc) })
             .ToDictionaryAsync(x => x.CaseId, x => x.LatestAt);
 
+        // All non-self comments with timestamps — used to count the actual
+        // number of unread messages per conversation (vs the boolean flag).
+        var allNonSelfComments = await _comments.Query()
+            .Where(cm => caseIdsWithComments.Contains(cm.CaseId) && cm.AuthorUserId != viewerUserId)
+            .Select(cm => new { cm.CaseId, cm.CreatedAtUtc })
+            .ToListAsync();
+
+        var nonSelfByCase = allNonSelfComments
+            .GroupBy(cm => cm.CaseId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
         // Batch-load all cases in one query to avoid N+1 per-case lookups.
         var caseEntities = await _cases.Query()
             .Include(c => c.Customer)
@@ -452,6 +481,12 @@ public class CaseService : ICaseService
             var latestNonSelfAt = latestNonSelfComments.TryGetValue(comment.CaseId, out var t) ? t : DateTime.MinValue;
             var unread = latestNonSelfAt > lastViewed;
 
+            var unreadCount = 0;
+            if (nonSelfByCase.TryGetValue(comment.CaseId, out var caseComments))
+            {
+                unreadCount = caseComments.Count(cm => cm.CreatedAtUtc > lastViewed);
+            }
+
             result.Add(new ConversationSummaryDto
             {
                 CaseId = comment.CaseId,
@@ -467,6 +502,7 @@ public class CaseService : ICaseService
                     ?? comment.AuthorCustomer?.Name
                     ?? "Unknown",
                 Unread = unread,
+                UnreadCount = unreadCount,
             });
         }
 

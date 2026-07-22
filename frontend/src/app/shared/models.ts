@@ -182,6 +182,7 @@ export interface Conversation {
   lastCommentAtUtc: string;
   lastCommentAuthor: string;
   unread: boolean;
+  unreadCount: number;
 }
 
 /** Payload for a customer to create a case. */

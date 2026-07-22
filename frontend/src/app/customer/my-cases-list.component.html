@@ -33,9 +33,9 @@
   }
 
   @if (!loading() && cases().length > 0) {
-    <ul class="case-list">
+    <ul class="case-list" appKbdNav kbdNavItem="li.case-item" [kbdNavWrap]="true">
       @for (c of cases(); track c.id) {
-        <li class="case-item cs-lift reveal" appReveal (click)="open(c.id)">
+        <li class="case-item cs-lift reveal" appReveal (click)="open(c.id)" tabindex="-1" (keydown.enter)="open(c.id)">
           <div class="case-main">
             <span class="case-subject">{{ c.subject }}</span>
             <span class="case-date">{{ formatDate(c.createdAtUtc) }}</span>

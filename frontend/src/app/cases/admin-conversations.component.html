@@ -14,13 +14,14 @@
       <p>No conversations yet. When a customer or agent posts a comment on any case, it will appear here.</p>
     </div>
   } @else {
-    <ul class="conv-list stagger">
+    <ul class="conv-list stagger" appKbdNav kbdNavItem="button.conv-card" [kbdNavWrap]="true">
       @for (c of conversations(); track c.caseId) {
         <li>
           <button
             type="button"
             class="conv-card cs-lift"
             [class.unread]="c.unread"
+            tabindex="-1"
             (click)="open(c)"
           >
             <span class="conv-icon">

@@ -9,6 +9,7 @@ import { BaseChartDirective } from 'ng2-charts';
 import { ChartConfiguration, ChartOptions, ChartEvent } from 'chart.js';
 import { RevealDirective } from '../shared/reveal.directive';
 import { CsIconComponent } from '../shared/cs-icon.component';
+import { KbdNavDirective } from '../shared/keyboard-nav.directive';
 import { RouteLoadingService } from '../shared/route-loading.service';
 import { DashboardService } from './dashboard.service';
 import { Dashboard, RecentCase, AgentWorkload } from '../shared/models';
@@ -35,6 +36,7 @@ import { AuthService } from '../auth/auth.service';
     BaseChartDirective,
     RevealDirective,
     CsIconComponent,
+    KbdNavDirective,
   ],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',

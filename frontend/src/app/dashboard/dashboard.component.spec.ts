@@ -1,9 +1,20 @@
 import { TestBed } from '@angular/core/testing';
+import { signal } from '@angular/core';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { DashboardComponent } from './dashboard.component';
 import { DashboardService } from './dashboard.service';
 import { Dashboard } from '../shared/models';
+import { LayoutComponent } from '../shared/layout/layout.component';
+
+/**
+ * Mock LayoutComponent — the real one injects its own dependencies and is not
+ * available when DashboardComponent is tested in isolation.
+ */
+const mockLayout = {
+  opened: signal(true),
+  brandAnimate: signal(false),
+};
 
 /**
  * Tests for the Dashboard component: verifies KPI derivation and that the
@@ -22,6 +33,12 @@ describe('DashboardComponent', () => {
     aiPredictedCases: 5,
     highPriorityCases: 5,
     totalCustomers: 11,
+    myCases: 9,
+    myOpenCases: 7,
+    myHighPriorityCases: 4,
+    myAiPredictedCases: 0,
+    myResolvedCases: 1,
+    myOverdueFollowUps: 6,
     byStatus: { InProgress: 1, Escalated: 1, Resolved: 1, Closed: 1 },
     byPriority: { Low: 3, Medium: 5, High: 5 },
     trend: [{ date: '2026-07-13', count: 1 }],
@@ -44,7 +61,11 @@ describe('DashboardComponent', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [DashboardComponent],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: LayoutComponent, useValue: mockLayout },
+      ],
     });
     component = TestBed.createComponent(DashboardComponent).componentInstance;
     service = TestBed.inject(DashboardService);
@@ -80,6 +101,9 @@ describe('DashboardComponent', () => {
     component.ngOnInit();
     const req = httpMock.expectOne('/api/dashboard');
     req.flush(sample);
+    // The admin dashboard also fetches agent-workload data.
+    const workloadReq = httpMock.expectOne('/api/users/agent-workload');
+    workloadReq.flush([]);
     expect(component.data()?.totalCases).toBe(13);
     expect(component.loading()).toBeFalse();
   });

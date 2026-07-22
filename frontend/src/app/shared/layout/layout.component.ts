@@ -1,4 +1,4 @@
-import { Component, effect, inject, signal, viewChild } from '@angular/core';
+import { Component, effect, HostListener, inject, signal, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { MatSidenavModule } from '@angular/material/sidenav';
@@ -13,6 +13,7 @@ import { ConfirmDialogComponent } from '../confirm-dialog.component';
 import { NotificationBellComponent } from '../notification-bell.component';
 import { StaffAccountPanelComponent } from '../staff-account-panel.component';
 import { NavBadgeService } from '../nav-badge.service';
+import { KbdNavDirective } from '../keyboard-nav.directive';
 
 /**
  * Application shell: a white sidenav with navigation (active = light indigo
@@ -33,6 +34,7 @@ import { NavBadgeService } from '../nav-badge.service';
     CsIconComponent,
     NotificationBellComponent,
     StaffAccountPanelComponent,
+    KbdNavDirective,
   ],
   templateUrl: './layout.component.html',
   styleUrl: './layout.component.scss',
@@ -104,6 +106,22 @@ export class LayoutComponent {
     // only plays on an explicit toggle, not on route changes.
     this.brandAnimate.set(true);
     setTimeout(() => this.brandAnimate.set(false), 340);
+  }
+
+  /** Listen for global keyboard shortcuts (Ctrl+B to toggle sidenav, Escape to close on mobile). */
+  @HostListener('document:keydown', ['$event'])
+  handleGlobalShortcut(event: KeyboardEvent): void {
+    // Ctrl+B / Cmd+B: toggle sidenav
+    if ((event.ctrlKey || event.metaKey) && event.key === 'b') {
+      event.preventDefault();
+      this.toggleSidenav();
+      return;
+    }
+    // Escape: close overlay sidenav on mobile
+    if (event.key === 'Escape' && this.isHandset() && this.opened()) {
+      this.toggleSidenav();
+      return;
+    }
   }
 
   /** Sync the open state when the sidenav is closed via its backdrop (overlay

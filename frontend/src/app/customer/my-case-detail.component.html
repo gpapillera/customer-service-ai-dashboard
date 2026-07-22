@@ -69,6 +69,7 @@
             formControlName="body"
             rows="2"
             placeholder="Write a reply…"
+            (keydown)="onCommentKeydown($event)"
           ></textarea>
           <div class="reply-actions">
             <button
