@@ -52,16 +52,35 @@ export class ConversationsListComponent implements OnInit, OnDestroy {
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly searchTerm = signal('');
+  readonly dateFrom = signal('');
+  readonly dateTo = signal('');
 
-  /** Conversations filtered by subject or customer name. */
+  /** Conversations filtered by subject, customer name, and date range. */
   readonly filteredConversations = computed(() => {
+    let list = this.conversations();
     const term = this.searchTerm().toLowerCase().trim();
-    if (!term) return this.conversations();
-    return this.conversations().filter(
-      (c) =>
-        c.subject.toLowerCase().includes(term) ||
-        c.customerName.toLowerCase().includes(term)
-    );
+    if (term) {
+      list = list.filter(
+        (c) =>
+          c.subject.toLowerCase().includes(term) ||
+          c.customerName.toLowerCase().includes(term)
+      );
+    }
+    const from = this.dateFrom();
+    if (from) {
+      const fromMs = new Date(from).getTime();
+      if (!isNaN(fromMs)) {
+        list = list.filter((c) => new Date(c.lastCommentAtUtc).getTime() >= fromMs);
+      }
+    }
+    const to = this.dateTo();
+    if (to) {
+      const toMs = new Date(to).getTime();
+      if (!isNaN(toMs)) {
+        list = list.filter((c) => new Date(c.lastCommentAtUtc).getTime() <= toMs + 86_400_000);
+      }
+    }
+    return list;
   });
 
   private pollTimer: ReturnType<typeof setInterval> | null = null;

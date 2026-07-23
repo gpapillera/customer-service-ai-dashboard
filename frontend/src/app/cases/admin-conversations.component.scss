@@ -49,6 +49,8 @@
 .search-toolbar {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
   width: 100%;
   min-height: 76px;
   height: auto;
@@ -61,7 +63,7 @@
 }
 
 .search-field {
-  width: 100%;
+  flex: 1 1 280px;
   height: 48px;
   margin: 0;
   --mdc-outlined-text-field-outline-color: #dce6ef;
@@ -69,6 +71,45 @@
   --mdc-outlined-text-field-focus-outline-color: #dce6ef;
   --mdc-outlined-text-field-container-shape: 8px;
   --mat-form-field-container-text-size: 16px;
+}
+
+.date-filters {
+  display: flex;
+  gap: 12px;
+  flex: 0 0 auto;
+}
+
+.date-field {
+  width: 160px;
+  height: 48px;
+  margin: 0;
+  --mdc-outlined-text-field-outline-color: #dce6ef;
+  --mdc-outlined-text-field-hover-outline-color: #dce6ef;
+  --mdc-outlined-text-field-focus-outline-color: #dce6ef;
+  --mdc-outlined-text-field-container-shape: 8px;
+  --mat-form-field-container-text-size: 16px;
+}
+
+.agent-field {
+  width: 180px;
+}
+
+/* Responsive: stack on narrow screens */
+@media (max-width: 640px) {
+  .search-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .search-field {
+    flex: 1 1 auto;
+  }
+  .date-filters {
+    flex-direction: column;
+    width: 100%;
+  }
+  .date-field {
+    width: 100%;
+  }
 }
 
 .search-field ::ng-deep .mat-mdc-text-field-wrapper {
@@ -115,6 +156,53 @@
   height: 20px;
   margin-left: 0.85rem;
   margin-right: 0.75rem;
+}
+
+/* ── Date & agent fields share search-field styling ── */
+
+.date-field ::ng-deep .mat-mdc-text-field-wrapper,
+.agent-field ::ng-deep .mat-mdc-text-field-wrapper {
+  height: 48px;
+  border: 1px solid #dce6ef !important;
+  border-radius: 8px !important;
+  overflow: hidden;
+}
+.date-field ::ng-deep .mat-mdc-form-field-flex,
+.agent-field ::ng-deep .mat-mdc-form-field-flex {
+  height: 48px;
+  align-items: center;
+}
+.date-field ::ng-deep .mdc-notched-outline,
+.agent-field ::ng-deep .mdc-notched-outline {
+  display: none !important;
+}
+.date-field ::ng-deep .mat-mdc-form-field-infix,
+.agent-field ::ng-deep .mat-mdc-form-field-infix {
+  padding: 0 0.75rem !important;
+  display: flex;
+  align-items: center;
+  min-height: 0;
+}
+.date-field ::ng-deep input.mat-mdc-input-element {
+  font-size: 16px !important;
+  font-weight: 400;
+  color: var(--cs-text-muted) !important;
+}
+.date-field ::ng-deep input.mat-mdc-input-element::placeholder {
+  color: var(--cs-text-muted) !important;
+  opacity: 1 !important;
+}
+.date-field ::ng-deep .mat-mdc-form-field-subscript-wrapper,
+.agent-field ::ng-deep .mat-mdc-form-field-subscript-wrapper {
+  display: none;
+}
+.agent-field ::ng-deep .mat-mdc-select-value-text {
+  font-size: 16px !important;
+  font-weight: 600;
+  color: var(--cs-text, #0f172a) !important;
+}
+.agent-field ::ng-deep .mat-mdc-select-placeholder {
+  color: var(--cs-text-muted) !important;
 }
 
 .conv-list {

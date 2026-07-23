@@ -5,6 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSelectModule } from '@angular/material/select';
 import { RevealDirective } from '../shared/reveal.directive';
 import { CsIconComponent } from '../shared/cs-icon.component';
 import { KbdNavDirective } from '../shared/keyboard-nav.directive';
@@ -28,6 +29,7 @@ import { LayoutComponent } from '../shared/layout/layout.component';
     MatCardModule,
     MatInputModule,
     MatProgressSpinnerModule,
+    MatSelectModule,
     RevealDirective,
     CsIconComponent,
     KbdNavDirective,
@@ -49,16 +51,51 @@ export class AdminConversationsComponent implements OnInit, OnDestroy {
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly searchTerm = signal('');
+  readonly dateFrom = signal('');
+  readonly dateTo = signal('');
 
-  /** Conversations filtered by subject or customer name. */
+  /** All unique agent names from the conversations list. */
+  readonly agentOptions = computed(() => {
+    const names = new Set<string>();
+    for (const c of this.conversations()) {
+      if (c.assignedAgentName) names.add(c.assignedAgentName);
+    }
+    return Array.from(names).sort();
+  });
+
+  /** Selected agent filter (empty = all). */
+  readonly agentFilter = signal('');
+
+  /** Conversations filtered by subject, customer name, date range, and agent. */
   readonly filteredConversations = computed(() => {
+    let list = this.conversations();
     const term = this.searchTerm().toLowerCase().trim();
-    if (!term) return this.conversations();
-    return this.conversations().filter(
-      (c) =>
-        c.subject.toLowerCase().includes(term) ||
-        c.customerName.toLowerCase().includes(term)
-    );
+    if (term) {
+      list = list.filter(
+        (c) =>
+          c.subject.toLowerCase().includes(term) ||
+          c.customerName.toLowerCase().includes(term)
+      );
+    }
+    const agent = this.agentFilter();
+    if (agent) {
+      list = list.filter((c) => c.assignedAgentName === agent);
+    }
+    const from = this.dateFrom();
+    if (from) {
+      const fromMs = new Date(from).getTime();
+      if (!isNaN(fromMs)) {
+        list = list.filter((c) => new Date(c.lastCommentAtUtc).getTime() >= fromMs);
+      }
+    }
+    const to = this.dateTo();
+    if (to) {
+      const toMs = new Date(to).getTime();
+      if (!isNaN(toMs)) {
+        list = list.filter((c) => new Date(c.lastCommentAtUtc).getTime() <= toMs + 86_400_000);
+      }
+    }
+    return list;
   });
 
   private pollTimer: ReturnType<typeof setInterval> | null = null;

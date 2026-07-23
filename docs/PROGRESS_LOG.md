@@ -2,6 +2,16 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 24l — Message Date/Participant Filters] (2026-07-23)
+**Status:** ✅ COMPLETE (`ng build` → 0 errors)
+**What changed:**
+- **Frontend — Conversations List (agent view):** Added `dateFrom` and `dateTo` string signals bound to `<input type="date">` fields in the search toolbar. `filteredConversations` computed now filters by date range (from/to with end-of-day 23:59:59 cut-off). Added `.date-filters` container with `.date-field` inputs in the template.
+- **Frontend — Conversations List SCSS:** Converted `.search-toolbar` from `display: flex` to `flex-wrap: wrap` with `gap: 12px`; `.search-field` resized to `flex: 1 1 280px`. Added `.date-field` override styles (48px height, `#dce6ef` border, `8px` radius, hidden notched-outline via `::ng-deep`) matching the search field pattern. Responsive `@media (max-width: 640px)` stack arranges all fields vertically.
+- **Frontend — Admin Conversations Page:** Added `dateFrom`, `dateTo`, `agentFilter` string signals and `agentOptions` computed (unique sorted agent names from conversations). `filteredConversations` now filters by both date range AND agent name. Added `MatSelectModule` to imports.
+- **Frontend — Admin Conversations HTML:** Added `.date-filters` with From/To date inputs and an agent `<mat-select>` dropdown labeled "All Agents" by default, populated from `agentOptions()`.
+- **Frontend — Admin Conversations SCSS:** Same flex-wrap toolbar and date-field styles as agent view plus `.agent-field` (180px width) with `::ng-deep` overrides for `mat-select-value-text` (16px, 600 weight) and `mat-select-placeholder`.
+- **Result:** Users can now filter conversations by date range (from/to) on both the agent conversation view and admin view; admin additionally gets an agent participant filter to narrow conversations by assigned agent.
+
 ## [Phase 24k — Agent ID + Profile Picture] (2026-07-23)
 **Status:** ✅ COMPLETE (`ng build` + `dotnet build` → 0 errors; 62/64 tests pass — 2 pre-existing Phase 24h failures)
 **What changed:**

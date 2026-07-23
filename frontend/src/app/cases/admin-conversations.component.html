@@ -22,6 +22,43 @@
           (ngModelChange)="searchTerm.set($event)"
         />
       </mat-form-field>
+      <div class="date-filters">
+        <mat-form-field appearance="outline" class="date-field">
+          <cs-icon name="calendar" matPrefix class="prefix-icon"></cs-icon>
+          <input
+            matInput
+            type="date"
+            placeholder="From"
+            aria-label="From date"
+            [ngModel]="dateFrom()"
+            (ngModelChange)="dateFrom.set($event)"
+          />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="date-field">
+          <cs-icon name="calendar" matPrefix class="prefix-icon"></cs-icon>
+          <input
+            matInput
+            type="date"
+            placeholder="To"
+            aria-label="To date"
+            [ngModel]="dateTo()"
+            (ngModelChange)="dateTo.set($event)"
+          />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="date-field agent-field">
+          <mat-select
+            [ngModel]="agentFilter()"
+            (ngModelChange)="agentFilter.set($event ?? '')"
+            placeholder="Agent"
+            aria-label="Filter by agent"
+          >
+            <mat-option value="">All Agents</mat-option>
+            @for (name of agentOptions(); track name) {
+              <mat-option [value]="name">{{ name }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      </div>
     </div>
   </div>
 

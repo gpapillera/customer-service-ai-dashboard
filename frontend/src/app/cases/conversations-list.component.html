@@ -22,6 +22,30 @@
           (ngModelChange)="searchTerm.set($event)"
         />
       </mat-form-field>
+      <div class="date-filters">
+        <mat-form-field appearance="outline" class="date-field">
+          <cs-icon name="calendar" matPrefix class="prefix-icon"></cs-icon>
+          <input
+            matInput
+            type="date"
+            placeholder="From"
+            aria-label="From date"
+            [ngModel]="dateFrom()"
+            (ngModelChange)="dateFrom.set($event)"
+          />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="date-field">
+          <cs-icon name="calendar" matPrefix class="prefix-icon"></cs-icon>
+          <input
+            matInput
+            type="date"
+            placeholder="To"
+            aria-label="To date"
+            [ngModel]="dateTo()"
+            (ngModelChange)="dateTo.set($event)"
+          />
+        </mat-form-field>
+      </div>
     </div>
   </div>
 
