@@ -288,10 +288,18 @@ public class CaseService : ICaseService
     }
 
     /// <inheritdoc/>
-    public async Task DeleteAsync(int id)
+    public async Task DeleteAsync(int id, string? callerRole = null, string? callerUserId = null)
     {
-        var caseEntity = await _cases.GetByIdAsync(id)
+        // Only Admin may delete cases.
+        if (!string.Equals(callerRole, nameof(UserRole.Admin), StringComparison.OrdinalIgnoreCase))
+            throw new ForbiddenException("Only admins can delete cases.");
+
+        var caseEntity = await _cases.Query()
+            .Include(c => c.Comments)
+            .Include(c => c.CallLogs)
+            .FirstOrDefaultAsync(c => c.Id == id)
             ?? throw new KeyNotFoundException($"Case {id} not found.");
+
         _cases.Remove(caseEntity);
         await _cases.SaveChangesAsync();
     }

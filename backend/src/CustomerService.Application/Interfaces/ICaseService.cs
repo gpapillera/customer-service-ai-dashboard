@@ -38,9 +38,11 @@ public interface ICaseService
     /// <param name="callerUserId">Id of the calling user (used to scope an Agent's writes).</param>
     Task UpdateAsync(int id, UpdateCaseDto dto, string? callerRole = null, string? callerUserId = null);
 
-    /// <summary>Deletes a case.</summary>
+    /// <summary>Deletes a case (Admin only).</summary>
     /// <param name="id">Case id.</param>
-    Task DeleteAsync(int id);
+    /// <param name="callerRole">Role of the calling user (only Admin may delete).</param>
+    /// <param name="callerUserId">Id of the calling user (for audit logging).</param>
+    Task DeleteAsync(int id, string? callerRole = null, string? callerUserId = null);
 
     /// <summary>
     /// Returns the agent's "Messages" conversations: cases assigned to the

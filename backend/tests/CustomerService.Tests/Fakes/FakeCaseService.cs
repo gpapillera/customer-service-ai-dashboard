@@ -23,7 +23,7 @@ public class FakeCaseService : ICaseService
 
     public Task UpdateAsync(int id, UpdateCaseDto dto, string? callerRole = null, string? callerUserId = null) => Task.CompletedTask;
 
-    public Task DeleteAsync(int id) => Task.CompletedTask;
+    public Task DeleteAsync(int id, string? callerRole = null, string? callerUserId = null) => Task.CompletedTask;
 
     public Task<IReadOnlyList<ConversationSummaryDto>> GetMyConversationsAsync(string agentUserId) =>
         Task.FromResult<IReadOnlyList<ConversationSummaryDto>>(new List<ConversationSummaryDto>());

@@ -2,6 +2,14 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 24h — Admin Delete Cascade Fix] (2026-07-23)
+**Status:** ✅ COMPLETE (`dotnet build` → 0 errors)
+**What changed:**
+- **Authorization:** `CasesController.Delete` now requires `[Authorize(Roles = "Admin")]` — Agents can no longer delete cases.
+- **Service:** `ICaseService.DeleteAsync` now accepts `callerRole`/`callerUserId` parameters. The service enforces Admin-only deletion with `ForbiddenException` as defense-in-depth.
+- **Cascade fix:** `CaseService.DeleteAsync` now loads the case with `.Include(c => c.Comments).Include(c => c.CallLogs)` via the `Query()` method instead of `GetByIdAsync()`, ensuring all child entities are tracked and EF Core cascades deletion correctly regardless of database-level cascade configuration.
+- **Tests:** Updated `FakeCaseService.DeleteAsync` signature to match the new interface.
+
 ## [Phase 24g — Case Pill Hover Tooltip] (2026-07-23)
 **Status:** ✅ COMPLETE (`ng build` + `dotnet build` → 0 errors)
 **What changed:**

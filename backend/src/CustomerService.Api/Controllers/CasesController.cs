@@ -135,13 +135,16 @@ public class CasesController : ControllerBase
         return NoContent();
     }
 
-    /// <summary>Deletes a case.</summary>
+    /// <summary>Deletes a case (Admin only).</summary>
     /// <param name="id">Case id.</param>
     [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Admin")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Delete(int id)
     {
-        await _service.DeleteAsync(id);
+        var callerRole = User.FindFirst(ClaimTypes.Role)?.Value;
+        var callerUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        await _service.DeleteAsync(id, callerRole, callerUserId);
         return NoContent();
     }
 
