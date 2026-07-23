@@ -112,7 +112,7 @@ public class UsersController : ControllerBase
     public IReadOnlyList<AgentSummary> GetAll()
         => _users.Query()
             .OrderBy(u => u.FullName)
-            .Select(u => new AgentSummary(u.Id, u.FullName, u.Email, u.Role.ToString(), 0))
+            .Select(u => new AgentSummary(u.Id, u.FullName, u.Email, u.Role.ToString(), 0, u.AgentDisplayId, u.ProfilePictureUrl))
             .ToList();
 
     /// <summary>
@@ -131,7 +131,7 @@ public class UsersController : ControllerBase
         var agents = await _users.Query()
             .Where(u => u.Role == UserRole.Agent)
             .OrderBy(u => u.FullName)
-            .Select(u => new { u.Id, u.FullName, u.Email, u.Role })
+            .Select(u => new { u.Id, u.FullName, u.Email, u.Role, u.AgentDisplayId, u.ProfilePictureUrl })
             .ToListAsync();
 
         // Real aggregate: count open cases per agent directly in the database.
@@ -150,7 +150,9 @@ public class UsersController : ControllerBase
                 a.FullName,
                 a.Email,
                 a.Role.ToString(),
-                countById.TryGetValue(a.Id, out var n) ? n : 0))
+                countById.TryGetValue(a.Id, out var n) ? n : 0,
+                a.AgentDisplayId,
+                a.ProfilePictureUrl))
             .ToList();
     }
 
@@ -233,4 +235,4 @@ public class UsersController : ControllerBase
 /// <param name="Email">Login email.</param>
 /// <param name="Role">Role name (Admin or Agent).</param>
 /// <param name="OpenCaseCount">Number of currently-open cases assigned to this user (agents only).</param>
-public record AgentSummary(string Id, string FullName, string Email, string Role, int OpenCaseCount);
+public record AgentSummary(string Id, string FullName, string Email, string Role, int OpenCaseCount, string? AgentDisplayId = null, string? ProfilePictureUrl = null);

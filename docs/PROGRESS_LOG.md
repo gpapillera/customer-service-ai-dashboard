@@ -2,6 +2,19 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 24k — Agent ID + Profile Picture] (2026-07-23)
+**Status:** ✅ COMPLETE (`ng build` + `dotnet build` → 0 errors; 62/64 tests pass — 2 pre-existing Phase 24h failures)
+**What changed:**
+- **Backend — Domain:** Added `AgentDisplayId` (string, nullable) and `ProfilePictureUrl` (string, nullable) to `User` entity.
+- **Backend — Seed Data:** All 3 seed users now have `AgentDisplayId` (ADM-001, AGT-001, AGT-002) and `ProfilePictureUrl` (DiceBear avataaars SVG avatars).
+- **Backend — DTOs:** Added `AgentDisplayId` and `ProfilePictureUrl` to `LoginResponse`, `StaffProfileDto`, and `ProfilePictureUrl` to `UpdateAgentDto`.
+- **Backend — Controller:** Extended `AgentSummary` record with optional `AgentDisplayId`/`ProfilePictureUrl`; both `GetAll()` and `GetAgentsSummary()` now include these fields.
+- **Backend — AuthService:** `LoginAsync` and `GetProfileAsync` now map `AgentDisplayId` and `ProfilePictureUrl` from the `User` entity.
+- **Frontend — Models:** Added optional `agentDisplayId` and `profilePictureUrl` to `Agent`, `LoginResponse`, `StaffProfile`, and `UpdateAgent` interfaces.
+- **Frontend — Agent List:** Card template shows profile picture as an `<img>` (with DiceBear fallback) when `profilePictureUrl` is present, or the existing icon avatar otherwise. Added `agentDisplayId` monospace badge below the email.
+- **Frontend — Overlay Panel:** Agent detail slide-over also shows profile picture and display ID.
+- **Frontend — SCSS:** Added `.avatar-img` (rounded, object-fit cover), `.agent-display-id` (monospace badge with dark mode support), and `.overlay-avatar`/`.overlay-did` styles.
+
 ## [Phase 24j — AI/Overdue Button Relocation] (2026-07-23)
 **Status:** ✅ COMPLETE (`ng build` → 0 errors)
 **What changed:**

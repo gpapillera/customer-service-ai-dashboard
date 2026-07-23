@@ -23,6 +23,12 @@ public class User
     /// <summary>Role assigned to the user (Admin or Agent).</summary>
     public UserRole Role { get; set; } = UserRole.Agent;
 
+    /// <summary>Human-readable display ID (e.g. AGT-001, ADM-001).</summary>
+    public string? AgentDisplayId { get; set; }
+
+    /// <summary>Optional profile picture URL (Gravatar or upload).</summary>
+    public string? ProfilePictureUrl { get; set; }
+
     /// <summary>UTC timestamp when the record was created.</summary>
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 

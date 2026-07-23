@@ -27,9 +27,9 @@ public static class SeedData
     /// <returns>List of users.</returns>
     public static List<User> Users() => new()
     {
-        new User { Id = "admin-001", UserName = "admin", FullName = "Ada Admin", Email = "admin@demo.com", Role = UserRole.Admin },
-        new User { Id = "agent-001", UserName = "agent", FullName = "Grace Agent", Email = "agent@demo.com", Role = UserRole.Agent },
-        new User { Id = "agent-002", UserName = "maria", FullName = "Maria Santos", Email = "maria@demo.com", Role = UserRole.Agent },
+        new User { Id = "admin-001", UserName = "admin", FullName = "Ada Admin", Email = "admin@demo.com", Role = UserRole.Admin, AgentDisplayId = "ADM-001", ProfilePictureUrl = "https://api.dicebear.com/7.x/avataaars/svg?seed=admin" },
+        new User { Id = "agent-001", UserName = "agent", FullName = "Grace Agent", Email = "agent@demo.com", Role = UserRole.Agent, AgentDisplayId = "AGT-001", ProfilePictureUrl = "https://api.dicebear.com/7.x/avataaars/svg?seed=agent" },
+        new User { Id = "agent-002", UserName = "maria", FullName = "Maria Santos", Email = "maria@demo.com", Role = UserRole.Agent, AgentDisplayId = "AGT-002", ProfilePictureUrl = "https://api.dicebear.com/7.x/avataaars/svg?seed=maria" },
     };
 
     /// <summary>Returns the seed customers.</summary>

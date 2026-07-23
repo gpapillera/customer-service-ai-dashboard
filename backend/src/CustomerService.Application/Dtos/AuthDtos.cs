@@ -30,6 +30,12 @@ public class LoginResponse
     /// <summary>Display name.</summary>
     public string FullName { get; set; } = string.Empty;
 
+    /// <summary>Human-readable display ID (e.g. AGT-001, ADM-001).</summary>
+    public string? AgentDisplayId { get; set; }
+
+    /// <summary>Optional profile picture URL.</summary>
+    public string? ProfilePictureUrl { get; set; }
+
     /// <summary>Assigned role.</summary>
     public string Role { get; set; } = string.Empty;
 }
@@ -187,6 +193,12 @@ public class StaffProfileDto
     /// <summary>Login username (read-only).</summary>
     public string UserName { get; set; } = string.Empty;
 
+    /// <summary>Human-readable display ID (e.g. AGT-001, ADM-001).</summary>
+    public string? AgentDisplayId { get; set; }
+
+    /// <summary>Optional profile picture URL.</summary>
+    public string? ProfilePictureUrl { get; set; }
+
     /// <summary>Staff role (Agent or Admin).</summary>
     public string Role { get; set; } = string.Empty;
 }
@@ -239,4 +251,7 @@ public class UpdateAgentDto
     [EmailAddress(ErrorMessage = "Invalid email address.")]
     [StringLength(200, ErrorMessage = "Email must be 200 characters or fewer.")]
     public string Email { get; set; } = string.Empty;
+
+    /// <summary>Optional profile picture URL (admin may set this).</summary>
+    public string? ProfilePictureUrl { get; set; }
 }

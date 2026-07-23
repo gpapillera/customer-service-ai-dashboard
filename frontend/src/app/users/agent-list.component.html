@@ -38,10 +38,17 @@
         <mat-card class="cs-lift agent-card reveal" appReveal (click)="openAgent(agent)" style="cursor:pointer">
           <mat-card-content>
             <div class="agent-top">
-              <div class="avatar"><cs-icon name="person"></cs-icon></div>
+              @if (agent.profilePictureUrl) {
+                <img class="avatar-img" [src]="agent.profilePictureUrl" alt="" loading="lazy" />
+              } @else {
+                <div class="avatar"><cs-icon name="person"></cs-icon></div>
+              }
               <div class="agent-id">
                 <div class="agent-name">{{ agent.fullName }}</div>
                 <div class="agent-email">{{ agent.email }}</div>
+                @if (agent.agentDisplayId) {
+                  <div class="agent-display-id">{{ agent.agentDisplayId }}</div>
+                }
               </div>
             </div>
             <div class="agent-meta">
@@ -66,10 +73,17 @@
   <aside class="overlay-panel cs-lift" role="dialog" aria-label="Agent details">
     <header class="overlay-head">
       <div class="overlay-title">
-        <div class="avatar"><cs-icon name="person"></cs-icon></div>
+        @if (agent.profilePictureUrl) {
+          <img class="avatar-img overlay-avatar" [src]="agent.profilePictureUrl" alt="" loading="lazy" />
+        } @else {
+          <div class="avatar"><cs-icon name="person"></cs-icon></div>
+        }
         <div>
           <div class="agent-name">{{ agent.fullName }}</div>
           <div class="agent-role"><span class="cs-pill status-resolved">Agent</span></div>
+          @if (agent.agentDisplayId) {
+            <div class="agent-display-id overlay-did">{{ agent.agentDisplayId }}</div>
+          }
         </div>
       </div>
       <button type="button" class="close-btn" (click)="close()" aria-label="Close">

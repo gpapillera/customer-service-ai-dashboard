@@ -14,6 +14,8 @@ export interface LoginResponse {
   userName: string;
   fullName: string;
   role: string;
+  agentDisplayId?: string;
+  profilePictureUrl?: string;
 }
 
 /** A customer record (matches CustomerDto). */
@@ -128,12 +130,15 @@ export interface Agent {
   role: 'Admin' | 'Agent';
   /** Open (not Resolved/Closed) cases currently assigned to this agent. */
   openCaseCount: number;
+  agentDisplayId?: string;
+  profilePictureUrl?: string;
 }
 
 /** Body for admin editing an agent's profile (Phase 11). */
 export interface UpdateAgent {
   fullName: string;
   email: string;
+  profilePictureUrl?: string;
 }
 
 /** A single point in a dashboard trend series. */
@@ -236,6 +241,8 @@ export interface StaffProfile {
   email: string;
   userName: string;
   role: string;
+  agentDisplayId?: string;
+  profilePictureUrl?: string;
 }
 
 /** Payload for updating the staff member's own name (email not accepted). */

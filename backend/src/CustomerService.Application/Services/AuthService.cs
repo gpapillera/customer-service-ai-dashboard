@@ -72,6 +72,8 @@ public class AuthService : IAuthService
             UserName = user.UserName,
             FullName = user.FullName,
             Role = user.Role.ToString(),
+            AgentDisplayId = user.AgentDisplayId,
+            ProfilePictureUrl = user.ProfilePictureUrl,
         };
     }
 
@@ -87,6 +89,8 @@ public class AuthService : IAuthService
             Email = user.Email,
             UserName = user.UserName,
             Role = user.Role.ToString(),
+            AgentDisplayId = user.AgentDisplayId,
+            ProfilePictureUrl = user.ProfilePictureUrl,
         };
     }
 
