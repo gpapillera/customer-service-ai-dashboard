@@ -312,6 +312,29 @@
   padding-left: 4.5rem;
 }
 
+/* When the bottom nav bar is shown, add bottom padding so content is not
+   hidden behind the fixed bar, and remove the left padding since there's no rail. */
+.content.sidebar-bottom-nav {
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+  padding-bottom: 4.75rem;
+}
+
+@media (max-width: 767px) {
+  .content:not(.sidebar-bottom-nav) {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
+
+/* On very small screens, tighten the content even further */
+@media (max-width: 400px) {
+  .content.sidebar-bottom-nav {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+}
+
 /* Collapsed icon rail shown only while the sidenav is hidden. It appears
    INSTANTLY with zero animation/transition so it never "pops" in from the
    left when the wide sidenav closes (backdrop click or toggle). */
@@ -602,6 +625,85 @@
 @keyframes slide-in-right {
   from { transform: translateX(100%); }
   to { transform: translateX(0); }
+}
+
+/* ─── Bottom navigation bar (very narrow viewports) ─── */
+
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  height: 64px;
+  padding: 0 0.25rem;
+  background: var(--cs-surface);
+  border-top: 1px solid var(--cs-border);
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.06);
+  /* Ensure no transform that would break fixed positioning of children. */
+}
+
+.bottom-nav-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0.25rem 0.5rem;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  color: var(--cs-text-muted);
+  text-decoration: none;
+  font-size: 0.62rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.18s var(--cs-ease), background 0.18s var(--cs-ease);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.bottom-nav-item:hover {
+  background: rgba(79, 70, 229, 0.06);
+  color: var(--cs-accent);
+}
+
+.bottom-nav-item.active {
+  color: var(--cs-accent-strong);
+}
+
+.bottom-nav-settings {
+  font: inherit;
+}
+
+.bottom-nav-label {
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 56px;
+}
+
+.bottom-nav-badge {
+  position: absolute;
+  top: 2px;
+  right: 6px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--cs-danger, #ef4444);
+  color: #fff;
+  font-size: 0.58rem;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  animation: badge-pop 0.25s var(--cs-ease);
 }
 
 

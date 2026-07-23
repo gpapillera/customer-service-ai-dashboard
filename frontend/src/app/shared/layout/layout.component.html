@@ -60,9 +60,10 @@
        the wide sidenav opens or closes via the backdrop. -->
   <mat-sidenav-content
     class="content"
-    [class.sidebar-closed]="!opened() || isHandset()"
+    [class.sidebar-closed]="(!opened() || isHandset()) && !isVeryNarrow()"
+    [class.sidebar-bottom-nav]="isVeryNarrow()"
   >
-    @if (!opened()) {
+    @if (!opened() && !isVeryNarrow()) {
       <!-- Collapsed icon rail: keeps the toggle, notifications and primary
            nav one click away when the sidenav is hidden. It appears
            immediately (no waiting for the wide sidenav to finish hiding) and
@@ -227,6 +228,36 @@
       </div>
     </div>
   </aside>
+}
+
+@if (isVeryNarrow()) {
+  <!-- Bottom navigation bar (very narrow / mobile viewports only). -->
+  <nav class="bottom-nav" aria-label="Main navigation">
+    @for (link of visibleNavLinks; track link.path) {
+      <a
+        class="bottom-nav-item"
+        [routerLink]="link.path"
+        routerLinkActive="active"
+        [attr.aria-label]="link.label"
+      >
+        <cs-icon [name]="link.icon" [size]="22"></cs-icon>
+        <span class="bottom-nav-label">{{ link.label }}</span>
+        @if (navBadges.getCount(link.path) > 0) {
+          <span class="bottom-nav-badge">{{ navBadges.getCount(link.path) }}</span>
+        }
+      </a>
+    }
+    <!-- Settings -->
+    <button
+      type="button"
+      class="bottom-nav-item bottom-nav-settings"
+      (click)="openSettings()"
+      aria-label="Settings"
+    >
+      <cs-icon name="settings" [size]="22"></cs-icon>
+      <span class="bottom-nav-label">Settings</span>
+    </button>
+  </nav>
 }
 
 <app-staff-account-panel></app-staff-account-panel>

@@ -2,6 +2,17 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 24d — Responsive Layout Overhaul] (2026-07-23)
+**Status:** ✅ COMPLETE (`ng build` → 0 errors)
+**What changed:**
+- Added `isVeryNarrow` signal to `LayoutComponent` with a `<480px` breakpoint via `BreakpointObserver` — triggers bottom navigation bar mode.
+- Added bottom navigation bar (`bottom-nav`) for very narrow viewports: replaces the left collapsed rail with a fixed-bottom bar containing icon+label nav items plus a Settings button. The rail is hidden and content gets `padding-bottom` to avoid overlap.
+- Updated `mat-sidenav-content` class bindings: `sidebar-closed` only applies when not in bottom-nav mode; `sidebar-bottom-nav` class applied when bottom nav is active with reduced horizontal padding.
+- Added responsive KPI grid improvements: tighter gaps and smaller card elements (`padding`, `font-size`, `icon size`) on viewports below 520px and 400px. Minimum touch target of 44px enforced on KPI cards.
+- Added chart overflow scroll: `chart-box` has `overflow-x: auto` with `min-width: 360px` on canvas elements so charts can scroll horizontally on very narrow viewports instead of clipping. Donut charts exempted (`min-width: auto`). Reduced chart height on <400px viewports.
+- Added responsive content padding adjustments for narrow/handset viewports.
+- Verified in browser: desktop (1440px) shows regular rail; mobile (380px) shows bottom nav bar with all links + Settings.
+
 ## [Phase 24c — Dashboard Widget Visibility Settings] (2026-07-23)
 **Status:** ✅ COMPLETE (`ng build` → 0 errors)
 **What changed:**

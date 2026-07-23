@@ -54,6 +54,8 @@ export class LayoutComponent {
 
   /** True on narrow viewports (<768px); the sidenav switches to overlay mode. */
   readonly isHandset = signal(false);
+  /** True on very narrow viewports (<480px); shows a bottom nav bar instead of the left rail. */
+  readonly isVeryNarrow = signal(false);
   /** Whether the sidenav is currently open (user toggle + auto-hide aware). */
   readonly opened = signal(true);
   /** Whether the settings panel (right slide-out) is open. */
@@ -82,7 +84,11 @@ export class LayoutComponent {
     const isNarrow =
       typeof window !== 'undefined' &&
       window.matchMedia('(max-width: 767px)').matches;
+    const isVeryNarrow =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(max-width: 479px)').matches;
     this.isHandset.set(isNarrow);
+    this.isVeryNarrow.set(isVeryNarrow);
     this.opened.set(!isNarrow);
 
     this.breakpointObserver
@@ -96,6 +102,13 @@ export class LayoutComponent {
         if (state.matches) {
           this.opened.set(false);
         }
+      });
+
+    this.breakpointObserver
+      .observe('(max-width: 479px)')
+      .pipe(takeUntilDestroyed())
+      .subscribe((state) => {
+        this.isVeryNarrow.set(state.matches);
       });
 
     // Set the browser tab title to "{userName} - Customer Service" when the

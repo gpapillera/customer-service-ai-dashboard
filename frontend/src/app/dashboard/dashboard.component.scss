@@ -14,10 +14,13 @@
   .kpis { grid-template-columns: repeat(4, 1fr); }
 }
 @media (max-width: 760px) {
-  .kpis { grid-template-columns: repeat(3, 1fr); }
+  .kpis { grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }
 }
 @media (max-width: 520px) {
-  .kpis { grid-template-columns: repeat(2, 1fr); }
+  .kpis { grid-template-columns: repeat(2, 1fr); gap: 0.65rem; }
+}
+@media (max-width: 400px) {
+  .kpis { grid-template-columns: repeat(2, 1fr); gap: 0.5rem; }
 }
 
 .kpi-card {
@@ -35,6 +38,28 @@
   font: inherit;
   color: inherit;
   overflow: hidden;
+  /* Minimum touch target for small screens */
+  min-height: 44px;
+}
+@media (max-width: 520px) {
+  .kpi-card {
+    padding: 0.85rem 0.85rem;
+  }
+  .kpi-value {
+    font-size: 1.5rem;
+  }
+  .kpi-icon {
+    width: 34px;
+    height: 34px;
+    margin-bottom: 0.4rem;
+  }
+  .kpi-icon cs-icon {
+    width: 20px;
+    height: 20px;
+  }
+  .kpi-label {
+    font-size: 0.78rem;
+  }
 }
 .kpi-icon {
   width: 40px;
@@ -110,9 +135,28 @@
   width: 100%;
   min-width: 0;
   height: 280px;
+  /* Horizontal scroll fallback for very narrow viewports */
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+.chart-box ::ng-deep canvas {
+  min-width: 360px;
 }
 .chart-box.donut {
   height: 240px;
+}
+.chart-box.donut ::ng-deep canvas {
+  min-width: auto;
+}
+
+@media (max-width: 400px) {
+  .chart-box {
+    height: 220px;
+  }
+  .chart-box.donut {
+    height: 200px;
+  }
 }
 
 .recent-card {
