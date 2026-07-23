@@ -56,7 +56,8 @@ public class CaseService : ICaseService
         IQueryable<Case> q = _cases.Query()
             .Include(c => c.Customer)
             .Include(c => c.Category)
-            .Include(c => c.CallLogs);
+            .Include(c => c.CallLogs)
+            .Include(c => c.Comments);
 
         // SERVER-SIDE AGENT SCOPING (Phase 6). An Agent may only ever see cases
         // assigned to them OR unassigned — regardless of any query param. This
@@ -112,6 +113,7 @@ public class CaseService : ICaseService
             .Include(c => c.Category)
             .Include(c => c.AssignedToUser)
             .Include(c => c.CallLogs)
+            .Include(c => c.Comments)
             .FirstOrDefaultAsync(x => x.Id == id);
         if (c is null) return null;
 
@@ -529,5 +531,6 @@ public class CaseService : ICaseService
         UpdatedAtUtc = c.UpdatedAtUtc,
         FollowUpDueUtc = c.FollowUpDueUtc,
         DaysOverdue = OverduePolicy.NeedsFollowUp(c) ? OverduePolicy.DaysOverdue(c) : null,
+        CommentCount = c.Comments?.Count ?? 0,
     };
 }

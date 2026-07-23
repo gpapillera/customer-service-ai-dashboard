@@ -94,8 +94,8 @@
             </td>
             <td class="muted">{{ c.customerName }}</td>
             <td class="muted">{{ c.categoryName }}</td>
-            <td><span class="cs-pill" [class]="priorityClass(c.priority)"><span class="cs-dot"></span>{{ c.priority }}</span></td>
-            <td><span class="cs-pill" [class]="statusClass(c.status)"><span class="cs-dot"></span>{{ c.status }}</span></td>
+            <td><span class="cs-pill" [class]="priorityClass(c.priority)" [csTooltip]="priorityTooltip(c)"><span class="cs-dot"></span>{{ c.priority }}</span></td>
+            <td><span class="cs-pill" [class]="statusClass(c.status)" [csTooltip]="statusTooltip(c)"><span class="cs-dot"></span>{{ c.status }}</span></td>
             <td class="muted">{{ c.createdAtUtc | date:'mediumDate' }}</td>
           </tr>
         }

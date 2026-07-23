@@ -14,6 +14,8 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatDialog } from '@angular/material/dialog';
 import { RevealDirective } from '../shared/reveal.directive';
 import { CsIconComponent } from '../shared/cs-icon.component';
+import { CsTooltipDirective } from '../shared/tooltip.directive';
+import { TooltipData } from '../shared/tooltip-data';
 import { NavBadgeService } from '../shared/nav-badge.service';
 import { CaseService } from './case.service';
 import { CallLogService } from './call-log.service';
@@ -41,6 +43,7 @@ import { AuthService } from '../auth/auth.service';
     MatProgressSpinnerModule,
     RevealDirective,
     CsIconComponent,
+    CsTooltipDirective,
   ],
   templateUrl: './case-detail.component.html',
   styleUrl: './case-detail.component.scss',
@@ -456,6 +459,32 @@ export class CaseDetailComponent implements OnInit {
   /** Priority pill class. */
   priorityClass(p: string): string {
     return 'priority-' + p.toLowerCase();
+  }
+
+  /** Build tooltip data for a priority pill. */
+  priorityTooltip(c: Case): TooltipData {
+    const items = [
+      { label: 'Priority', value: c.priority },
+      { label: 'Suggested', value: c.priorityAutoSuggested ? 'Yes (AI)' : 'Manual' },
+      { label: 'Category', value: c.categoryName },
+    ];
+    if (c.priorityReason) items.push({ label: 'Reason', value: c.priorityReason });
+    if (c.daysOverdue != null) items.push({ label: 'Overdue', value: `${c.daysOverdue} day${c.daysOverdue !== 1 ? 's' : ''}` });
+    items.push({ label: 'Comments', value: String(c.commentCount ?? 0) });
+    return { items };
+  }
+
+  /** Build tooltip data for a status pill. */
+  statusTooltip(c: Case): TooltipData {
+    const created = c.createdAtUtc ? new Date(c.createdAtUtc).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+    const updated = c.updatedAtUtc ? new Date(c.updatedAtUtc).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+    const items = [
+      { label: 'Status', value: c.status },
+      { label: 'Assigned', value: c.assignedToUserName ?? 'Unassigned' },
+      { label: 'Created', value: created },
+      { label: 'Updated', value: updated },
+    ];
+    return { items };
   }
 
   /** Formats a UTC date string for display. */

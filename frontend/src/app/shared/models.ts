@@ -69,6 +69,8 @@ export interface Case {
   followUpDueUtc: string | null;
   /** Days past the follow-up reference point when overdue; null otherwise. */
   daysOverdue: number | null;
+  /** Total number of comments on the case thread. */
+  commentCount: number;
 }
 
 /** Payload for creating a case. */

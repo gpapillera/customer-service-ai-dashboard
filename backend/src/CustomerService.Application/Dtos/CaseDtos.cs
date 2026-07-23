@@ -127,6 +127,9 @@ public class CaseDto
     /// dashboard always agree (and avoid timezone drift from client-side math).
     /// </summary>
     public int? DaysOverdue { get; set; }
+
+    /// <summary>Total number of comments on the case thread.</summary>
+    public int CommentCount { get; set; }
 }
 
 /// <summary>

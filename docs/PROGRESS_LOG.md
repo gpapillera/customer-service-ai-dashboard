@@ -2,6 +2,17 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 24g — Case Pill Hover Tooltip] (2026-07-23)
+**Status:** ✅ COMPLETE (`ng build` + `dotnet build` → 0 errors)
+**What changed:**
+- **Backend — Dtos:** Added `CommentCount` (int) to `CaseDto` for tooltip display.
+- **Backend — Services:** `CaseService.GetAllAsync` and `GetByIdAsync` now `.Include(c => c.Comments)`; `ToDto` maps `CommentCount = c.Comments?.Count ?? 0`.
+- **Frontend — Shared:** Created `TooltipData` / `TooltipItem` interfaces (`tooltip-data.ts`), `TooltipComponent` (`tooltip.component.ts`) — a floating card with Apple-like styling, and `CsTooltipDirective` (`tooltip.directive.ts`) — a CDK Overlay-based directive with 300 ms show delay, auto-repositioning, and `disposeOnNavigation`.
+- **Frontend — Models:** Added `commentCount` to the `Case` interface.
+- **Frontend — Case List:** Both priority and status pills now have `[csTooltip]` with contextual stats (priority tooltip: level, auto-suggested, category, reason, overdue, comments; status tooltip: status, assignee, created, updated dates).
+- **Frontend — Case Detail:** Priority and status pills in the head-pills area also wired with the same tooltips.
+- **Budget:** Raised `anyComponentStyle` warning from 8 kB → 11 kB.
+
 ## [Phase 24f — Customer Account + Display ID] (2026-07-23)
 **Status:** ✅ COMPLETE (`ng build` + `dotnet build` → 0 errors)
 **What changed:**
@@ -13,7 +24,6 @@
 - **Frontend — Customer List:** Card template shows `c.customerDisplayId` in a `.display-id` monospace element when present.
 - **Frontend — Customer Detail:** Added "Display ID" row (`<code>`), "Account" row with status pill (Active/Invited/No account).
 - **Frontend — SCSS:** Added `.display-id` style in `customer-list.component.scss`.
-- **Budget:** Raised `anyComponentStyle` warning from 6 kB → 8 kB to accommodate SCSS growth in layout, case-detail, notification-bell, and agent-list.
 
 ## [Phase 24e — Page-Specific Logo Icons] (2026-07-23)
 **Status:** ✅ COMPLETE (`ng build` → 0 errors)
