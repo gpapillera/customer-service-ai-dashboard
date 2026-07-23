@@ -2,6 +2,13 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 24e — Page-Specific Logo Icons] (2026-07-23)
+**Status:** ✅ COMPLETE (`ng build` → 0 errors)
+**What changed:**
+- Updated page brand icons to be page-specific: Dashboard → `dashboard`, Cases → `confirmation_number` (ticket), Customers → `people`.
+- Emails (`mail`), Agents (`supervisor_account`), and Conversations/Messages (`forum`) were already using correct icons.
+- Verified all 6 page icons render correctly in the browser.
+
 ## [Phase 24d — Responsive Layout Overhaul] (2026-07-23)
 **Status:** ✅ COMPLETE (`ng build` → 0 errors)
 **What changed:**
