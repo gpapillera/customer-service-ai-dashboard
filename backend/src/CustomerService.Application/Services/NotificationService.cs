@@ -261,6 +261,17 @@ public class NotificationService : INotificationService
     }
 
     /// <inheritdoc/>
+    public async Task<IReadOnlyList<NotificationDto>> GetEmailLogAsync()
+    {
+        var list = await _notifications.Query()
+            .Where(n => n.Channel == NotificationChannel.Email)
+            .OrderByDescending(n => n.CreatedAtUtc)
+            .Select(n => NotificationDto.FromEntity(n))
+            .ToListAsync();
+        return list;
+    }
+
+    /// <inheritdoc/>
     public async Task<IReadOnlyList<NotificationDto>> GetAllAsync(string? recipientUserId = null)
     {
         var query = _notifications.Query()

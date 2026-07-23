@@ -1,7 +1,9 @@
-import { Component, inject, OnInit, OnDestroy, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, OnDestroy, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
+import { FormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
+import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { RevealDirective } from '../shared/reveal.directive';
 import { CsIconComponent } from '../shared/cs-icon.component';
@@ -9,6 +11,7 @@ import { KbdNavDirective } from '../shared/keyboard-nav.directive';
 import { NavBadgeService } from '../shared/nav-badge.service';
 import { CaseService } from './case.service';
 import { Conversation } from '../shared/models';
+import { LayoutComponent } from '../shared/layout/layout.component';
 
 /**
  * Agent "Messages" tab (Phase 9). Lists the agent's cases that have a comment
@@ -24,7 +27,9 @@ import { Conversation } from '../shared/models';
   standalone: true,
   imports: [
     CommonModule,
+    FormsModule,
     MatCardModule,
+    MatInputModule,
     MatProgressSpinnerModule,
     RevealDirective,
     CsIconComponent,
@@ -38,9 +43,26 @@ export class ConversationsListComponent implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly navBadgeService = inject(NavBadgeService);
 
+  /** Sidenav open state — brand logo hidden when open. */
+  readonly sidenavOpen = inject(LayoutComponent).opened;
+  /** True only during explicit sidenav toggle for brand logo animation. */
+  readonly brandAnimate = inject(LayoutComponent).brandAnimate;
+
   readonly conversations = signal<Conversation[]>([]);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
+  readonly searchTerm = signal('');
+
+  /** Conversations filtered by subject or customer name. */
+  readonly filteredConversations = computed(() => {
+    const term = this.searchTerm().toLowerCase().trim();
+    if (!term) return this.conversations();
+    return this.conversations().filter(
+      (c) =>
+        c.subject.toLowerCase().includes(term) ||
+        c.customerName.toLowerCase().includes(term)
+    );
+  });
 
   private pollTimer: ReturnType<typeof setInterval> | null = null;
   private readonly POLL_MS = 30_000;

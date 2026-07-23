@@ -2,7 +2,46 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
-## [Phase 23n — Email/SMS Notification System: Fix Gaps & Document] (2026-07-22)
+## [Phase 23p — Polish Case Detail: Call Log Card, Assignee Card, Dropdown Styles, Enter-to-Submit] (2026-07-23)
+**Status:** ✅ COMPLETE (`ng build` → 0 errors)
+
+**What changed:**
+- **Problem:** The assignee card had redundant content (dropdown + separate name/unassign display). The call log card used plain gray log items without icons or hover effects. The direction and assignee dropdowns didn't match the app's existing dropdown design from the search toolbar. The log textarea lacked keyboard submit support.
+
+**Changes (2 files):**
+1. **`case-detail.component.html** — Removed redundant `.assignee-box` (assignee name + unassign button) from assignee card; the dropdown alone handles assignment. Added phone icon to log direction badges and clock icon to duration pills. Added `(keydown)="onTextareaKeydown($event, 'log')"` to the notes textarea for Enter-to-submit.
+2. **`case-detail.component.scss** — Removed `.assignee-box`, `.assignee-name`, `.unassign-btn` styles. Consolidated shared dropdown styles under `.dir-field, .assignee-field` (48px height, `#dce6ef` border, 8px radius, hidden notch, bold value text — matching the search-filter-toolbar design). Added hover lift/shadow to log items (white bg + border). Added focus ring to notes textarea (`box-shadow: 0 0 0 3px rgba(0,113,227,0.12)`). Duration displays as a pill badge.
+3. **`case-detail.component.ts** — Removed unused `unassignSentinel`, `unassigning` signal, and `unassign()` method (dead code after assignee-box removal).
+
+**Verification:**
+- `ng build` → 0 errors (pre-existing SCSS budget warnings only, no budget errors)
+
+## [Phase 23o — Design Consistency & Search/Filter for All Pages] (2026-07-23)
+**Status:** ✅ COMPLETE (`ng build` → 0 errors, `dotnet build` → 0 errors)
+
+**What changed:**
+- **Problem:** Four pages (Agents, Messages, Admin Conversations, Email Log) used simple plain headers without the brand-logo design pattern or search/filter capabilities that the Customers and Cases pages had. The Email nav icon (`mail_outline`) wasn't in the CsIconComponent's Lucide icon map and rendered as invisible.
+
+**Changes (8 files):**
+1. **`layout.component.ts`** — Fixed Email nav icon from `mail_outline` to `mail` (the Lucide icon name registered in cs-icon).
+2. **`email-list.component.html`** — Redesigned with brand header (`.page-brand` with `sidenavOpen`/`brandAnimate`), search toolbar (search by recipient or subject), and type filter dropdown (mat-select with all 6 notification types + clear button). Added "no matching emails" empty state for filtered-out results.
+3. **`email-list.component.ts`** — Added `LayoutComponent` injection (`sidenavOpen`, `brandAnimate`), `searchTerm`/`filterType` signals, `typeOptions()` computed from unique types, `filteredEmails()` computed that filters by both text and type. Added `clearTypeFilter()` method.
+4. **`email-list.component.scss`** — Replaced with consistent design: `.page-header`, `.search-bar`/`.search-toolbar` (76px/20px-radius card matching Customers pattern), `.filter-select` dropdown styling, responsive wrap layout.
+5. **`admin-conversations.component.ts`** — Added `LayoutComponent` injection, `computed`, `FormsModule`, `MatInputModule`, `searchTerm` signal, `filteredConversations` computed (searches by subject or customer name).
+6. **`admin-conversations.component.html`** — Redesigned with brand header + search toolbar matching the agent Conversations page pattern.
+7. **`admin-conversations.component.scss`** — Replaced `.head`/`.title`/`.subtitle` with `.page-header` + `.search-bar`/`.search-toolbar`/`.search-field` styles matching the design system.
+8. **`admin-conversations.component.html`** — Added second empty state for filtered-out results ("No conversations match your search").
+
+**Design pattern applied to all 4 pages:**
+- Brand header with logo circle (`.page-brand`) that hides when sidenav is open
+- Search toolbar in a rounded 76px card (20px radius, subtle shadow)
+- Consistent 48px input field styling with `#dce6ef` border
+- Responsive layout (stacks on mobile)
+- Same `.cs-lift`, `.stagger`, `appReveal` animations as other pages
+
+**Verification:**
+- `ng build` → 0 errors (5 pre-existing SCSS budget warnings, non-fatal)
+- `dotnet build CustomerServiceApi.sln` → 0 errors, 0 warnings
 **Status:** ✅ COMPLETE (`dotnet build` → 0 errors, `dotnet test` → 64/64 PASS)
 
 **What changed:**

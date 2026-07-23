@@ -39,6 +39,10 @@ public interface INotificationService
     /// <returns>The number of notifications created (0 or 1).</returns>
     Task<int> NotifyNewCustomerMessageAsync(Case caseEntity, string customerName);
 
+    /// <summary>Returns the email notification log (Channel == Email), newest first.</summary>
+    /// <returns>The email log list.</returns>
+    Task<IReadOnlyList<NotificationDto>> GetEmailLogAsync();
+
     /// <summary>Returns all notifications, newest first.</summary>
     /// <param name="recipientUserId">Optional user ID to filter notifications. When null (Admin), all notifications are returned. When set (Agent), only notifications addressed to this user or broadcast notifications (Recipient null) are returned.</param>
     /// <returns>The notification list.</returns>

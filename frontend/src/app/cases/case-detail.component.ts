@@ -63,9 +63,6 @@ export class CaseDetailComponent implements OnInit {
   readonly loading = signal(true);
   /** Set when the case cannot be loaded (e.g. 403 for an Agent). */
   readonly loadError = signal<string | null>(null);
-  /** Sentinel sent to the backend to explicitly clear the assignee. */
-  private readonly unassignSentinel = '__unassign__';
-  readonly unassigning = signal(false);
   /** Agents available for assignment (GET /api/users). */
   readonly agents = signal<Agent[]>([]);
   readonly assigning = signal(false);
@@ -401,29 +398,6 @@ export class CaseDetailComponent implements OnInit {
         assignedToUserId: null,
       })
       .subscribe(() => this.case.set({ ...c, priority, priorityAutoSuggested: false }));
-  }
-
-  /** Explicitly unassigns the case (sends the unassign sentinel). */
-  unassign(): void {
-    const c = this.case();
-    if (!c || !c.assignedToUserId) return;
-    this.unassigning.set(true);
-    this.caseService
-      .update(c.id, {
-        subject: c.subject,
-        description: c.description,
-        status: c.status,
-        priority: c.priority,
-        categoryId: c.categoryId,
-        assignedToUserId: this.unassignSentinel,
-      })
-      .subscribe({
-        next: () => {
-          this.case.set({ ...c, assignedToUserId: null, assignedToUserName: null });
-          this.unassigning.set(false);
-        },
-        error: () => this.unassigning.set(false),
-      });
   }
 
   /** Assigns (or reassigns) the case to the chosen agent via the existing

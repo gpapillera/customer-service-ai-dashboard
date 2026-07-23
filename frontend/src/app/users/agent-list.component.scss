@@ -1,24 +1,11 @@
 .page {
   max-width: 1100px;
   margin: 0 auto;
-  padding: 8px 4px 32px;
+  padding: 1.5rem 1.25rem 3rem;
 }
 
 .page-header {
-  margin-bottom: 18px;
-}
-
-.head-titles h1 {
-  margin: 0;
-  font-size: 26px;
-  font-weight: 650;
-  letter-spacing: -0.01em;
-}
-
-.subtitle {
-  margin: 4px 0 0;
-  color: var(--cs-text-muted);
-  font-size: 14px;
+  margin-bottom: 1.5rem;
 }
 
 .center {
@@ -26,6 +13,104 @@
   justify-content: center;
   padding: 48px 0;
 }
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  text-align: center;
+  padding: 3rem 1.5rem;
+  color: var(--cs-text-muted);
+  background: var(--cs-surface);
+  border-radius: var(--cs-radius, 12px);
+  border: 1px solid var(--cs-border);
+
+  cs-icon {
+    font-size: 2.25rem;
+    color: var(--cs-accent);
+  }
+  p { margin: 0; }
+}
+
+/* ── Search bar (matches Customers pattern) ── */
+
+.search-bar {
+  margin-bottom: 1.25rem;
+}
+
+.search-toolbar {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 76px;
+  height: auto;
+  padding: 12px 20px;
+  box-sizing: border-box;
+  background: var(--cs-surface);
+  border: 1px solid var(--cs-border);
+  border-radius: 20px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.search-field {
+  width: 100%;
+  height: 48px;
+  margin: 0;
+  --mdc-outlined-text-field-outline-color: #dce6ef;
+  --mdc-outlined-text-field-hover-outline-color: #dce6ef;
+  --mdc-outlined-text-field-focus-outline-color: #dce6ef;
+  --mdc-outlined-text-field-container-shape: 8px;
+  --mat-form-field-container-text-size: 16px;
+}
+
+.search-field ::ng-deep .mat-mdc-text-field-wrapper {
+  height: 48px;
+  border: 1px solid #dce6ef !important;
+  border-radius: 8px !important;
+  overflow: hidden;
+}
+
+.search-field ::ng-deep .mat-mdc-form-field-flex {
+  height: 48px;
+  align-items: center;
+}
+
+.search-field ::ng-deep .mdc-notched-outline {
+  display: none !important;
+}
+
+.search-field ::ng-deep .mat-mdc-form-field-infix {
+  padding: 0 0.75rem !important;
+  display: flex;
+  align-items: center;
+  min-height: 0;
+}
+
+.search-field ::ng-deep input.mat-mdc-input-element {
+  font-size: 16px !important;
+  font-weight: 400;
+  color: var(--cs-text-muted) !important;
+}
+
+.search-field ::ng-deep input.mat-mdc-input-element::placeholder {
+  color: var(--cs-text-muted) !important;
+  opacity: 1 !important;
+}
+
+.search-field ::ng-deep .mat-mdc-form-field-subscript-wrapper {
+  display: none;
+}
+
+.prefix-icon {
+  color: var(--cs-text-muted);
+  width: 20px;
+  height: 20px;
+  margin-left: 0.85rem;
+  margin-right: 0.75rem;
+}
+
+/* ── Grid ── */
 
 .grid {
   display: grid;

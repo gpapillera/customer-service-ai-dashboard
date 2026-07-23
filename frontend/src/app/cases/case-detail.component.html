@@ -79,12 +79,18 @@
                 @for (log of logs(); track log.id) {
                   <div class="log-item">
                     <div class="log-head">
-                      <span class="dir" [class]="log.direction.toLowerCase()">{{ log.direction }}</span>
-                      <span class="muted">{{ formatDate(log.createdAtUtc) }}</span>
+                      <span class="dir" [class]="log.direction.toLowerCase()">
+                        <cs-icon name="phone"></cs-icon>
+                        {{ log.direction }}
+                      </span>
+                      <span class="muted log-date">{{ formatDate(log.createdAtUtc) }}</span>
                     </div>
                     <div class="log-notes">{{ log.notes }}</div>
                     @if (log.durationSeconds > 0) {
-                      <div class="muted small">Duration: {{ log.durationSeconds }}s</div>
+                      <div class="log-duration">
+                        <cs-icon name="clock"></cs-icon>
+                        {{ log.durationSeconds }}s
+                      </div>
                     }
                   </div>
                 }
@@ -101,7 +107,9 @@
               </mat-form-field>
               <mat-form-field appearance="outline" class="notes-field">
                 <mat-label>Notes</mat-label>
-                <textarea matInput formControlName="notes" rows="2" [disabled]="!canEdit()"></textarea>
+                <textarea matInput formControlName="notes" rows="2"
+                  [disabled]="!canEdit()"
+                  (keydown)="onTextareaKeydown($event, 'log')"></textarea>
               </mat-form-field>
               <button mat-flat-button color="primary" type="submit" [disabled]="!canEdit() || savingLog()">
                 <cs-icon name="add"></cs-icon> Add
@@ -229,22 +237,6 @@
                   }
                 </mat-select>
               </mat-form-field>
-              <div class="assignee-box">
-                <span class="assignee-name">{{ c.assignedToUserName || 'Unassigned' }}</span>
-                <button
-                  type="button"
-                  class="unassign-btn"
-                  mat-stroked-button
-                  (click)="unassign()"
-                  [disabled]="!c.assignedToUserId || unassigning() || assigning()"
-                >
-                  @if (unassigning()) {
-                    <mat-spinner diameter="18"></mat-spinner>
-                  } @else {
-                    <cs-icon name="person_remove"></cs-icon> Unassign
-                  }
-                </button>
-              </div>
             </mat-card-content>
           </mat-card>
         }

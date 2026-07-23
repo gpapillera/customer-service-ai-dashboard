@@ -196,6 +196,7 @@ public class CaseServiceTests
         public Task<int> GenerateOverdueAsync() => Task.FromResult(0);
         public Task<int> NotifyResolvedAsync(Case caseEntity) => Task.FromResult(0);
         public Task<int> NotifyNewCustomerMessageAsync(Case caseEntity, string customerName) => Task.FromResult(0);
+        public Task<IReadOnlyList<NotificationDto>> GetEmailLogAsync() => Task.FromResult<IReadOnlyList<NotificationDto>>(Array.Empty<NotificationDto>());
         public Task<IReadOnlyList<NotificationDto>> GetAllAsync(string? recipientUserId = null) => Task.FromResult<IReadOnlyList<NotificationDto>>(Array.Empty<NotificationDto>());
         public Task<NotificationSummaryDto> GetSummaryAsync(string? recipientUserId = null) => Task.FromResult(new NotificationSummaryDto());
         public Task<bool> MarkReadAsync(int id) => Task.FromResult(false);

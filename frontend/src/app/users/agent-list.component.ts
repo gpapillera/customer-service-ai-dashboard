@@ -1,15 +1,18 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
+import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { RevealDirective } from '../shared/reveal.directive';
 import { CsIconComponent } from '../shared/cs-icon.component';
 import { UserService } from './user.service';
 import { Agent, UpdateAgent } from '../shared/models';
 import { Dashboard } from '../shared/models';
+import { LayoutComponent } from '../shared/layout/layout.component';
 
 /**
  * Admin-only list of Agent-role users with open-case counts. Clicking a card
@@ -24,7 +27,9 @@ import { Dashboard } from '../shared/models';
     FormsModule,
     RouterLink,
     MatCardModule,
+    MatButtonModule,
     MatIconModule,
+    MatInputModule,
     MatProgressSpinnerModule,
     RevealDirective,
     CsIconComponent,
@@ -35,8 +40,25 @@ import { Dashboard } from '../shared/models';
 export class AgentListComponent implements OnInit {
   private readonly userService = inject(UserService);
 
+  /** Sidenav open state — brand logo hidden when open. */
+  readonly sidenavOpen = inject(LayoutComponent).opened;
+  /** True only during explicit sidenav toggle for brand logo animation. */
+  readonly brandAnimate = inject(LayoutComponent).brandAnimate;
+
   readonly agents = signal<Agent[]>([]);
   readonly loading = signal(true);
+  readonly searchTerm = signal('');
+
+  /** Agents filtered by the search term (matches name or email). */
+  readonly filteredAgents = computed(() => {
+    const term = this.searchTerm().toLowerCase().trim();
+    if (!term) return this.agents();
+    return this.agents().filter(
+      (a) =>
+        a.fullName.toLowerCase().includes(term) ||
+        a.email.toLowerCase().includes(term)
+    );
+  });
 
   // ── Agent detail overlay state ──
   readonly selected = signal<Agent | null>(null);

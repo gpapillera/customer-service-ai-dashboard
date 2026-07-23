@@ -1,8 +1,29 @@
 <div class="page">
-  <header class="head">
-    <h1 class="title">Conversations</h1>
-    <p class="subtitle">All cases with active discussion, across every agent.</p>
-  </header>
+  <!-- Page header with brand logo -->
+  <div class="page-header">
+    <div class="page-brand" [class.brand-hidden]="sidenavOpen()" [class.brand-anim]="brandAnimate()">
+      <span class="page-brand-logo"><cs-icon name="forum"></cs-icon></span>
+      <div class="page-brand-text">
+        <h1>Conversations</h1>
+        <p>{{ conversations().length }} conversations</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Search bar -->
+  <div class="search-bar">
+    <div class="search-toolbar">
+      <mat-form-field appearance="outline" class="search-field">
+        <cs-icon name="search" matPrefix class="prefix-icon"></cs-icon>
+        <input
+          matInput
+          placeholder="Search by subject or customer…"
+          [ngModel]="searchTerm()"
+          (ngModelChange)="searchTerm.set($event)"
+        />
+      </mat-form-field>
+    </div>
+  </div>
 
   @if (loading()) {
     <div class="center"><mat-spinner diameter="36"></mat-spinner></div>
@@ -13,9 +34,14 @@
       <cs-icon name="forum"></cs-icon>
       <p>No conversations yet. When a customer or agent posts a comment on any case, it will appear here.</p>
     </div>
+  } @else if (filteredConversations().length === 0) {
+    <div class="empty cs-lift reveal" appReveal>
+      <cs-icon name="forum"></cs-icon>
+      <p>No conversations match your search.</p>
+    </div>
   } @else {
     <ul class="conv-list stagger" appKbdNav kbdNavItem="button.conv-card" [kbdNavWrap]="true">
-      @for (c of conversations(); track c.caseId) {
+      @for (c of filteredConversations(); track c.caseId) {
         <li>
           <button
             type="button"

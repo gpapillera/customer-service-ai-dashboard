@@ -67,6 +67,8 @@ export class LayoutComponent {
     { path: '/messages', label: 'Messages', icon: 'forum', agentOnly: true },
     // Global conversations view is Admin-only (Phase 12).
     { path: '/conversations', label: 'Conversations', icon: 'forum', adminOnly: true },
+    // Email log is visible to both Admin and Agent.
+    { path: '/emails', label: 'Emails', icon: 'mail' },
   ];
 
   constructor() {

@@ -1,16 +1,40 @@
 <div class="page">
-  <div class="page-header reveal" appReveal>
-    <div class="head-titles">
-      <h1>Agents</h1>
-      <p class="subtitle">Support agents and their currently open case load.</p>
+  <!-- Page header with brand logo -->
+  <div class="page-header">
+    <div class="page-brand" [class.brand-hidden]="sidenavOpen()" [class.brand-anim]="brandAnimate()">
+      <span class="page-brand-logo"><cs-icon name="supervisor_account"></cs-icon></span>
+      <div class="page-brand-text">
+        <h1>Agents</h1>
+        <p>{{ agents().length }} agents</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Search bar -->
+  <div class="search-bar">
+    <div class="search-toolbar">
+      <mat-form-field appearance="outline" class="search-field">
+        <cs-icon name="search" matPrefix class="prefix-icon"></cs-icon>
+        <input
+          matInput
+          placeholder="Search by name or email…"
+          [ngModel]="searchTerm()"
+          (ngModelChange)="searchTerm.set($event)"
+        />
+      </mat-form-field>
     </div>
   </div>
 
   @if (loading()) {
     <div class="center"><mat-spinner diameter="36"></mat-spinner></div>
+  } @else if (filteredAgents().length === 0) {
+    <div class="empty reveal" appReveal>
+      <cs-icon name="supervisor_account"></cs-icon>
+      <p>{{ agents().length === 0 ? 'No agents found.' : 'No agents match your search.' }}</p>
+    </div>
   } @else {
     <div class="grid">
-      @for (agent of agents(); track agent.id) {
+      @for (agent of filteredAgents(); track agent.id) {
         <mat-card class="cs-lift agent-card reveal" appReveal (click)="openAgent(agent)" style="cursor:pointer">
           <mat-card-content>
             <div class="agent-top">

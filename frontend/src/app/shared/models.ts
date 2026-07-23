@@ -309,9 +309,11 @@ export interface Notification {
   message: string;
   channel: 'InApp' | 'Email' | 'Sms';
   status: 'Unread' | 'Read';
+  type: 'CaseOverdue' | 'CaseResolved' | 'CustomerInvite' | 'CustomerPasswordReset' | 'NewCustomerMessage' | 'StaffPasswordReset';
   createdAtUtc: string;
   link: string | null;
   caseId: number | null;
+  recipient: string | null;
 }
 
 /** Summary for the bell badge (unread count + recent preview). */

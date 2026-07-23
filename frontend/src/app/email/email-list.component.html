@@ -1,0 +1,130 @@
+<div class="email-page">
+  <!-- Page header with brand logo -->
+  <div class="page-header">
+    <div class="page-brand" [class.brand-hidden]="sidenavOpen()" [class.brand-anim]="brandAnimate()">
+      <span class="page-brand-logo"><cs-icon name="mail"></cs-icon></span>
+      <div class="page-brand-text">
+        <h1>Email Log</h1>
+        <p>{{ emails().length }} emails sent</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Search + filter toolbar -->
+  <div class="search-bar">
+    <div class="search-toolbar">
+      <mat-form-field appearance="outline" class="search-field">
+        <cs-icon name="search" matPrefix class="prefix-icon"></cs-icon>
+        <input
+          matInput
+          placeholder="Search by recipient or subject…"
+          [ngModel]="searchTerm()"
+          (ngModelChange)="searchTerm.set($event)"
+        />
+      </mat-form-field>
+
+      @if (typeOptions().length > 0) {
+        <mat-form-field appearance="outline" class="filter-select">
+          <mat-select
+            [value]="filterType()"
+            (valueChange)="filterType.set($event)"
+            placeholder="All types"
+            aria-label="Filter by notification type"
+          >
+            <mat-option value="">All types</mat-option>
+            @for (t of typeOptions(); track t) {
+              <mat-option [value]="t">{{ typeLabel(t) }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      }
+
+      @if (filterType()) {
+        <button type="button" class="clear-filter-btn" (click)="clearTypeFilter()" aria-label="Clear type filter">
+          <cs-icon name="close" [size]="16"></cs-icon>
+        </button>
+      }
+    </div>
+  </div>
+
+  <!-- Loading -->
+  @if (loading()) {
+    <div class="loading">Loading email log…</div>
+  }
+
+  <!-- Error -->
+  @if (error(); as err) {
+    <div class="error-card">
+      <cs-icon name="circle_alert" class="error-icon"></cs-icon>
+      <span>{{ err }}</span>
+      <button type="button" class="retry-btn" (click)="load()">Retry</button>
+    </div>
+  }
+
+  <!-- Empty state -->
+  @if (!loading() && !error() && emails().length === 0) {
+    <div class="empty-state">
+      <cs-icon name="mail" class="empty-icon"></cs-icon>
+      <h3>No emails sent yet</h3>
+      <p>
+        Emails will appear here once the system sends notifications — for
+        example, when a case goes overdue, a customer is invited, or a
+        password is reset.
+      </p>
+    </div>
+  }
+
+  <!-- No results for current filters -->
+  @if (!loading() && !error() && emails().length > 0 && filteredEmails().length === 0) {
+    <div class="empty-state">
+      <cs-icon name="search" class="empty-icon"></cs-icon>
+      <h3>No matching emails</h3>
+      <p>Try adjusting your search or filter to find what you're looking for.</p>
+    </div>
+  }
+
+  <!-- Email table -->
+  @if (filteredEmails().length > 0) {
+    <div class="table-wrap">
+      <table class="email-table">
+        <thead>
+          <tr>
+            <th class="col-date">Date</th>
+            <th class="col-recipient">Recipient</th>
+            <th class="col-subject">Subject</th>
+            <th class="col-type">Type</th>
+            <th class="col-status">Status</th>
+            <th class="col-case">Case</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (email of filteredEmails(); track email.id) {
+            <tr class="email-row">
+              <td class="col-date">{{ formatDate(email.createdAtUtc) }}</td>
+              <td class="col-recipient">{{ email.recipient ?? '—' }}</td>
+              <td class="col-subject">
+                <span class="subject-text">{{ email.title }}</span>
+                <span class="subject-message">{{ email.message }}</span>
+              </td>
+              <td class="col-type">
+                <span [class]="'type-badge ' + typeClass(email.type)">{{ typeLabel(email.type) }}</span>
+              </td>
+              <td class="col-status">
+                <span [class]="'status-pill ' + statusClass(email.status)">{{ statusLabel(email.status) }}</span>
+              </td>
+              <td class="col-case">
+                @if (email.caseId) {
+                  <a [routerLink]="['/cases', email.caseId]" class="case-link">
+                    #{{ email.caseId }}
+                  </a>
+                } @else {
+                  <span class="muted">—</span>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>
