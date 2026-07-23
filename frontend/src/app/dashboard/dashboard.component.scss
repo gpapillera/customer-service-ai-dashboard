@@ -62,7 +62,7 @@
 .tone-blue .kpi-icon { background: var(--cs-info-bg); color: #3b82f6; }
 .tone-red .kpi-icon { background: var(--cs-danger-bg); color: #ef4444; }
 .tone-green .kpi-icon { background: var(--cs-success-bg); color: #10b981; }
-.tone-purple .kpi-icon { background: #f3e8ff; color: #8b5cf6; }
+.tone-purple .kpi-icon { background: var(--cs-accent-light); color: #8b5cf6; }
 .tone-amber .kpi-icon { background: var(--cs-warning-bg); color: var(--cs-warning-strong); }
 
 .charts-row {

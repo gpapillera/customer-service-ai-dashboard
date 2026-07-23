@@ -15,6 +15,9 @@
         >
           <cs-icon [name]="opened() ? 'chevron_left' : 'menu'" [size]="20"></cs-icon>
         </button>
+        <button type="button" class="settings-btn" (click)="openSettings()" aria-label="Settings">
+          <cs-icon name="settings" [size]="18"></cs-icon>
+        </button>
         <app-notification-bell></app-notification-bell>
       </div>
       <nav class="nav" appKbdNav kbdNavItem="a.nav-item" [kbdNavWrap]="true">
@@ -78,6 +81,10 @@
           <app-notification-bell></app-notification-bell>
         </div>
 
+        <button type="button" class="rail-settings" (click)="openSettings()" aria-label="Settings">
+          <cs-icon name="settings" [size]="18"></cs-icon>
+        </button>
+
         <div class="rail-nav" appKbdNav kbdNavItem="a.rail-item" [kbdNavWrap]="true">
           @for (link of visibleNavLinks; track link.path) {
             <a
@@ -99,5 +106,39 @@
     <router-outlet></router-outlet>
   </mat-sidenav-content>
 </mat-sidenav-container>
+
+@if (settingsOpen()) {
+  <!-- Backdrop -->
+  <div class="settings-backdrop" (click)="closeSettings()" (keydown.escape)="closeSettings()"></div>
+
+  <!-- Slide-out panel -->
+  <aside class="settings-panel" role="dialog" aria-label="Settings">
+    <div class="settings-header">
+      <h3 class="settings-title">Settings</h3>
+      <button type="button" class="settings-close" (click)="closeSettings()" aria-label="Close settings">
+        <cs-icon name="close" [size]="18"></cs-icon>
+      </button>
+    </div>
+
+    <div class="settings-body">
+      <!-- Dark mode toggle -->
+      <div class="setting-row">
+        <div class="setting-info">
+          <span class="setting-label">Dark Mode</span>
+          <span class="setting-desc">Switch between light and dark theme</span>
+        </div>
+        <button
+          type="button"
+          class="toggle-switch"
+          [class.active]="theme.isDark()"
+          (click)="theme.toggle()"
+          [attr.aria-label]="'Toggle ' + (theme.isDark() ? 'light' : 'dark') + ' mode'"
+        >
+          <span class="toggle-knob"></span>
+        </button>
+      </div>
+    </div>
+  </aside>
+}
 
 <app-staff-account-panel></app-staff-account-panel>

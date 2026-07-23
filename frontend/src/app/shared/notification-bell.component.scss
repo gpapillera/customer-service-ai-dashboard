@@ -291,9 +291,9 @@
 }
 
 .item-priority.priority-high {
-  color: #b91c1c;
-  border: 1px solid #fca5a5;
-  background: #fef2f2;
+  color: var(--cs-danger);
+  border: 1px solid var(--cs-danger);
+  background: var(--cs-danger-bg);
 }
 
 .item-title {

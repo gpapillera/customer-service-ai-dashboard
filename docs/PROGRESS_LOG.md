@@ -2,6 +2,32 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 24b — Sidenav Settings Gear + Dark Mode Toggle Panel] (2026-07-23)
+**Status:** ✅ COMPLETE (`ng build` → 0 errors)
+**What changed:**
+- Added `settings: Settings` to the `ICON_MAP` in `CsIconComponent`.
+- Added a settings gear button (`aria-label="Settings"`) in the sidenav brand area (next to the collapse button) and in the collapsed rail.
+- Added `settingsOpen` signal, `openSettings()` and `closeSettings()` methods in `LayoutComponent`.
+- Created a right slide-out settings panel with backdrop overlay triggered by the gear button:
+  - Panel slides in from the right with `translateX` animation.
+  - Backdrop fades in, closes panel on click.
+  - Dark Mode toggle — an Apple-style `toggle-switch` with sliding knob — wired to `ThemeService.isDark` / `ThemeService.toggle()`.
+- Raised component style budget from 8 kB → 12 kB to accommodate the settings panel styles.
+- Persistence: `ThemeService` persists to `localStorage('cs-theme')`; defaults to OS `prefers-color-scheme`.
+
+## [Phase 24a — Dark Mode Foundation] (2026-07-23)
+**Status:** ✅ COMPLETE
+**What was built:**
+- `frontend/src/app/shared/theme.service.ts` — Angular service with `isDark` signal, `toggle()`, localStorage persistence (key `cs-theme`), `prefers-color-scheme` OS detection, and dynamic `data-theme` attribute on `<html>`.
+- `[data-theme="dark"]` CSS variable block in `styles.scss` with dark-adapted `--cs-*` tokens (navy bg `#0f172a`, slate cards `#1e293b`, light text `#f1f5f9`, brighter accent/semantic colours).
+- Angular Material dark theme (`$cs-theme-dark`) applied via `mat.all-component-colors()` under `[data-theme="dark"]`.
+- Hardcoded `background`/`color`/`border-color` values replaced with CSS variables in 8 component SCSS files: `dashboard`, `case-list`, `case-detail`, `case-form`, `email-list`, `notification-bell`, `agent-list`, and global `kbd` styles.
+- Smooth `0.3s ease` transitions on `html` and `body` for theme switching.
+**New/Changed files:**
+- `frontend/src/app/shared/theme.service.ts` **(NEW)**
+- `frontend/src/styles.scss` — dark CSS vars, Material dark theme, transition, `--cs-bg-raised`, `--cs-bg-subtle`, `--cs-overlay`, `--cs-inverse-text`, `--cs-input-bg`, `--cs-table-stripe`; all dark overrides
+- 7 component SCSS files — hardcoded colors → CSS vars
+
 ## [Phase 23q — Retrain ONNX Priority Model on Real Data] (2026-07-23)
 **Status:** ✅ COMPLETE
 **What changed:**
@@ -1860,6 +1886,27 @@ The `ChromeHeadlessCI` launcher already exists in `karma.conf.js` with `--no-san
 **Known issues / TODO:**
 - EF migrations not yet generated (using `EnsureCreated`); add `dotnet ef migrations add Initial` for prod parity.
 **Next step:** Phase 3 — build the backend API (done immediately after).
+
+## [Phase 24a] Dark Mode Foundation — 2026-07-23
+**Status:** Complete
+**What was built:**
+- `frontend/src/app/shared/theme.service.ts` — Angular service with `isDark` signal, `toggle()`, localStorage persistence (key `cs-theme`), `prefers-color-scheme` OS detection, and dynamic `data-theme` attribute on `<html>`.
+- `[data-theme="dark"]` CSS variable block in `styles.scss` with dark-adapted `--cs-*` tokens (navy bg `#0f172a`, slate cards `#1e293b`, light text `#f1f5f9`, brighter accent/semantic colours).
+- Angular Material dark theme (`$cs-theme-dark`) applied via `mat.all-component-colors()` under `[data-theme="dark"]`.
+- Hardcoded `background`/`color`/`border-color` values replaced with CSS variables in 8 component SCSS files: `dashboard`, `case-list`, `case-detail`, `case-form`, `email-list`, `notification-bell`, `agent-list`, and global `kbd` styles.
+- Smooth `0.3s ease` transitions on `html` and `body` for theme switching.
+**New/Changed files:**
+- `frontend/src/app/shared/theme.service.ts` **(NEW)**
+- `frontend/src/styles.scss` — dark CSS vars, Material dark theme, transition, `--cs-bg-raised`, `--cs-bg-subtle`, `--cs-overlay`, `--cs-inverse-text`, `--cs-input-bg`, `--cs-table-stripe`; all dark overrides
+- `frontend/src/app/dashboard/dashboard.component.scss` — `tone-purple` icon bg uses `--cs-accent-light`
+- `frontend/src/app/cases/case-list.component.scss` — AI toggle + overdue toggle colours use CSS vars
+- `frontend/src/app/cases/case-detail.component.scss` — status/priority dots use semantic CSS vars
+- `frontend/src/app/cases/case-form.component.scss` — AI source badges use CSS vars
+- `frontend/src/app/email/email-list.component.scss` — table, retry button, type badges, status pills use CSS vars
+- `frontend/src/app/shared/notification-bell.component.scss` — priority-high uses CSS vars
+- `frontend/src/app/users/agent-list.component.scss` — KPI icon colours use semantic CSS vars
+**Verified:** `ng build` passes (warnings are pre-existing SCSS budget limits, not new errors). Dark mode active by setting `document.documentElement.dataset.theme = 'dark'` (confirmed via browser `--cs-bg` resolves to `#0f172a`).
+**Next step:** Phase 24b — Sidenav settings gear + panel (toggle switch in UI).
 
 ## [Phase 1] Scaffold repo structure — 2026-07-10
 **Status:** Complete

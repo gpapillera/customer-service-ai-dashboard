@@ -62,22 +62,22 @@
     color 0.18s var(--cs-ease);
 }
 .ai-toggle cs-icon {
-  color: #8b5cf6;
+  color: var(--cs-accent);
 }
 .ai-toggle:hover {
-  border-color: #cbd5e1;
+  border-color: var(--cs-text-muted);
 }
 .ai-toggle.active {
-  background: #f3e8ff;
-  border-color: #8b5cf6;
-  color: #7c3aed;
+  background: var(--cs-accent-light);
+  border-color: var(--cs-accent);
+  color: var(--cs-accent);
   font-weight: 700;
 }
 .ai-toggle.active cs-icon {
-  color: #7c3aed;
+  color: var(--cs-accent-strong);
 }
 .ai-toggle.active:hover {
-  border-color: #7c3aed;
+  border-color: var(--cs-accent-strong);
 }
 
 .overdue-toggle {
@@ -101,7 +101,7 @@
   color: var(--cs-warning-strong);
 }
 .overdue-toggle:hover {
-  border-color: #cbd5e1;
+  border-color: var(--cs-text-muted);
 }
 .overdue-toggle.active {
   background: var(--cs-warning-bg);

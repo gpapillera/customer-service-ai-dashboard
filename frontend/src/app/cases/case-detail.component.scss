@@ -290,14 +290,14 @@
 }
 
 /* status / priority dots */
-.dot-new { background: #3b82f6; }
-.dot-inprogress { background: #4f46e5; }
-.dot-escalated { background: #ef4444; }
-.dot-resolved { background: #10b981; }
-.dot-closed { background: #94a3b8; }
-.dot-low { background: #10b981; }
-.dot-medium { background: #f59e0b; }
-.dot-high { background: #ef4444; }
+.dot-new { background: var(--cs-info); }
+.dot-inprogress { background: var(--cs-accent); }
+.dot-escalated { background: var(--cs-danger); }
+.dot-resolved { background: var(--cs-success); }
+.dot-closed { background: var(--cs-neutral); }
+.dot-low { background: var(--cs-success); }
+.dot-medium { background: var(--cs-warning); }
+.dot-high { background: var(--cs-danger); }
 .cs-dot.dot-new,
 .cs-dot.dot-inprogress,
 .cs-dot.dot-escalated,

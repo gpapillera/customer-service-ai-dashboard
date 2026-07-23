@@ -11,8 +11,27 @@ $cs-theme: mat.define-theme(
   )
 );
 
+$cs-theme-dark: mat.define-theme(
+  (
+    color: (
+      theme-type: dark,
+      primary: mat.$azure-palette,
+      tertiary: mat.$violet-palette,
+    ),
+  )
+);
+
 html {
   @include mat.all-component-themes($cs-theme);
+  background: var(--cs-bg);
+  color: var(--cs-text);
+  /* Smooth transition for theme switching (background + text colours). */
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+/* Dark mode overrides for Angular Material components. */
+[data-theme='dark'] {
+  @include mat.all-component-colors($cs-theme-dark);
 }
 
 html,
@@ -25,10 +44,12 @@ body {
   /* Apple-like system font stack */
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI',
     Roboto, Helvetica, Arial, sans-serif;
-  background: #f5f5f7;
-  color: #1d1d1f;
+  background: var(--cs-bg);
+  color: var(--cs-text);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Smooth transition for theme changes */
+  transition: background 0.3s ease, color 0.3s ease;
 }
 
 * {
@@ -36,7 +57,8 @@ body {
 }
 
 /* ---- Apple-like design tokens (indigo-violet "ServiceAI" system) ---- */
-:root {
+:root,
+[data-theme='light'] {
   --cs-bg: #f8fafc;
   --cs-surface: #ffffff;
   --cs-border: rgba(0, 0, 0, 0.06);
@@ -54,7 +76,7 @@ body {
   --cs-success-bg: #d1fae5;
   --cs-warning: #f59e0b;
   --cs-warning-bg: #fef3c7;
-  --cs-warning-strong: #b45309; /* darker amber for text/icon on light bg */
+  --cs-warning-strong: #b45309;
   --cs-danger: #ef4444;
   --cs-danger-bg: #fee2e2;
   --cs-info: #3b82f6;
@@ -68,6 +90,53 @@ body {
   --cs-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
   --cs-shadow-hover: 0 8px 24px rgba(79, 70, 229, 0.12);
   --cs-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Background tints for various surfaces */
+  --cs-bg-raised: #ffffff;
+  --cs-bg-subtle: #f1f5f9;
+  --cs-overlay: rgba(0, 0, 0, 0.32);
+  --cs-inverse-text: #ffffff;
+  --cs-input-bg: #ffffff;
+  --cs-table-stripe: rgba(0, 0, 0, 0.02);
+}
+
+/* ---- Dark theme ---- */
+[data-theme='dark'] {
+  --cs-bg: #0f172a;
+  --cs-surface: #1e293b;
+  --cs-border: rgba(255, 255, 255, 0.08);
+  --cs-text: #f1f5f9;
+  --cs-text-muted: #94a3b8;
+
+  /* Primary / accent — same indigo-violet, slightly brighter on dark */
+  --cs-accent: #818cf8;
+  --cs-accent-strong: #a5b4fc;
+  --cs-accent-light: #1e1b4b;
+  --cs-accent-gradient: linear-gradient(135deg, #818cf8, #6366f1);
+
+  /* Semantic colours — more vivid on dark */
+  --cs-success: #34d399;
+  --cs-success-bg: #064e3b;
+  --cs-warning: #fbbf24;
+  --cs-warning-bg: #451a03;
+  --cs-warning-strong: #fcd34d;
+  --cs-danger: #f87171;
+  --cs-danger-bg: #450a0a;
+  --cs-info: #60a5fa;
+  --cs-info-bg: #0c1929;
+  --cs-neutral: #64748b;
+  --cs-neutral-bg: #1e293b;
+
+  --cs-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --cs-shadow-hover: 0 8px 24px rgba(129, 140, 248, 0.18);
+
+  /* Background tints for various surfaces */
+  --cs-bg-raised: #334155;
+  --cs-bg-subtle: #1e293b;
+  --cs-overlay: rgba(0, 0, 0, 0.56);
+  --cs-inverse-text: #0f172a;
+  --cs-input-bg: #1e293b;
+  --cs-table-stripe: rgba(255, 255, 255, 0.03);
 }
 
 /* ---- Reusable "alive" animations ---- */
@@ -358,11 +427,11 @@ kbd {
   padding: 0.125rem 0.375rem;
   font-size: 0.75rem;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
+  background: var(--cs-bg-subtle);
+  border: 1px solid var(--cs-border);
   border-radius: 4px;
-  box-shadow: 0 1px 0 #cbd5e1;
-  color: #64748b;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.08);
+  color: var(--cs-text-muted);
   line-height: 1.4;
 }
 

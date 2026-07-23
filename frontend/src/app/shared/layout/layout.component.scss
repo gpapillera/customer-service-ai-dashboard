@@ -71,6 +71,48 @@
   color: var(--cs-accent);
 }
 
+/* Settings gear button in the brand area (next to collapse btn). */
+.settings-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  color: var(--cs-text-muted);
+  cursor: pointer;
+  transition: background 0.18s var(--cs-ease), color 0.18s var(--cs-ease);
+}
+
+.settings-btn:hover {
+  background: rgba(79, 70, 229, 0.08);
+  color: var(--cs-accent);
+}
+
+/* Settings button in the collapsed rail. */
+.rail-settings {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
+  color: var(--cs-text-muted);
+  cursor: pointer;
+  transition: background 0.18s var(--cs-ease), color 0.18s var(--cs-ease),
+    transform 0.18s var(--cs-ease);
+}
+
+.rail-settings:hover {
+  background: rgba(79, 70, 229, 0.06);
+  color: var(--cs-accent);
+  transform: translateY(-1px);
+}
+
 .shell {
   height: 100vh;
   overflow: hidden;
@@ -406,6 +448,148 @@
 
 .dropdown-item cs-icon {
   color: var(--cs-text-muted);
+}
+
+/* ── Settings slide-out panel ──────────────────────────────────────── */
+
+.settings-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: var(--cs-overlay);
+  animation: fade-in 0.2s ease;
+}
+
+.settings-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 101;
+  width: 320px;
+  max-width: 90vw;
+  background: var(--cs-surface);
+  border-left: 1px solid var(--cs-border);
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  animation: slide-in-right 0.25s var(--cs-ease);
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--cs-border);
+}
+
+.settings-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--cs-text);
+}
+
+.settings-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  color: var(--cs-text-muted);
+  cursor: pointer;
+  transition: background 0.18s var(--cs-ease);
+}
+
+.settings-close:hover {
+  background: var(--cs-bg);
+}
+
+.settings-body {
+  flex: 1;
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+/* Single setting row (label + toggle) */
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 0;
+}
+
+.setting-row + .setting-row {
+  border-top: 1px solid var(--cs-border);
+}
+
+.setting-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.setting-label {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--cs-text);
+}
+
+.setting-desc {
+  font-size: 0.82rem;
+  color: var(--cs-text-muted);
+  line-height: 1.4;
+}
+
+/* Apple-like toggle switch */
+.toggle-switch {
+  position: relative;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 13px;
+  background: #cbd5e1;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.toggle-switch.active {
+  background: var(--cs-accent);
+}
+
+.toggle-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.toggle-switch.active .toggle-knob {
+  transform: translateX(18px);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+/* Animations */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-in-right {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
 }
 
 

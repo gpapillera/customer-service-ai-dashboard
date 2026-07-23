@@ -328,7 +328,7 @@ The priority-prediction model is a multiclass classifier (Decision Tree / Random
 - [x] Role-based dashboard views
 - [x] Docker Compose for one-command local setup
 - [x] CI/CD pipeline for automated testing
-- [ ] Retrain the model on real historical case data
+- [x] Retrain the model on real historical case data
 
 ---
 

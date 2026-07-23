@@ -385,10 +385,10 @@
   font-size: 0.78rem;
 }
 
-.tone-indigo .kpi-icon { background: #6366f1; }
-.tone-blue   .kpi-icon { background: #3b82f6; }
-.tone-red    .kpi-icon { background: #ef4444; }
-.tone-green  .kpi-icon { background: #10b981; }
+.tone-indigo .kpi-icon { background: var(--cs-accent); }
+.tone-blue   .kpi-icon { background: var(--cs-info); }
+.tone-red    .kpi-icon { background: var(--cs-danger); }
+.tone-green  .kpi-icon { background: var(--cs-success); }
 .tone-purple .kpi-icon { background: #8b5cf6; }
 .tone-amber  .kpi-icon { background: #f59e0b; }
 

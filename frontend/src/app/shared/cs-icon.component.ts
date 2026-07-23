@@ -87,6 +87,7 @@ const ICON_MAP: Record<string, LucideIconData> = {
   forum: MessageSquare,
   send: Send,
   supervisor_account: UserCheck,
+  settings: Settings,
 };
 
 @Component({

@@ -193,8 +193,8 @@
 
 .retry-btn {
   margin-left: auto;
-  background: #fff;
-  border: 1px solid #d1d5db;
+  background: var(--cs-surface);
+  border: 1px solid var(--cs-border);
   border-radius: 6px;
   padding: 0.35rem 0.85rem;
   font-size: 0.82rem;
@@ -203,7 +203,7 @@
 }
 
 .retry-btn:hover {
-  background: #f3f4f6;
+  background: var(--cs-bg);
 }
 
 /* ── Empty state ───────────────────────────────────────────────────── */
@@ -252,7 +252,7 @@
 }
 
 .email-table thead {
-  background: #f9fafb;
+  background: var(--cs-bg-subtle);
   border-bottom: 1px solid var(--cs-border);
 }
 
@@ -269,7 +269,7 @@
 
 .email-table td {
   padding: 0.85rem 1rem;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--cs-border);
   vertical-align: middle;
 }
 
@@ -278,7 +278,7 @@
 }
 
 .email-row:hover {
-  background: #fafaff;
+  background: var(--cs-table-stripe);
 }
 
 /* Column widths */
@@ -317,12 +317,12 @@
   white-space: nowrap;
 }
 
-.type-caseoverdue { background: #fef3c7; color: #92400e; }
-.type-caseresolved { background: #d1fae5; color: #065f46; }
-.type-customerinvite { background: #dbeafe; color: #1e40af; }
-.type-customerpasswordreset { background: #e0e7ff; color: #3730a3; }
-.type-newcustomermessage { background: #fce7f3; color: #9d174d; }
-.type-staffpasswordreset { background: #ede9fe; color: #5b21b6; }
+.type-caseoverdue { background: var(--cs-warning-bg); color: var(--cs-warning-strong); }
+.type-caseresolved { background: var(--cs-success-bg); color: var(--cs-success); }
+.type-customerinvite { background: var(--cs-info-bg); color: var(--cs-info); }
+.type-customerpasswordreset { background: var(--cs-accent-light); color: var(--cs-accent); }
+.type-newcustomermessage { background: var(--cs-danger-bg); color: var(--cs-danger); }
+.type-staffpasswordreset { background: var(--cs-accent-light); color: var(--cs-accent); }
 
 /* Status pill */
 .status-pill {
@@ -334,8 +334,8 @@
   white-space: nowrap;
 }
 
-.status-unread { background: #d1fae5; color: #065f46; }
-.status-read { background: #f3f4f6; color: #6b7280; }
+.status-unread { background: var(--cs-success-bg); color: var(--cs-success); }
+.status-read { background: var(--cs-bg-subtle); color: var(--cs-text-muted); }
 
 /* Case link */
 .case-link {

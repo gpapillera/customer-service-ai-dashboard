@@ -9,6 +9,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Title } from '@angular/platform-browser';
 import { CsIconComponent } from '../cs-icon.component';
 import { AuthService } from '../../auth/auth.service';
+import { ThemeService } from '../theme.service';
 import { ConfirmDialogComponent } from '../confirm-dialog.component';
 import { NotificationBellComponent } from '../notification-bell.component';
 import { StaffAccountPanelComponent } from '../staff-account-panel.component';
@@ -47,11 +48,14 @@ export class LayoutComponent {
   private readonly titleService = inject(Title);
   private readonly accountPanel = viewChild(StaffAccountPanelComponent);
   readonly navBadges = inject(NavBadgeService);
+  readonly theme = inject(ThemeService);
 
   /** True on narrow viewports (<768px); the sidenav switches to overlay mode. */
   readonly isHandset = signal(false);
   /** Whether the sidenav is currently open (user toggle + auto-hide aware). */
   readonly opened = signal(true);
+  /** Whether the settings panel (right slide-out) is open. */
+  readonly settingsOpen = signal(false);
   /** True only for the brief moment after a user toggles the sidenav, so the
       page brand logo animates (enlarge/shrink) ONLY on an explicit toggle and
       never on plain route changes. */
@@ -152,6 +156,16 @@ export class LayoutComponent {
   /** Opens the staff account panel. */
   openAccount(): void {
     this.accountPanel()?.show();
+  }
+
+  /** Open the settings slide-out panel. */
+  openSettings(): void {
+    this.settingsOpen.set(true);
+  }
+
+  /** Close the settings slide-out panel. */
+  closeSettings(): void {
+    this.settingsOpen.set(false);
   }
 
   /** Asks for confirmation, then logs the user out (only on confirm). */
