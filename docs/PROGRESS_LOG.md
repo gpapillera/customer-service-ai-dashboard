@@ -2,6 +2,16 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 24c — Dashboard Widget Visibility Settings] (2026-07-23)
+**Status:** ✅ COMPLETE (`ng build` → 0 errors)
+**What changed:**
+- Created `DashboardSettingsService` (`frontend/src/app/shared/dashboard-settings.service.ts`) with per-widget visibility signals (`showKpiCards`, `showCharts`, `showRecentCases`, `showOverdueFollowups`, `showAgentWorkload`) persisted in localStorage.
+- Added widget visibility toggles to the settings panel: KPI Cards, Charts, Recent Cases, Overdue Follow-ups, Agent Workload — each with Apple-style toggle switch wired to the service.
+- Wired `DashboardComponent` to use `DashboardSettingsService` — each section conditionally rendered with `@if`.
+- Limited overdue follow-ups list to 5 items (`.slice(0, 5)`).
+- Added `.settings-section-label` style for section separators in the settings panel.
+- Verified in browser: toggling each widget setting hides/shows the corresponding dashboard section immediately.
+
 ## [Phase 24b — Sidenav Settings Gear + Dark Mode Toggle Panel] (2026-07-23)
 **Status:** ✅ COMPLETE (`ng build` → 0 errors)
 **What changed:**

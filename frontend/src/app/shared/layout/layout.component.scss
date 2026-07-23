@@ -546,6 +546,18 @@
   line-height: 1.4;
 }
 
+/* Section separator label */
+.settings-section-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--cs-text-muted);
+  padding: 1rem 0 0.25rem;
+  margin-top: 0.5rem;
+  border-top: 1px solid var(--cs-border);
+}
+
 /* Apple-like toggle switch */
 .toggle-switch {
   position: relative;

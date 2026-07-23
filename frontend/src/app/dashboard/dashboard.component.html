@@ -14,17 +14,20 @@
   <div class="center"><mat-spinner diameter="40"></mat-spinner></div>
 } @else {
   @if (data(); as d) {
-    <div class="kpis" appKbdNav kbdNavItem="button.kpi-card" [kbdNavWrap]="true">
-      @for (k of kpis; track k.label) {
-        <button type="button" class="kpi-card cs-lift" appReveal [class]="'tone-' + k.tone" (click)="openKpi(k.link)" tabindex="-1">
-          <div class="kpi-icon"><cs-icon [name]="k.icon" [size]="26"></cs-icon></div>
-          <div class="kpi-value">{{ k.value }}</div>
-          <div class="kpi-label">{{ k.label }}</div>
-        </button>
-      }
-    </div>
+    @if (dashSettings.showKpiCards()) {
+      <div class="kpis" appKbdNav kbdNavItem="button.kpi-card" [kbdNavWrap]="true">
+        @for (k of kpis; track k.label) {
+          <button type="button" class="kpi-card cs-lift" appReveal [class]="'tone-' + k.tone" (click)="openKpi(k.link)" tabindex="-1">
+            <div class="kpi-icon"><cs-icon [name]="k.icon" [size]="26"></cs-icon></div>
+            <div class="kpi-value">{{ k.value }}</div>
+            <div class="kpi-label">{{ k.label }}</div>
+          </button>
+        }
+      </div>
+    }
 
-    <div class="charts-row trend-row">
+    @if (dashSettings.showCharts()) {
+      <div class="charts-row trend-row">
       <mat-card class="cs-lift chart-card reveal" appReveal>
         <mat-card-content>
           @if (isAgent()) {
@@ -88,8 +91,9 @@
         </button>
       </div>
     }
+    }
 
-    @if (!isAgent()) {
+    @if (!isAgent() && dashSettings.showRecentCases()) {
       <mat-card class="cs-lift recent-card reveal" appReveal>
         <mat-card-content>
           <div class="recent-head">
@@ -116,7 +120,7 @@
         </mat-card-content>
       </mat-card>
 
-      @if (d.overdueFollowUpsList.length > 0) {
+      @if (!isAgent() && dashSettings.showOverdueFollowups() && d.overdueFollowUpsList.length > 0) {
         <mat-card class="cs-lift overdue-card reveal" appReveal>
           <mat-card-content>
             <div class="recent-head">
@@ -124,7 +128,7 @@
               <a class="view-all" routerLink="/cases">View all cases &rarr;</a>
             </div>
             <div class="recent-list" appKbdNav kbdNavItem="a.recent-item" [kbdNavWrap]="true">
-              @for (o of d.overdueFollowUpsList; track o.caseId) {
+              @for (o of d.overdueFollowUpsList.slice(0, 5); track o.caseId) {
                 <a class="recent-item" [routerLink]="['/cases', o.caseId]" tabindex="-1">
                   <div class="recent-main">
                     <span class="recent-title">
@@ -145,7 +149,7 @@
       }
     }
 
-    @if (!isAgent() && agentWorkload().length > 0) {
+    @if (!isAgent() && dashSettings.showAgentWorkload() && agentWorkload().length > 0) {
       <mat-card class="cs-lift workload-card reveal" appReveal>
         <mat-card-content>
           <h2 class="chart-title workload-title"><cs-icon name="supervisor_account" class="workload-icon"></cs-icon> Agent Workload</h2>

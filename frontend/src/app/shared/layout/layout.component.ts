@@ -15,6 +15,7 @@ import { NotificationBellComponent } from '../notification-bell.component';
 import { StaffAccountPanelComponent } from '../staff-account-panel.component';
 import { NavBadgeService } from '../nav-badge.service';
 import { KbdNavDirective } from '../keyboard-nav.directive';
+import { DashboardSettingsService } from '../dashboard-settings.service';
 
 /**
  * Application shell: a white sidenav with navigation (active = light indigo
@@ -49,6 +50,7 @@ export class LayoutComponent {
   private readonly accountPanel = viewChild(StaffAccountPanelComponent);
   readonly navBadges = inject(NavBadgeService);
   readonly theme = inject(ThemeService);
+  readonly dashSettings = inject(DashboardSettingsService);
 
   /** True on narrow viewports (<768px); the sidenav switches to overlay mode. */
   readonly isHandset = signal(false);

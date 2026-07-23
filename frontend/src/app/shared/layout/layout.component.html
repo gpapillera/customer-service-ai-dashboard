@@ -137,6 +137,94 @@
           <span class="toggle-knob"></span>
         </button>
       </div>
+
+      <!-- Separator -->
+      <div class="settings-section-label">Dashboard Widgets</div>
+
+      <!-- KPI Cards -->
+      <div class="setting-row">
+        <div class="setting-info">
+          <span class="setting-label">KPI Cards</span>
+          <span class="setting-desc">Show summary metric cards</span>
+        </div>
+        <button
+          type="button"
+          class="toggle-switch"
+          [class.active]="dashSettings.showKpiCards()"
+          (click)="dashSettings.toggleKpiCards()"
+          aria-label="Toggle KPI cards"
+        >
+          <span class="toggle-knob"></span>
+        </button>
+      </div>
+
+      <!-- Charts -->
+      <div class="setting-row">
+        <div class="setting-info">
+          <span class="setting-label">Charts</span>
+          <span class="setting-desc">Show trend, priority, category &amp; status charts</span>
+        </div>
+        <button
+          type="button"
+          class="toggle-switch"
+          [class.active]="dashSettings.showCharts()"
+          (click)="dashSettings.toggleCharts()"
+          aria-label="Toggle charts"
+        >
+          <span class="toggle-knob"></span>
+        </button>
+      </div>
+
+      <!-- Recent Cases (admin) -->
+      <div class="setting-row">
+        <div class="setting-info">
+          <span class="setting-label">Recent Cases</span>
+          <span class="setting-desc">Show recent cases list (admin)</span>
+        </div>
+        <button
+          type="button"
+          class="toggle-switch"
+          [class.active]="dashSettings.showRecentCases()"
+          (click)="dashSettings.toggleRecentCases()"
+          aria-label="Toggle recent cases"
+        >
+          <span class="toggle-knob"></span>
+        </button>
+      </div>
+
+      <!-- Overdue Follow-ups (admin) -->
+      <div class="setting-row">
+        <div class="setting-info">
+          <span class="setting-label">Overdue Follow-ups</span>
+          <span class="setting-desc">Show overdue follow-ups list (admin)</span>
+        </div>
+        <button
+          type="button"
+          class="toggle-switch"
+          [class.active]="dashSettings.showOverdueFollowups()"
+          (click)="dashSettings.toggleOverdueFollowups()"
+          aria-label="Toggle overdue follow-ups"
+        >
+          <span class="toggle-knob"></span>
+        </button>
+      </div>
+
+      <!-- Agent Workload (admin) -->
+      <div class="setting-row">
+        <div class="setting-info">
+          <span class="setting-label">Agent Workload</span>
+          <span class="setting-desc">Show agent workload table (admin)</span>
+        </div>
+        <button
+          type="button"
+          class="toggle-switch"
+          [class.active]="dashSettings.showAgentWorkload()"
+          (click)="dashSettings.toggleAgentWorkload()"
+          aria-label="Toggle agent workload"
+        >
+          <span class="toggle-knob"></span>
+        </button>
+      </div>
     </div>
   </aside>
 }

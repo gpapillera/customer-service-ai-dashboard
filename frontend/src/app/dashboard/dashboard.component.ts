@@ -16,6 +16,7 @@ import { Dashboard, RecentCase, AgentWorkload } from '../shared/models';
 import { CATEGORIES } from '../shared/categories';
 import { LayoutComponent } from '../shared/layout/layout.component';
 import { AuthService } from '../auth/auth.service';
+import { DashboardSettingsService } from '../shared/dashboard-settings.service';
 
 /**
  * Dashboard: 6 KPI cards, weekly trend line, priority donut, horizontal
@@ -51,6 +52,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   readonly brandAnimate = inject(LayoutComponent).brandAnimate;
   private readonly routeLoading = inject(RouteLoadingService);
   private readonly router = inject(Router);
+  readonly dashSettings = inject(DashboardSettingsService);
 
   readonly data = signal<Dashboard | null>(null);
   /** Internal data-fetch state. */
