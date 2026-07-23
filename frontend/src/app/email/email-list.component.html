@@ -89,11 +89,36 @@
       <table class="email-table">
         <thead>
           <tr>
-            <th class="col-date">Date</th>
-            <th class="col-recipient">Recipient</th>
-            <th class="col-subject">Subject</th>
-            <th class="col-type">Type</th>
-            <th class="col-status">Status</th>
+            <th class="col-date sortable" (click)="toggleSort('date')">
+              Date
+              @if (sortColumn() === 'date') {
+                <span class="sort-arrow">{{ sortDesc() ? '▼' : '▲' }}</span>
+              }
+            </th>
+            <th class="col-recipient sortable" (click)="toggleSort('recipient')">
+              Recipient
+              @if (sortColumn() === 'recipient') {
+                <span class="sort-arrow">{{ sortDesc() ? '▼' : '▲' }}</span>
+              }
+            </th>
+            <th class="col-subject sortable" (click)="toggleSort('subject')">
+              Subject
+              @if (sortColumn() === 'subject') {
+                <span class="sort-arrow">{{ sortDesc() ? '▼' : '▲' }}</span>
+              }
+            </th>
+            <th class="col-type sortable" (click)="toggleSort('type')">
+              Type
+              @if (sortColumn() === 'type') {
+                <span class="sort-arrow">{{ sortDesc() ? '▼' : '▲' }}</span>
+              }
+            </th>
+            <th class="col-status sortable" (click)="toggleSort('status')">
+              Status
+              @if (sortColumn() === 'status') {
+                <span class="sort-arrow">{{ sortDesc() ? '▼' : '▲' }}</span>
+              }
+            </th>
             <th class="col-case">Case</th>
           </tr>
         </thead>

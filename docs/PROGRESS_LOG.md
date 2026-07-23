@@ -2,6 +2,15 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 24m — Email Date Sort + Column Filter] (2026-07-23)
+**Status:** ✅ COMPLETE (`ng build` → 0 errors)
+**What changed:**
+- **Frontend — Email List:** Added `sortColumn` (union type `'date'|'recipient'|'subject'|'type'|'status'`) and `sortDesc` signals to `EmailListComponent`. The `filteredEmails` computed now sorts by the selected column and direction — date uses numeric comparison, text columns use `localeCompare`. Toggling to a new column defaults to descending for date, ascending for text columns.
+- **Frontend — Email List HTML:** All 5 data column headers (`Date`, `Recipient`, `Subject`, `Type`, `Status`) are now clickable with `(click)="toggleSort(...)"` and display conditional sort arrows (▼/▲) when active. The `Case` column remains unsortable.
+- **Frontend — Column filter expansion:** The search term now also checks `message`, `type label`, `status label`, and `caseId` — not just `recipient` and `title` — so users can find emails by body text, type name, or case number.
+- **Frontend — SCSS:** Added `.sortable` styles (pointer cursor, accent hover color) and `.sort-arrow` (accent-colored arrow indicator) to the email table headers.
+- **Result:** Users can sort email log by any meaningful column and search across all visible fields for faster navigation.
+
 ## [Phase 24l — Message Date/Participant Filters] (2026-07-23)
 **Status:** ✅ COMPLETE (`ng build` → 0 errors)
 **What changed:**

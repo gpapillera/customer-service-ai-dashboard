@@ -267,6 +267,25 @@
   white-space: nowrap;
 }
 
+.email-table th.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.18s ease;
+}
+
+.email-table th.sortable:hover {
+  color: var(--cs-accent);
+}
+
+.sort-arrow {
+  display: inline-block;
+  margin-left: 4px;
+  font-size: 0.65rem;
+  line-height: 1;
+  vertical-align: middle;
+  color: var(--cs-accent);
+}
+
 .email-table td {
   padding: 0.85rem 1rem;
   border-bottom: 1px solid var(--cs-border);

@@ -68,23 +68,58 @@ export class EmailListComponent implements OnInit {
   /** Selected notification type filter ('' = all). */
   readonly filterType = signal('');
 
+  /** Sort column. */
+  readonly sortColumn = signal<'date' | 'recipient' | 'subject' | 'type' | 'status'>('date');
+  /** Sort direction — true = descending (newest first for dates). */
+  readonly sortDesc = signal(true);
+
   /** Unique type options for the filter dropdown. */
   readonly typeOptions = computed(() => {
     const all = this.emails().map((e) => e.type);
     return [...new Set(all)].sort();
   });
 
-  /** Emails filtered by search term and type. */
+  /** Emails filtered by search term and type, then sorted by column. */
   readonly filteredEmails = computed(() => {
     const term = this.searchTerm().toLowerCase().trim();
     const type = this.filterType();
-    return this.emails().filter((e) => {
+    const col = this.sortColumn();
+    const desc = this.sortDesc();
+
+    let result = this.emails().filter((e) => {
       if (type && e.type !== type) return false;
       if (!term) return true;
       return (
         (e.recipient ?? '').toLowerCase().includes(term) ||
-        e.title.toLowerCase().includes(term)
+        e.title.toLowerCase().includes(term) ||
+        e.message.toLowerCase().includes(term) ||
+        this.typeLabel(e.type).toLowerCase().includes(term) ||
+        this.statusLabel(e.status).toLowerCase().includes(term) ||
+        (e.caseId?.toString() ?? '').includes(term)
       );
+    });
+
+    // Apply sort
+    return [...result].sort((a, b) => {
+      let cmp = 0;
+      switch (col) {
+        case 'date':
+          cmp = new Date(a.createdAtUtc).getTime() - new Date(b.createdAtUtc).getTime();
+          break;
+        case 'recipient':
+          cmp = (a.recipient ?? '').localeCompare(b.recipient ?? '');
+          break;
+        case 'subject':
+          cmp = a.title.localeCompare(b.title);
+          break;
+        case 'type':
+          cmp = this.typeLabel(a.type).localeCompare(this.typeLabel(b.type));
+          break;
+        case 'status':
+          cmp = this.statusLabel(a.status).localeCompare(this.statusLabel(b.status));
+          break;
+      }
+      return desc ? -cmp : cmp;
     });
   });
 
@@ -95,6 +130,18 @@ export class EmailListComponent implements OnInit {
   /** Clears the type filter. */
   clearTypeFilter(): void {
     this.filterType.set('');
+  }
+
+  /** Toggle sort for a column — reverses direction or switches column. */
+  toggleSort(column: string): void {
+    const col = column as 'date' | 'recipient' | 'subject' | 'type' | 'status';
+    if (this.sortColumn() === col) {
+      this.sortDesc.update((d) => !d);
+    } else {
+      this.sortColumn.set(col);
+      // Default: newest-first for dates, A-Z for text
+      this.sortDesc.set(col === 'date');
+    }
   }
 
   /** Fetches the email log. */
