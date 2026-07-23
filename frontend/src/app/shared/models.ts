@@ -19,6 +19,7 @@ export interface LoginResponse {
 /** A customer record (matches CustomerDto). */
 export interface Customer {
   id: number;
+  customerDisplayId: string | null;
   name: string;
   email: string;
   phone: string | null;
@@ -26,6 +27,8 @@ export interface Customer {
   address: string | null;
   caseCount: number;
   createdAtUtc?: string;
+  hasAccount: boolean;
+  accountActive: boolean;
 }
 
 /** Payload for creating a customer. */

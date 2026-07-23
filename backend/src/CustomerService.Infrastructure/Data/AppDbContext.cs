@@ -64,8 +64,11 @@ public class AppDbContext : DbContext
             e.HasKey(c => c.Id);
             e.Property(c => c.Name).IsRequired().HasMaxLength(200);
             e.Property(c => c.Email).IsRequired().HasMaxLength(200);
+            e.Property(c => c.CustomerDisplayId).HasMaxLength(20);
             e.HasMany(c => c.Cases).WithOne(c => c.Customer!)
                 .HasForeignKey(c => c.CustomerId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(c => c.Account).WithOne(a => a.Customer!)
+                .HasForeignKey<CustomerAccount>(a => a.CustomerId);
         });
 
         builder.Entity<CustomerAccount>(e =>
@@ -76,9 +79,6 @@ public class AppDbContext : DbContext
             e.HasIndex(a => a.InviteToken).IsUnique();
             e.Property(a => a.InviteToken).HasMaxLength(128);
             e.Property(a => a.PasswordHash).HasMaxLength(200);
-            e.HasOne(a => a.Customer!).WithOne()
-                .HasForeignKey<CustomerAccount>(a => a.CustomerId)
-                .OnDelete(DeleteBehavior.Cascade);
         });
 
         builder.Entity<Category>(e =>

@@ -45,6 +45,7 @@ public class CustomerService : ICustomerService
                 .Select(c => new CustomerDto
                 {
                     Id = c.Id,
+                    CustomerDisplayId = c.CustomerDisplayId,
                     Name = c.Name,
                     Email = c.Email,
                     Phone = c.Phone,
@@ -52,6 +53,8 @@ public class CustomerService : ICustomerService
                     Address = c.Address,
                     CaseCount = c.Cases.Count,
                     CreatedAtUtc = c.CreatedAtUtc,
+                    HasAccount = c.Account != null,
+                    AccountActive = c.Account != null && c.Account.IsActive,
                 })
                 .OrderBy(c => c.Name)
                 .ToListAsync();
@@ -61,6 +64,7 @@ public class CustomerService : ICustomerService
             .Select(c => new CustomerDto
             {
                 Id = c.Id,
+                CustomerDisplayId = c.CustomerDisplayId,
                 Name = c.Name,
                 Email = c.Email,
                 Phone = c.Phone,
@@ -68,6 +72,8 @@ public class CustomerService : ICustomerService
                 Address = c.Address,
                 CaseCount = c.Cases.Count,
                 CreatedAtUtc = c.CreatedAtUtc,
+                HasAccount = c.Account != null,
+                AccountActive = c.Account != null && c.Account.IsActive,
             })
             .OrderBy(c => c.Name)
             .ToListAsync();
@@ -76,7 +82,9 @@ public class CustomerService : ICustomerService
     /// <inheritdoc/>
     public async Task<CustomerDto?> GetByIdAsync(int id, string? callerRole = null, string? callerUserId = null)
     {
-        var c = await _customers.GetByIdAsync(id);
+        var c = await _customers.Query()
+            .Include(x => x.Account)
+            .FirstOrDefaultAsync(x => x.Id == id);
         if (c is null) return null;
 
         // AGENT SCOPING (Phase 6). An Agent may only open a customer they share
@@ -150,6 +158,7 @@ public class CustomerService : ICustomerService
         return await q.Select(c => new CustomerDto
         {
             Id = c.Id,
+            CustomerDisplayId = c.CustomerDisplayId,
             Name = c.Name,
             Email = c.Email,
             Phone = c.Phone,
@@ -157,6 +166,8 @@ public class CustomerService : ICustomerService
             Address = c.Address,
             CaseCount = c.Cases.Count,
             CreatedAtUtc = c.CreatedAtUtc,
+            HasAccount = c.Account != null,
+            AccountActive = c.Account != null && c.Account.IsActive,
         }).OrderBy(c => c.Name).ToListAsync();
     }
 
@@ -172,6 +183,10 @@ public class CustomerService : ICustomerService
             Address = dto.Address,
         };
         await _customers.AddAsync(customer);
+        await _customers.SaveChangesAsync();
+        // Generate a human-readable display ID after the entity is saved (Id is now set).
+        customer.CustomerDisplayId = $"CUST-{customer.Id:D5}";
+        _customers.Update(customer);
         await _customers.SaveChangesAsync();
         return ToDto(customer);
     }
@@ -202,6 +217,7 @@ public class CustomerService : ICustomerService
     private static CustomerDto ToDto(Customer c) => new()
     {
         Id = c.Id,
+        CustomerDisplayId = c.CustomerDisplayId,
         Name = c.Name,
         Email = c.Email,
         Phone = c.Phone,
@@ -209,6 +225,8 @@ public class CustomerService : ICustomerService
         Address = c.Address,
         CaseCount = c.Cases?.Count ?? 0,
         CreatedAtUtc = c.CreatedAtUtc,
+        HasAccount = c.Account != null,
+        AccountActive = c.Account != null && c.Account.IsActive,
     };
 
     private static string NormalizeEmail(string email) => email.Trim().ToLower();

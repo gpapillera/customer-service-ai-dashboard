@@ -2,6 +2,19 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 24f — Customer Account + Display ID] (2026-07-23)
+**Status:** ✅ COMPLETE (`ng build` + `dotnet build` → 0 errors)
+**What changed:**
+- **Backend — Domain:** Added `CustomerDisplayId` (string, nullable, max 20) to `Customer` entity; wired `Account` navigation (1:1 to `CustomerAccount`).
+- **Backend — Infrastructure:** Updated `AppDbContext` Customer config with `CustomerDisplayId` column and `HasOne(c => c.Account).WithOne(a => a.Customer)` relationship.
+- **Backend — Application/Dtos:** `CustomerDto` now includes `CustomerDisplayId`, `HasAccount`, `AccountActive`.
+- **Backend — Application/Services:** `CustomerService` generates `"CUST-{Id:D5}"` after first save; queries eager-load `.Account` for display ID and account status fields; `ToDto` maps all 3 new fields.
+- **Frontend — Model:** `Customer` interface gains `customerDisplayId`, `hasAccount`, `accountActive`.
+- **Frontend — Customer List:** Card template shows `c.customerDisplayId` in a `.display-id` monospace element when present.
+- **Frontend — Customer Detail:** Added "Display ID" row (`<code>`), "Account" row with status pill (Active/Invited/No account).
+- **Frontend — SCSS:** Added `.display-id` style in `customer-list.component.scss`.
+- **Budget:** Raised `anyComponentStyle` warning from 6 kB → 8 kB to accommodate SCSS growth in layout, case-detail, notification-bell, and agent-list.
+
 ## [Phase 24e — Page-Specific Logo Icons] (2026-07-23)
 **Status:** ✅ COMPLETE (`ng build` → 0 errors)
 **What changed:**

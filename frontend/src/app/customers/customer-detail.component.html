@@ -17,10 +17,25 @@
             </div>
           </div>
           <dl class="facts">
+            <div><dt>Display ID</dt><dd><code>{{ c.customerDisplayId || '—' }}</code></dd></div>
             <div><dt>Phone</dt><dd>{{ c.phone || '—' }}</dd></div>
             <div><dt>Company</dt><dd>{{ c.company || '—' }}</dd></div>
             <div><dt>Address</dt><dd>{{ c.address || '—' }}</dd></div>
             <div><dt>Customer since</dt><dd>{{ formatDate(c.createdAtUtc) }}</dd></div>
+            <div>
+              <dt>Account</dt>
+              <dd>
+                @if (c.hasAccount) {
+                  @if (c.accountActive) {
+                    <span class="cs-pill status-resolved"><span class="cs-dot"></span> Active</span>
+                  } @else {
+                    <span class="cs-pill status-open"><span class="cs-dot"></span> Invited</span>
+                  }
+                } @else {
+                  <span class="cs-pill status-closed"><span class="cs-dot"></span> No account</span>
+                }
+              </dd>
+            </div>
           </dl>
           <div class="actions">
             @if (auth.getRole() !== 'Agent') {

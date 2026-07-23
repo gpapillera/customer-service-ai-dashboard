@@ -37,11 +37,14 @@ public class UpdateCustomerDto : CreateCustomerDto
     public int Id { get; set; }
 }
 
-/// <summary>Read model for a customer (includes case count).</summary>
+/// <summary>Read model for a customer (includes case count and account status).</summary>
 public class CustomerDto
 {
     /// <summary>Customer primary key.</summary>
     public int Id { get; set; }
+
+    /// <summary>Human-readable display ID (e.g. "CUST-00001").</summary>
+    public string? CustomerDisplayId { get; set; }
 
     /// <summary>Customer full name.</summary>
     public string Name { get; set; } = string.Empty;
@@ -63,4 +66,10 @@ public class CustomerDto
 
     /// <summary>UTC timestamp when the customer record was created.</summary>
     public DateTime CreatedAtUtc { get; set; }
+
+    /// <summary>True if the customer has an account record (login credentials).</summary>
+    public bool HasAccount { get; set; }
+
+    /// <summary>True if the customer's account is active (password set).</summary>
+    public bool AccountActive { get; set; }
 }

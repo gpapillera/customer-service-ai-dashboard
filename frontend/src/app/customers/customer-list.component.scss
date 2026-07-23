@@ -158,6 +158,12 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.display-id {
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 0.75rem;
+  color: var(--cs-text-muted);
+  letter-spacing: 0.02em;
+}
 
 .rows {
   margin-top: 0.9rem;

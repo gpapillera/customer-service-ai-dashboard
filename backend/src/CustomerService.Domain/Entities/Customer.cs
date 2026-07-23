@@ -9,6 +9,9 @@ public class Customer
     /// <summary>Primary key.</summary>
     public int Id { get; set; }
 
+    /// <summary>Human-readable display ID (e.g. "CUST-00001"), generated after creation.</summary>
+    public string? CustomerDisplayId { get; set; }
+
     /// <summary>Customer's full name.</summary>
     public string Name { get; set; } = string.Empty;
 
@@ -29,4 +32,7 @@ public class Customer
 
     /// <summary>Navigation property: cases raised by this customer.</summary>
     public ICollection<Case> Cases { get; set; } = new List<Case>();
+
+    /// <summary>Navigation property: 1:1 account record (invite/password state).</summary>
+    public CustomerAccount? Account { get; set; }
 }

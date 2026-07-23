@@ -41,6 +41,9 @@
             <div class="avatar" [style.background]="avatarColor(c.id)">{{ c.name.charAt(0).toUpperCase() }}</div>
             <div class="meta">
               <div class="name">{{ c.name }}</div>
+              @if (c.customerDisplayId) {
+                <div class="display-id">{{ c.customerDisplayId }}</div>
+              }
               @if (c.company) {
                 <div class="sub">{{ c.company }}</div>
               }
