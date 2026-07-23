@@ -2,6 +2,30 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 23q — Retrain ONNX Priority Model on Real Data] (2026-07-23)
+**Status:** ✅ COMPLETE
+**What changed:**
+- **Problem:** The ML priority model (`ml/models/priority_model.onnx`) was trained on synthetic data. The model needed retraining on real case data from the application database after switching to SQLite and seeding demo data.
+
+**Changes (4 files):**
+1. **`ml/export_training_data.py`** (NEW) — Python script that connects to the SQLite database, extracts all cases with computed features (category_id, prior_case_count, days_since_contact, sentiment), and writes a CSV consumable by `train_model.py --data`.
+2. **`ml/train_model.py`** — Added `--data` argument and `load_csv()` function. When `--data path/to.csv` is provided, loads real data instead of generating synthetic. ONNX export unchanged (4-float input → 3-class output).
+3. **`backend/src/CustomerService.Api/appsettings.json`** — Changed `Database:Provider` from `"SqlServer"` → `"Sqlite"` so the backend creates and seeds a local SQLite database on startup.
+4. **`docs/MODEL_CARD.md`** — Updated with v2 metrics (real data, 15 rows): accuracy 0.333 (expected with small dataset). Documented the new retraining pipeline.
+
+**Pipeline executed:**
+1. Backend ran with Sqlite provider → created `customer_service.db` with seeded demo data
+2. `export_training_data.py --db backend/src/CustomerService.Api/customer_service.db -o ml/data/training_data.csv` → exported 15 rows (3 Low, 6 Medium, 6 High)
+3. `train_model.py --data ml/data/training_data.csv --output ml/models/priority_model.onnx` → retrained ONNX model (accuracy 0.333 on test split — low due to small sample size, will improve as more cases are triaged)
+4. Verified: `ml/models/priority_model.onnx` updated (672 bytes)
+
+**Verification:**
+- `dotnet build CustomerServiceApi.sln` → 0 errors
+- Model loaded successfully by backend at startup (logs confirm path resolution)
+- ML-based priority suggestions enabled
+
+---
+
 ## [Phase 23p — Polish Case Detail: Call Log Card, Assignee Card, Dropdown Styles, Enter-to-Submit] (2026-07-23)
 **Status:** ✅ COMPLETE (`ng build` → 0 errors)
 

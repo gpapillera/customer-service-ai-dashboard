@@ -390,16 +390,16 @@ def clean_customer_records(df: pd.DataFrame) -> pd.DataFrame:
 
 ## 16. Definition of Done (MVP Acceptance Criteria)
 
-- [ ] User can log in and is redirected to `/login` if unauthenticated.
-- [ ] Customers can be created, viewed, searched, edited, deleted.
-- [ ] Cases can be created against a customer, with a category and description.
-- [ ] On case creation, a predicted priority (Low/Medium/High) is shown and can be overridden by the agent.
-- [ ] Call/follow-up logs can be added to a case and are listed on the case detail page.
-- [ ] Dashboard shows total/pending/resolved counts and at least one weekly/monthly trend chart.
-- [ ] Case list supports filtering by status, priority, category, and date range.
-- [ ] `clean_data.py` runs against a sample raw CSV and produces a cleaned CSV.
-- [ ] README includes setup instructions, architecture diagram, and screenshots.
-- [ ] All public methods/classes are documented per Section 13.
+- [x] User can log in and is redirected to `/login` if unauthenticated.
+- [x] Customers can be created, viewed, searched, edited, deleted.
+- [x] Cases can be created against a customer, with a category and description.
+- [x] On case creation, a predicted priority (Low/Medium/High) is shown and can be overridden by the agent.
+- [x] Call/follow-up logs can be added to a case and are listed on the case detail page.
+- [x] Dashboard shows total/pending/resolved counts and at least one weekly/monthly trend chart.
+- [x] Case list supports filtering by status, priority, category, and date range.
+- [x] `clean_data.py` runs against a sample raw CSV and produces a cleaned CSV.
+- [x] README includes setup instructions, architecture diagram, and screenshots.
+- [x] All public methods/classes are documented per Section 13.
 
 ---
 

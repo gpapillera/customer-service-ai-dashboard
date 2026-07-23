@@ -8,19 +8,28 @@ Built as a full-stack demo combining web development, database design, data clea
 
 ## Table of Contents
 
-- [Overview](#overview)
-- [Features](#features)
-- [Tech Stack](#tech-stack)
-- [System Architecture](#system-architecture)
-- [Database Schema](#database-schema)
-- [Screenshots](#screenshots)
-- [Project Structure](#project-structure)
-- [Getting Started](#getting-started)
-- [API Overview](#api-overview)
-- [AI / ML Model](#ai--ml-model)
-- [Testing](#testing)
-- [Roadmap](#roadmap)
-- [License](#license)
+- [Customer Service AI Dashboard](#customer-service-ai-dashboard)
+  - [Table of Contents](#table-of-contents)
+  - [Overview](#overview)
+  - [Features](#features)
+  - [Tech Stack](#tech-stack)
+  - [System Architecture](#system-architecture)
+  - [Database Schema](#database-schema)
+  - [Screenshots](#screenshots)
+  - [Project Structure](#project-structure)
+  - [Getting Started](#getting-started)
+    - [Prerequisites](#prerequisites)
+    - [1. Backend (API on `http://localhost:5274`)](#1-backend-api-on-httplocalhost5274)
+    - [2. Frontend (on `http://localhost:4200`)](#2-frontend-on-httplocalhost4200)
+    - [3. ML Pipeline (one-time / periodic)](#3-ml-pipeline-one-time--periodic)
+    - [4. Docker (one-command stack)](#4-docker-one-command-stack)
+    - [Configuration](#configuration)
+  - [API Overview](#api-overview)
+  - [AI / ML Model](#ai--ml-model)
+  - [Testing](#testing)
+  - [Roadmap](#roadmap)
+  - [License](#license)
+  - [Author](#author)
 
 ---
 
@@ -316,7 +325,7 @@ The priority-prediction model is a multiclass classifier (Decision Tree / Random
 - [x] Overdue follow-up detection surfaced on the dashboard (open cases past their `FollowUpDueUtc` with no follow-up since the deadline, **plus** stale open cases with no follow-up for 3+ days). Follow-up deadlines are auto-scheduled from an SLA on case creation. Email/SMS *sending* is a follow-up item below.
 - [x] In-app notification center for overdue follow-ups (bell + unread badge + dropdown, persisted `Notification` records, pluggable `INotificationSender` for future Email/SMS).
 - [x] Email/SMS notification *sending* for overdue follow-ups (detection + dashboard surfacing + in-app records were already done; the `INotificationSender` seam now routes to demo Email/SMS senders that log + write an outbox file — enable via `Notifications:Channels` in appsettings)
-- [ ] Role-based dashboard views
+- [x] Role-based dashboard views
 - [x] Docker Compose for one-command local setup
 - [x] CI/CD pipeline for automated testing
 - [ ] Retrain the model on real historical case data
@@ -329,4 +338,4 @@ This is a personal portfolio project. Feel free to use it as a learning referenc
 
 ## Author
 
-*(add your name, LinkedIn/GitHub, and a short line about your customer-service background here)*
+*(Glen Papillera, [LinkedIn](linkedin.com/in/gpapillera), Customer Service professional with nearly three years of experience in voice support, CRM systems, and problem-solving, now bringing a user-first mindset to software development.)*

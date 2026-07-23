@@ -218,10 +218,42 @@ def export_onnx(model: DecisionTreeClassifier, path: Path) -> None:
     print(f"Exported ONNX model -> {path}")
 
 
+def load_csv(path: str) -> pd.DataFrame:
+    """Load real training data from a CSV file.
+
+    The CSV must have columns: category_id, prior_case_count, days_since_contact,
+    sentiment, priority.
+
+    Args:
+        path: Path to the CSV file.
+
+    Returns:
+        DataFrame with the same schema as ``generate_synthetic_data`` output.
+    """
+    df = pd.read_csv(path)
+    required = {"category_id", "prior_case_count", "days_since_contact",
+                 "sentiment", "priority"}
+    missing = required - set(df.columns)
+    if missing:
+        raise ValueError(f"CSV is missing required columns: {missing}")
+    print(f"Loaded {len(df)} real training rows from {path}")
+    print("  Priority distribution:")
+    for label in LABELS:
+        count = (df["priority"] == label).sum()
+        print(f"    {label}: {count} ({count / len(df) * 100:.1f}%)")
+    return df
+
+
 def main() -> None:
-    """CLI entry point: generate data, train, evaluate, export ONNX."""
+    """CLI entry point: generate data (or load CSV), train, evaluate, export ONNX."""
     parser = argparse.ArgumentParser(description="Train the priority-prediction model.")
-    parser.add_argument("--rows", type=int, default=3000, help="Synthetic rows to generate.")
+    parser.add_argument("--rows", type=int, default=3000,
+                        help="Synthetic rows to generate (ignored when --data is set).")
+    parser.add_argument(
+        "--data",
+        default=None,
+        help="Path to a CSV of real training data (skips synthetic generation).",
+    )
     parser.add_argument(
         "--output",
         default="ml/models/priority_model.onnx",
@@ -229,7 +261,11 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    df = generate_synthetic_data(n=args.rows)
+    if args.data:
+        df = load_csv(args.data)
+    else:
+        df = generate_synthetic_data(n=args.rows)
+
     model = train(df)
     export_onnx(model, Path(args.output))
 

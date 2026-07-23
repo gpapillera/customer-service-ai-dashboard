@@ -1,0 +1,16 @@
+category_id,prior_case_count,days_since_contact,sentiment,priority
+1,0,15,-1.0,High
+5,1,4,-1.0,Medium
+1,2,3,0.0,Medium
+2,0,8,0.0,Medium
+3,0,5,-1.0,High
+4,0,23,0.0,Low
+3,0,6,-1.0,High
+4,1,4,0.0,Medium
+1,0,7,-1.0,Medium
+2,0,9,0.0,High
+4,0,10,0.0,Low
+5,0,11,0.0,Medium
+3,0,12,-1.0,High
+1,0,18,0.0,Low
+5,0,3,0.0,High
