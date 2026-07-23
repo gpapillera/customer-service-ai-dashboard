@@ -61,4 +61,14 @@ public interface INotificationService
     /// <summary>Marks every notification as read.</summary>
     /// <returns>The number of notifications updated.</returns>
     Task<int> MarkAllReadAsync();
+
+    /// <summary>
+    /// Composes and sends an ad-hoc email (AdminManual type) via the email
+    /// channel. The notification is persisted and routed through the standard
+    /// <see cref="INotificationSender"/> pipeline so it is sent, logged,
+    /// and appears in the email log.
+    /// </summary>
+    /// <param name="request">The compose payload (recipient, subject, message, optional caseId).</param>
+    /// <returns>The created notification DTO.</returns>
+    Task<NotificationDto> ComposeEmailAsync(ComposeEmailRequest request);
 }

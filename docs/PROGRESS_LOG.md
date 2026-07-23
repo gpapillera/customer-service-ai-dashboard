@@ -2,6 +2,23 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 24o — Email Compose Right Panel] (2026-07-23)
+**Status:** ✅ COMPLETE (`ng build` + `dotnet build` + `dotnet test` → 0 errors, 62/64 pass — 2 pre-existing Phase 24h failures)
+**What changed:**
+- **Backend — Domain:** Added `AdminManual = 6` to `NotificationType` enum for ad-hoc admin-composed emails.
+- **Backend — DTOs:** Added `ComposeEmailRequest` record (Recipient, Subject, Message, optional CaseId).
+- **Backend — Interface:** Added `ComposeEmailAsync(ComposeEmailRequest)` to `INotificationService`.
+- **Backend — Service:** Implemented `ComposeEmailAsync` in `NotificationService` — creates a `Notification` entity with `Channel.Email` and `Type.AdminManual`, persists and sends it through the `INotificationSender` pipeline (triggering SMTP via `EmailNotificationSender`).
+- **Backend — Controller:** Added `POST /api/emails/compose` (Admin-only) to `EmailsController` with validation for required fields.
+- **Backend — Tests:** Updated both `FakeNotificationService` implementations in test files to include `ComposeEmailAsync`.
+- **Frontend — Models:** Added `ComposeEmailRequest` interface (recipient, subject, message, optional caseId).
+- **Frontend — Service:** Added `compose(data)` method to `EmailLogService` calling `POST /api/emails/compose`.
+- **Frontend — Type labels:** Added `AdminManual: 'Manual email'` to `TYPE_LABELS`.
+- **Frontend — Component:** Added compose panel signals (`showCompose`, `composeRecipient`, `composeSubject`, `composeMessage`, `composeCaseId`, `composeSending`, `composeError`, `composeSuccess`) with `openCompose()`, `closeCompose()`, and `submitCompose()` methods. Form validates required fields, sends via service, shows success state, and auto-reloads the email list.
+- **Frontend — Template:** Added "Compose" button in the email toolbar and a right-slide overlay panel with recipient/subject/message/case-id form fields, send/cancel actions, success feedback, and error display.
+- **Frontend — SCSS:** Added `.compose-btn` (accent-colored primary button), `.compose-body`/`.compose-success`/`.compose-error` (panel layout and feedback), `.compose-field`/`.compose-label`/`.compose-input`/`.compose-textarea` (form field styles with focus rings), and `.compose-actions` (button row).
+- **Result:** Admins can now compose and send ad-hoc emails directly from the Email Log page through a slide-over compose panel, with full form validation, success feedback, and automatic list refresh.
+
 ## [Phase 24n — Email Detail Right Panel] (2026-07-23)
 **Status:** ✅ COMPLETE (`ng build` → 0 errors)
 **What changed:**

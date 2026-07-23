@@ -526,3 +526,116 @@
 .muted {
   color: var(--cs-muted);
 }
+
+/* ── Compose panel ── */
+
+.compose-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 48px;
+  padding: 0 1.25rem;
+  border: none;
+  border-radius: 8px;
+  background: var(--cs-accent);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s ease, transform 0.18s ease;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.compose-btn:hover {
+  background: var(--cs-accent-hover);
+  transform: translateY(-1px);
+}
+
+.compose-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.compose-success {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 1rem;
+  background: var(--cs-success-bg);
+  color: var(--cs-success);
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.compose-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0.75rem 1rem;
+  background: var(--cs-danger-bg);
+  color: #991b1b;
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+
+.compose-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.compose-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--cs-text-muted);
+}
+
+.compose-input {
+  height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--cs-border);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: var(--cs-text);
+  background: var(--cs-bg);
+  outline: none;
+  transition: border-color 0.18s ease;
+}
+
+.compose-input:focus {
+  border-color: var(--cs-accent);
+}
+
+.compose-textarea {
+  padding: 10px 12px;
+  border: 1px solid var(--cs-border);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: var(--cs-text);
+  background: var(--cs-bg);
+  outline: none;
+  resize: vertical;
+  min-height: 100px;
+  font-family: inherit;
+  line-height: 1.6;
+  transition: border-color 0.18s ease;
+}
+
+.compose-textarea:focus {
+  border-color: var(--cs-accent);
+}
+
+.compose-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.compose-actions .cs-btn {
+  flex: 1;
+}

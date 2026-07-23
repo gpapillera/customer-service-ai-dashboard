@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Notification } from '../shared/models';
+import { Notification, ComposeEmailRequest } from '../shared/models';
 
 /**
  * Fetches the email notification log from the backend. Every email sent by
@@ -16,5 +16,10 @@ export class EmailLogService {
   /** Returns all sent emails, newest first. */
   getAll(): Observable<Notification[]> {
     return this.http.get<Notification[]>('/api/emails');
+  }
+
+  /** Composes and sends an ad-hoc email (Admin-only). */
+  compose(data: ComposeEmailRequest): Observable<Notification> {
+    return this.http.post<Notification>('/api/emails/compose', data);
   }
 }

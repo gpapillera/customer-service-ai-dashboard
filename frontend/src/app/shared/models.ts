@@ -334,6 +334,14 @@ export interface NotificationSummary {
   recent: Notification[];
 }
 
+/** Payload for composing and sending an ad-hoc email. */
+export interface ComposeEmailRequest {
+  recipient: string;
+  subject: string;
+  message: string;
+  caseId?: number;
+}
+
 /**
  * A currently-overdue case surfaced in the notification center. Derived live
  * from the cases API (overdue filter), not from stored notification rows, so

@@ -33,4 +33,22 @@ public class EmailsController : ControllerBase
     {
         return await _service.GetEmailLogAsync();
     }
+
+    /// <summary>Composes and sends an ad-hoc email (Admin-only).</summary>
+    [HttpPost("compose")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(typeof(NotificationDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> Compose([FromBody] ComposeEmailRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Recipient))
+            return BadRequest("Recipient is required.");
+        if (string.IsNullOrWhiteSpace(request.Subject))
+            return BadRequest("Subject is required.");
+        if (string.IsNullOrWhiteSpace(request.Message))
+            return BadRequest("Message is required.");
+
+        var dto = await _service.ComposeEmailAsync(request);
+        return Ok(dto);
+    }
 }

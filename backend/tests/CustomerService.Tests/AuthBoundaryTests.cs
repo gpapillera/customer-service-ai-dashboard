@@ -413,5 +413,7 @@ public class AuthBoundaryTests
         public Task<NotificationSummaryDto> GetSummaryAsync(string? recipientUserId = null) => Task.FromResult(new NotificationSummaryDto());
         public Task<bool> MarkReadAsync(int id) => Task.FromResult(false);
         public Task<int> MarkAllReadAsync() => Task.FromResult(0);
+        public Task<NotificationDto> ComposeEmailAsync(ComposeEmailRequest request) =>
+            Task.FromResult(new NotificationDto { Id = 1, Title = request.Subject, Message = request.Message, Channel = NotificationChannel.Email, Type = NotificationType.AdminManual, Status = NotificationStatus.Unread, CreatedAtUtc = DateTime.UtcNow, CaseId = request.CaseId, Recipient = request.Recipient });
     }
 }

@@ -18,6 +18,7 @@ const TYPE_LABELS: Record<string, string> = {
   CustomerPasswordReset: 'Customer password reset',
   NewCustomerMessage: 'New customer message',
   StaffPasswordReset: 'Staff password reset',
+  AdminManual: 'Manual email',
 };
 
 /** Status pill helper. */
@@ -201,6 +202,70 @@ export class EmailListComponent implements OnInit {
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
+    });
+  }
+
+  // ── Compose email panel ──
+
+  readonly showCompose = signal(false);
+  readonly composeRecipient = signal('');
+  readonly composeSubject = signal('');
+  readonly composeMessage = signal('');
+  readonly composeCaseId = signal<number | undefined>(undefined);
+  readonly composeSending = signal(false);
+  readonly composeError = signal<string | null>(null);
+  readonly composeSuccess = signal(false);
+
+  /** Opens the compose panel and resets the form. */
+  openCompose(): void {
+    this.showCompose.set(true);
+    this.composeRecipient.set('');
+    this.composeSubject.set('');
+    this.composeMessage.set('');
+    this.composeCaseId.set(undefined);
+    this.composeSending.set(false);
+    this.composeError.set(null);
+    this.composeSuccess.set(false);
+  }
+
+  /** Closes the compose panel. */
+  closeCompose(): void {
+    this.showCompose.set(false);
+  }
+
+  /** Submits the compose form. */
+  submitCompose(): void {
+    const recipient = this.composeRecipient().trim();
+    const subject = this.composeSubject().trim();
+    const message = this.composeMessage().trim();
+
+    if (!recipient || !subject || !message) {
+      this.composeError.set('Please fill in recipient, subject, and message.');
+      return;
+    }
+
+    this.composeSending.set(true);
+    this.composeError.set(null);
+    this.composeSuccess.set(false);
+
+    this.service.compose({
+      recipient,
+      subject,
+      message,
+      caseId: this.composeCaseId() || undefined,
+    }).subscribe({
+      next: () => {
+        this.composeSending.set(false);
+        this.composeSuccess.set(true);
+        // Reload the email list to include the new entry
+        this.load();
+        // Auto-close after a brief moment
+        setTimeout(() => this.closeCompose(), 1500);
+      },
+      error: (err) => {
+        this.composeSending.set(false);
+        this.composeError.set(err?.error ?? err?.message ?? 'Failed to send email.');
+      },
     });
   }
 }

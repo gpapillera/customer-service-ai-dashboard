@@ -62,3 +62,11 @@ public class NotificationSummaryDto
     /// <summary>Most recent notifications (for the dropdown preview).</summary>
     public List<NotificationDto> Recent { get; set; } = new();
 }
+
+/// <summary>Payload for composing and sending an ad-hoc email from the admin email log page.</summary>
+public record ComposeEmailRequest(
+    [property: System.ComponentModel.DataAnnotations.Required] string Recipient,
+    [property: System.ComponentModel.DataAnnotations.Required] string Subject,
+    [property: System.ComponentModel.DataAnnotations.Required] string Message,
+    int? CaseId = null
+);

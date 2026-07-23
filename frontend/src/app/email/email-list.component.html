@@ -44,6 +44,11 @@
           <cs-icon name="close" [size]="16"></cs-icon>
         </button>
       }
+
+      <button type="button" class="compose-btn" (click)="openCompose()" aria-label="Compose email">
+        <cs-icon name="add"></cs-icon>
+        <span>Compose</span>
+      </button>
     </div>
   </div>
 
@@ -201,6 +206,93 @@
         <h4>Message</h4>
         <p>{{ email.message }}</p>
       </div>
+    </div>
+  </aside>
+}
+
+<!-- Compose email overlay -->
+@if (showCompose()) {
+  <div class="overlay-scrim" (click)="closeCompose()"></div>
+  <aside class="overlay-panel cs-lift compose-panel" role="dialog" aria-label="Compose email">
+    <header class="overlay-head">
+      <div class="overlay-title">
+        <cs-icon name="add"></cs-icon>
+        <h2>Compose Email</h2>
+      </div>
+      <button type="button" class="close-btn" (click)="closeCompose()" aria-label="Close">
+        <cs-icon name="x"></cs-icon>
+      </button>
+    </header>
+
+    <div class="overlay-body compose-body">
+      @if (composeSuccess()) {
+        <div class="compose-success">
+          <cs-icon name="check_circle"></cs-icon>
+          <span>Email sent successfully!</span>
+        </div>
+      } @else {
+        @if (composeError(); as err) {
+          <div class="compose-error">
+            <cs-icon name="circle_alert"></cs-icon>
+            <span>{{ err }}</span>
+          </div>
+        }
+
+        <label class="compose-field">
+          <span class="compose-label">Recipient</span>
+          <input
+            type="email"
+            class="compose-input"
+            placeholder="email@example.com"
+            [ngModel]="composeRecipient()"
+            (ngModelChange)="composeRecipient.set($event)"
+          />
+        </label>
+
+        <label class="compose-field">
+          <span class="compose-label">Subject</span>
+          <input
+            type="text"
+            class="compose-input"
+            placeholder="Email subject"
+            [ngModel]="composeSubject()"
+            (ngModelChange)="composeSubject.set($event)"
+          />
+        </label>
+
+        <label class="compose-field">
+          <span class="compose-label">Message</span>
+          <textarea
+            class="compose-textarea"
+            rows="6"
+            placeholder="Type your message…"
+            [ngModel]="composeMessage()"
+            (ngModelChange)="composeMessage.set($event)"
+          ></textarea>
+        </label>
+
+        <label class="compose-field">
+          <span class="compose-label">Case ID (optional)</span>
+          <input
+            type="number"
+            class="compose-input"
+            placeholder="e.g. 42"
+            [ngModel]="composeCaseId()"
+            (ngModelChange)="composeCaseId.set($event || undefined)"
+          />
+        </label>
+
+        <div class="compose-actions">
+          <button type="button" class="cs-btn cs-btn-primary" (click)="submitCompose()" [disabled]="composeSending()">
+            <cs-icon name="send"></cs-icon>
+            <span>{{ composeSending() ? 'Sending…' : 'Send Email' }}</span>
+          </button>
+          <button type="button" class="cs-btn cs-btn-ghost" (click)="closeCompose()" [disabled]="composeSending()">
+            <cs-icon name="x"></cs-icon>
+            <span>Cancel</span>
+          </button>
+        </div>
+      }
     </div>
   </aside>
 }

@@ -53,6 +53,9 @@ public enum NotificationType
 
     /// <summary>Staff (agent/admin) password reset request (staff-facing, email).</summary>
     StaffPasswordReset = 5,
+
+    /// <summary>Ad-hoc email composed and sent manually by an admin from the email log page.</summary>
+    AdminManual = 6,
 }
 
 /// <summary>

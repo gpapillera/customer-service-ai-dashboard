@@ -354,4 +354,26 @@ public class NotificationService : INotificationService
         await _notifications.SaveChangesAsync();
         return unread.Count;
     }
+
+    /// <inheritdoc/>
+    public async Task<NotificationDto> ComposeEmailAsync(ComposeEmailRequest request)
+    {
+        var notification = new Notification
+        {
+            Title = request.Subject,
+            Message = request.Message,
+            Channel = NotificationChannel.Email,
+            Type = NotificationType.AdminManual,
+            Status = NotificationStatus.Unread,
+            CreatedAtUtc = DateTime.UtcNow,
+            CaseId = request.CaseId,
+            Recipient = request.Recipient,
+        };
+
+        await _sender.SendAsync(notification);
+
+        // After SendAsync completes, the notification was persisted by
+        // EmailNotificationSender, so we can return the DTO.
+        return NotificationDto.FromEntity(notification);
+    }
 }
