@@ -2,6 +2,15 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 24i — Case ID + Column Filters] (2026-07-23)
+**Status:** ✅ COMPLETE (`ng build` → 0 errors)
+**What changed:**
+- **Frontend — Sort logic:** Added `sortColumn` signal (union type of all sortable columns), `sortDesc` signal, and `sortedCases` computed property to `CaseListComponent`. The sorted array is derived from `cases()` with `.sort()` using locale-aware string comparison and numeric comparison.
+- **Frontend — Toggle sort:** Added `toggleSort(column)` method — reverses direction if already sorting by that column, otherwise sets new column with descending default. Exposed via click handlers on table header cells.
+- **Frontend — Sort UI:** All 6 table column headers (`Subject`, `Customer`, `Category`, `Priority`, `Status`, `Date`) are now clickable with conditional sort arrow indicators (▲/▼) and hover highlighting. Added `.sortable` and `.sort-arrow` SCSS classes.
+- **Frontend — Case ID:** Added `#{{ c.id }}` display in a monospace `.case-id` badge next to the subject in each row.
+- **Frontend — SCSS:** Added `.case-id` badge styling with monospace font, subtle background, and dark mode support. Added `.sortable` hover/color transition styles.
+
 ## [Phase 24h — Admin Delete Cascade Fix] (2026-07-23)
 **Status:** ✅ COMPLETE (`dotnet build` → 0 errors)
 **What changed:**

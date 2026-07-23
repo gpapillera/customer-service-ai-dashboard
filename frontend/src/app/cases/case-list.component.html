@@ -70,16 +70,28 @@
     <table class="data-table">
       <thead>
         <tr>
-          <th>Case</th>
-          <th>Customer</th>
-          <th>Category</th>
-          <th>Priority</th>
-          <th>Status</th>
-          <th>Created</th>
+          <th class="sortable" (click)="toggleSort('subject')">
+            Case @if (sortColumn() === 'subject') { <span class="sort-arrow">{{ sortDesc() ? '↓' : '↑' }}</span> }
+          </th>
+          <th class="sortable" (click)="toggleSort('customerName')">
+            Customer @if (sortColumn() === 'customerName') { <span class="sort-arrow">{{ sortDesc() ? '↓' : '↑' }}</span> }
+          </th>
+          <th class="sortable" (click)="toggleSort('categoryName')">
+            Category @if (sortColumn() === 'categoryName') { <span class="sort-arrow">{{ sortDesc() ? '↓' : '↑' }}</span> }
+          </th>
+          <th class="sortable" (click)="toggleSort('priority')">
+            Priority @if (sortColumn() === 'priority') { <span class="sort-arrow">{{ sortDesc() ? '↓' : '↑' }}</span> }
+          </th>
+          <th class="sortable" (click)="toggleSort('status')">
+            Status @if (sortColumn() === 'status') { <span class="sort-arrow">{{ sortDesc() ? '↓' : '↑' }}</span> }
+          </th>
+          <th class="sortable" (click)="toggleSort('createdAtUtc')">
+            Created @if (sortColumn() === 'createdAtUtc') { <span class="sort-arrow">{{ sortDesc() ? '↓' : '↑' }}</span> }
+          </th>
         </tr>
       </thead>
       <tbody appKbdNav kbdNavItem="tr.row-link" [kbdNavWrap]="false">
-        @for (c of cases(); track c.id) {
+        @for (c of sortedCases(); track c.id) {
           <tr
             (click)="open(c.id)"
             class="row-link"
@@ -89,6 +101,7 @@
             <td>
               <div class="cell-title">
                 @if (c.priorityAutoSuggested) { <cs-icon name="auto_awesome" class="ai-spark"></cs-icon> }
+                <span class="case-id">#{{ c.id }}</span>
                 {{ c.subject }}
               </div>
             </td>

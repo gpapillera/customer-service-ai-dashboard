@@ -101,6 +101,36 @@ export class CaseListComponent implements OnInit {
     return chips;
   });
 
+  /** Current sort state. */
+  readonly sortColumn = signal<'subject' | 'customerName' | 'categoryName' | 'priority' | 'status' | 'createdAtUtc'>('createdAtUtc');
+  readonly sortDesc = signal(true);
+
+  /** Cases sorted according to the current sort column and direction. */
+  readonly sortedCases = computed(() => {
+    const list = this.cases();
+    const col = this.sortColumn();
+    const desc = this.sortDesc();
+    const sorted = [...list].sort((a, b) => {
+      const aVal = a[col] ?? '';
+      const bVal = b[col] ?? '';
+      const cmp = typeof aVal === 'string'
+        ? aVal.localeCompare(String(bVal))
+        : Number(aVal) - Number(bVal);
+      return desc ? -cmp : cmp;
+    });
+    return sorted;
+  });
+
+  /** Toggle sort column; reverse direction if already sorting by this column. */
+  toggleSort(column: 'subject' | 'customerName' | 'categoryName' | 'priority' | 'status' | 'createdAtUtc'): void {
+    if (this.sortColumn() === column) {
+      this.sortDesc.update((d) => !d);
+    } else {
+      this.sortColumn.set(column);
+      this.sortDesc.set(true);
+    }
+  }
+
   ngOnInit(): void {
     // Support deep-link from a customer detail ("View cases").
     const customerId = this.route.snapshot.queryParamMap.get('customerId');

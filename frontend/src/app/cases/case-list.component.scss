@@ -209,3 +209,34 @@
 .muted {
   color: var(--cs-text-muted);
 }
+
+/* ---- Sortable column headers ---- */
+.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.15s var(--cs-ease);
+}
+.sortable:hover {
+  color: var(--cs-text);
+}
+.sort-arrow {
+  font-size: 0.7rem;
+  margin-left: 2px;
+}
+
+/* ---- Case ID badge ---- */
+.case-id {
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--cs-text-muted);
+  background: var(--cs-bg-subtle, #f1f5f9);
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+[data-theme="dark"] .case-id {
+  background: var(--cs-bg-raised, #1e293b);
+  color: var(--cs-text-muted, #94a3b8);
+}
