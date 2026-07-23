@@ -45,5 +45,27 @@
         }
       </mat-select>
     </mat-form-field>
+
+    <button
+      type="button"
+      class="tb-toggle ai-toggle"
+      [class.active]="aiActive"
+      (click)="aiToggled.emit()"
+      [attr.aria-pressed]="aiActive"
+    >
+      <cs-icon name="auto_awesome" [size]="16"></cs-icon>
+      <span>AI Predicted</span>
+    </button>
+
+    <button
+      type="button"
+      class="tb-toggle overdue-toggle"
+      [class.active]="overdueActive"
+      (click)="overdueToggled.emit()"
+      [attr.aria-pressed]="overdueActive"
+    >
+      <cs-icon name="schedule" [size]="16"></cs-icon>
+      <span>Overdue</span>
+    </button>
   </div>
 </form>

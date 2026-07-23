@@ -39,10 +39,16 @@ export class SearchFilterToolbarComponent implements OnChanges {
   @Input() priority = '';
   @Input() category = '';
 
+  /** Toggle states. */
+  @Input() aiActive = false;
+  @Input() overdueActive = false;
+
   @Output() searchChanged = new EventEmitter<string>();
   @Output() statusChanged = new EventEmitter<string>();
   @Output() priorityChanged = new EventEmitter<string>();
   @Output() categoryChanged = new EventEmitter<string>();
+  @Output() aiToggled = new EventEmitter<void>();
+  @Output() overdueToggled = new EventEmitter<void>();
 
   readonly form: FormGroup;
 

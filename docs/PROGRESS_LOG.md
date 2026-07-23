@@ -2,6 +2,15 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 24j — AI/Overdue Button Relocation] (2026-07-23)
+**Status:** ✅ COMPLETE (`ng build` → 0 errors)
+**What changed:**
+- **Frontend — Toolbar integration:** Moved the "AI Predicted" and "Overdue" toggle buttons from a separate `.filters-row-2` below the search toolbar INTO the `SearchFilterToolbarComponent` itself, making them first-class filter controls alongside the dropdowns.
+- **Frontend — Toolbar component:** Added `@Input() aiActive`, `@Input() overdueActive`, `@Output() aiToggled`, `@Output() overdueToggled` to `SearchFilterToolbarComponent`.
+- **Frontend — Toolbar template:** Both toggles render inside the `.filters` div with `tb-toggle` class, styled identically to the old standalone toggles (48px height, 8px radius, transition effects).
+- **Frontend — Case list:** Removed the duplicate toggle button markup from `case-list.component.html`; wired the new inputs/outputs to the toolbar component. Removed unused `.ai-toggle` / `.overdue-toggle` CSS from `case-list.component.scss`.
+- **Result:** Cleaner, more intuitive layout — all case filters are now in one unified toolbar row instead of split across two rows.
+
 ## [Phase 24i — Case ID + Column Filters] (2026-07-23)
 **Status:** ✅ COMPLETE (`ng build` → 0 errors)
 **What changed:**

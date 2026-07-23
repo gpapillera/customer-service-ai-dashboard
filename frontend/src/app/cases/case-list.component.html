@@ -21,35 +21,17 @@
   [status]="toolbarStatus"
   [priority]="toolbarPriority"
   [category]="toolbarCategory"
+  [aiActive]="filters().aiOnly"
+  [overdueActive]="filters().overdue"
   (searchChanged)="onSearchChanged($event)"
   (statusChanged)="onStatusChanged($event)"
   (priorityChanged)="onPriorityChanged($event)"
   (categoryChanged)="onCategoryChanged($event)"
+  (aiToggled)="toggleAiOnly()"
+  (overdueToggled)="toggleOverdue()"
 ></app-search-filter-toolbar>
 
 <div class="filters-row-2">
-  <button
-    type="button"
-    class="ai-toggle"
-    [class.active]="filters().aiOnly"
-    (click)="toggleAiOnly()"
-    [attr.aria-pressed]="filters().aiOnly"
-  >
-    <cs-icon name="auto_awesome" [size]="16"></cs-icon>
-    <span>AI Predicted</span>
-  </button>
-
-  <button
-    type="button"
-    class="overdue-toggle"
-    [class.active]="filters().overdue"
-    (click)="toggleOverdue()"
-    [attr.aria-pressed]="filters().overdue"
-  >
-    <cs-icon name="schedule" [size]="16"></cs-icon>
-    <span>Overdue</span>
-  </button>
-
   @for (chip of activeChips(); track chip.key) {
     <button type="button" class="filter-chip" (click)="clearFilter(chip)">
       <span class="chip-label">{{ chip.label }}</span>
