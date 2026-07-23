@@ -2,6 +2,14 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 24n — Email Detail Right Panel] (2026-07-23)
+**Status:** ✅ COMPLETE (`ng build` → 0 errors)
+**What changed:**
+- **Frontend — Email List Component:** Added `selectedEmail` signal (Notification | null) with `openEmail(email)` and `close()` methods.
+- **Frontend — Email List HTML:** Clicking an email row now opens a detail overlay panel. Added `(click)="openEmail(email)"` on each `<tr class="email-row">` and `$event.stopPropagation()` on the case link to prevent row click when navigating. The overlay panel (scrim + slide-in `<aside>`) shows the email's type badge, status pill, subject line, recipient, sent date, related case link, and full message body in a styled message block.
+- **Frontend — Email List SCSS:** Added full overlay styles matching the agent-list pattern: `.overlay-scrim` (blur backdrop), `.overlay-panel` (fixed right slide-in with 440px width, rounded left corners, shadow), `.overlay-head`/`.overlay-title`/`.close-btn`, and `.overlay-body` with `.od-section`, `.od-subject`, `.od-fields`, `.od-field`, `.od-message` for structured detail layout. Added `cursor: pointer` on `.email-row`.
+- **Result:** Staff can click any row in the email log to view full email details in a right-slide panel, improving readability without leaving the page.
+
 ## [Phase 24m — Email Date Sort + Column Filter] (2026-07-23)
 **Status:** ✅ COMPLETE (`ng build` → 0 errors)
 **What changed:**

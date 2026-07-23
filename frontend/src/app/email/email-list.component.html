@@ -124,7 +124,7 @@
         </thead>
         <tbody>
           @for (email of filteredEmails(); track email.id) {
-            <tr class="email-row">
+            <tr class="email-row" (click)="openEmail(email)">
               <td class="col-date">{{ formatDate(email.createdAtUtc) }}</td>
               <td class="col-recipient">{{ email.recipient ?? '—' }}</td>
               <td class="col-subject">
@@ -139,7 +139,7 @@
               </td>
               <td class="col-case">
                 @if (email.caseId) {
-                  <a [routerLink]="['/cases', email.caseId]" class="case-link">
+                  <a [routerLink]="['/cases', email.caseId]" class="case-link" (click)="$event.stopPropagation()">
                     #{{ email.caseId }}
                   </a>
                 } @else {
@@ -153,3 +153,54 @@
     </div>
   }
 </div>
+
+<!-- Email detail overlay -->
+@if (selectedEmail(); as email) {
+  <div class="overlay-scrim" (click)="close()"></div>
+  <aside class="overlay-panel cs-lift" role="dialog" aria-label="Email details">
+    <header class="overlay-head">
+      <div class="overlay-title">
+        <cs-icon name="mail"></cs-icon>
+        <h2>Email Details</h2>
+      </div>
+      <button type="button" class="close-btn" (click)="close()" aria-label="Close">
+        <cs-icon name="x"></cs-icon>
+      </button>
+    </header>
+
+    <div class="overlay-body">
+      <div class="od-section">
+        <span [class]="'type-badge ' + typeClass(email.type)">{{ typeLabel(email.type) }}</span>
+        <span [class]="'status-pill ' + statusClass(email.status)">{{ statusLabel(email.status) }}</span>
+      </div>
+
+      <h3 class="od-subject">{{ email.title }}</h3>
+
+      <dl class="od-fields">
+        <div class="od-field">
+          <dt>Sent to</dt>
+          <dd>{{ email.recipient ?? '—' }}</dd>
+        </div>
+        <div class="od-field">
+          <dt>Sent at</dt>
+          <dd>{{ formatDate(email.createdAtUtc) }}</dd>
+        </div>
+        @if (email.caseId) {
+          <div class="od-field">
+            <dt>Related case</dt>
+            <dd>
+              <a [routerLink]="['/cases', email.caseId]" class="case-link" (click)="close()">
+                #{{ email.caseId }}
+              </a>
+            </dd>
+          </div>
+        }
+      </dl>
+
+      <div class="od-message">
+        <h4>Message</h4>
+        <p>{{ email.message }}</p>
+      </div>
+    </div>
+  </aside>
+}

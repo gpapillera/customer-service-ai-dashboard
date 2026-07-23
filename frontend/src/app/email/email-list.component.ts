@@ -58,6 +58,8 @@ export class EmailListComponent implements OnInit {
 
   /** The full email log, newest first. */
   readonly emails = signal<Notification[]>([]);
+  /** Email selected for detail overlay. */
+  readonly selectedEmail = signal<Notification | null>(null);
   /** True while the initial load is in flight. */
   readonly loading = signal(false);
   /** Error message, if the fetch failed. */
@@ -130,6 +132,16 @@ export class EmailListComponent implements OnInit {
   /** Clears the type filter. */
   clearTypeFilter(): void {
     this.filterType.set('');
+  }
+
+  /** Opens the email detail overlay. */
+  openEmail(email: Notification): void {
+    this.selectedEmail.set(email);
+  }
+
+  /** Closes the email detail overlay. */
+  close(): void {
+    this.selectedEmail.set(null);
   }
 
   /** Toggle sort for a column — reverses direction or switches column. */
