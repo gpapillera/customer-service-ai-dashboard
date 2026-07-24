@@ -15,9 +15,6 @@
         >
           <cs-icon [name]="opened() ? 'chevron_left' : 'menu'" [size]="20"></cs-icon>
         </button>
-        <button type="button" class="settings-btn" (click)="openSettings()" aria-label="Settings">
-          <cs-icon name="settings" [size]="18"></cs-icon>
-        </button>
         <app-notification-bell></app-notification-bell>
       </div>
       <nav class="nav" appKbdNav kbdNavItem="a.nav-item" [kbdNavWrap]="true">
@@ -41,13 +38,12 @@
 
     @if (user) {
       <div class="sidenav-user">
-        <button type="button" class="signout-btn account-btn" (click)="openAccount()">
+        <button type="button" class="account-btn" (click)="openAccount()">
           <span class="user-avatar">{{ user.fullName.charAt(0) || '?' }}</span>
           <span class="user-name">{{ user.fullName }}</span>
         </button>
-        <button type="button" class="signout-btn" (click)="logout()">
-          <cs-icon name="logout"></cs-icon>
-          <span>Sign Out</span>
+        <button type="button" class="settings-btn" (click)="openSettings()" aria-label="Settings">
+          <cs-icon name="settings" [size]="18"></cs-icon>
         </button>
       </div>
     }
@@ -82,10 +78,6 @@
           <app-notification-bell></app-notification-bell>
         </div>
 
-        <button type="button" class="rail-settings" (click)="openSettings()" aria-label="Settings">
-          <cs-icon name="settings" [size]="18"></cs-icon>
-        </button>
-
         <div class="rail-nav" appKbdNav kbdNavItem="a.rail-item" [kbdNavWrap]="true">
           @for (link of visibleNavLinks; track link.path) {
             <a
@@ -102,6 +94,17 @@
             </a>
           }
         </div>
+
+        @if (user) {
+          <div class="rail-bottom">
+            <button type="button" class="rail-gear" (click)="openSettings()" aria-label="Settings">
+              <cs-icon name="settings" [size]="18"></cs-icon>
+            </button>
+            <button type="button" class="rail-avatar" (click)="openAccount()" aria-label="Account">
+              <span class="user-avatar">{{ user.fullName.charAt(0) || '?' }}</span>
+            </button>
+          </div>
+        }
       </nav>
     }
     <router-outlet></router-outlet>
@@ -176,11 +179,11 @@
         </button>
       </div>
 
-      <!-- Recent Cases (admin) -->
+      <!-- Recent Cases -->
       <div class="setting-row">
         <div class="setting-info">
           <span class="setting-label">Recent Cases</span>
-          <span class="setting-desc">Show recent cases list (admin)</span>
+          <span class="setting-desc">Show recent cases list</span>
         </div>
         <button
           type="button"
@@ -193,11 +196,11 @@
         </button>
       </div>
 
-      <!-- Overdue Follow-ups (admin) -->
+      <!-- Overdue Follow-ups -->
       <div class="setting-row">
         <div class="setting-info">
           <span class="setting-label">Overdue Follow-ups</span>
-          <span class="setting-desc">Show overdue follow-ups list (admin)</span>
+          <span class="setting-desc">Show overdue follow-ups list</span>
         </div>
         <button
           type="button"
@@ -210,21 +213,36 @@
         </button>
       </div>
 
-      <!-- Agent Workload (admin) -->
-      <div class="setting-row">
-        <div class="setting-info">
-          <span class="setting-label">Agent Workload</span>
-          <span class="setting-desc">Show agent workload table (admin)</span>
+      @if (!isAgent()) {
+        <!-- Agent Workload (admin) -->
+        <div class="setting-row">
+          <div class="setting-info">
+            <span class="setting-label">Agent Workload</span>
+            <span class="setting-desc">Show agent workload table (admin)</span>
+          </div>
+          <button
+            type="button"
+            class="toggle-switch"
+            [class.active]="dashSettings.showAgentWorkload()"
+            (click)="dashSettings.toggleAgentWorkload()"
+            aria-label="Toggle agent workload"
+          >
+            <span class="toggle-knob"></span>
+          </button>
         </div>
-        <button
-          type="button"
-          class="toggle-switch"
-          [class.active]="dashSettings.showAgentWorkload()"
-          (click)="dashSettings.toggleAgentWorkload()"
-          aria-label="Toggle agent workload"
-        >
-          <span class="toggle-knob"></span>
-        </button>
+      }
+
+      <!-- Separator -->
+      <div class="settings-section-label">Widget Order</div>
+      <p class="settings-hint">Drag to reorder dashboard sections</p>
+
+      <div cdkDropList class="widget-order-list" (cdkDropListDropped)="dropWidget($event)">
+        @for (item of widgetList(); track item.id) {
+          <div class="widget-order-item" cdkDrag>
+            <span class="wo-drag-handle" cdkDragHandle><cs-icon name="menu" [size]="14"></cs-icon></span>
+            <span class="wo-label">{{ item.label }}</span>
+          </div>
+        }
       </div>
     </div>
   </aside>

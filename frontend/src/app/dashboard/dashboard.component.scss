@@ -1,3 +1,56 @@
+/* ─── Full-width page header ─── */
+
+.page-header {
+  /* Break out of the content area padding to go full-width */
+  margin: -1.75rem -2rem 1.5rem;
+  padding: 1.75rem 2rem;
+  background: var(--cs-surface);
+  border-bottom: 1px solid var(--cs-border);
+}
+@media (max-width: 767px) {
+  .page-header {
+    margin: -1.75rem -1rem 1.25rem;
+    padding: 1.5rem 1rem;
+  }
+}
+@media (max-width: 520px) {
+  .page-header {
+    margin: -1.75rem -0.75rem 1rem;
+    padding: 1.25rem 0.75rem;
+  }
+}
+
+/* ─── Dashboard sections container ─── */
+
+.dashboard-sections {
+  max-width: 1280px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+@media (max-width: 1200px) {
+  .dashboard-sections {
+    max-width: 100%;
+    gap: 1.25rem;
+  }
+}
+@media (max-width: 767px) {
+  .dashboard-sections {
+    gap: 1rem;
+  }
+}
+@media (max-width: 520px) {
+  .dashboard-sections {
+    gap: 0.85rem;
+  }
+}
+
+/* Uniform section spacing — each section wrapper uses gap from the parent. */
+.dashboard-section {
+  /* Sections render in flow, spacing handled by parent gap. */
+}
+
 .center {
   display: flex;
   justify-content: center;
@@ -8,12 +61,14 @@
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 1rem;
-  margin-bottom: 1.25rem;
 }
 @media (max-width: 1200px) {
-  .kpis { grid-template-columns: repeat(4, 1fr); }
+  .kpis { grid-template-columns: repeat(4, 1fr); gap: 0.9rem; }
 }
-@media (max-width: 760px) {
+@media (max-width: 900px) {
+  .kpis { grid-template-columns: repeat(3, 1fr); gap: 0.85rem; }
+}
+@media (max-width: 767px) {
   .kpis { grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }
 }
 @media (max-width: 520px) {
@@ -94,7 +149,6 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 1.25rem;
-  margin-bottom: 1.25rem;
 }
 .trend-row {
   grid-template-columns: 1.8fr 1fr;
@@ -236,7 +290,6 @@
 .charts-toggle {
   display: flex;
   justify-content: center;
-  margin-bottom: 1.25rem;
 }
 
 .toggle-charts-btn {
@@ -264,7 +317,6 @@
 .workload-card {
   border-radius: var(--cs-radius);
   box-shadow: var(--cs-shadow);
-  margin-top: 1.25rem;
 }
 
 .workload-title {

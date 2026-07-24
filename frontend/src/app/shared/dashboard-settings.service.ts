@@ -6,9 +6,20 @@ export interface DashboardWidgetSettings {
   showRecentCases: boolean;
   showOverdueFollowups: boolean;
   showAgentWorkload: boolean;
+  widgetOrder: string[];
 }
 
+export const WIDGET_LABELS: Record<string, string> = {
+  kpis: 'KPI Cards',
+  charts: 'Charts',
+  recent: 'Recent Cases',
+  overdue: 'Overdue Follow-ups',
+  workload: 'Agent Workload',
+};
+
 const STORAGE_KEY = 'cs-dashboard-widgets';
+
+const DEFAULT_ORDER = ['kpis', 'charts', 'recent', 'overdue', 'workload'];
 
 function loadSettings(): DashboardWidgetSettings {
   try {
@@ -24,10 +35,11 @@ const defaults: DashboardWidgetSettings = {
   showRecentCases: true,
   showOverdueFollowups: true,
   showAgentWorkload: true,
+  widgetOrder: [...DEFAULT_ORDER],
 };
 
 /**
- * Manages per-widget visibility for the Dashboard page.
+ * Manages per-widget visibility and ordering for the Dashboard page.
  * Persisted in localStorage under ``cs-dashboard-widgets``.
  */
 @Injectable({ providedIn: 'root' })
@@ -37,6 +49,7 @@ export class DashboardSettingsService {
   readonly showRecentCases = signal(true);
   readonly showOverdueFollowups = signal(true);
   readonly showAgentWorkload = signal(true);
+  readonly widgetOrder = signal<string[]>([...DEFAULT_ORDER]);
 
   constructor() {
     const s = loadSettings();
@@ -45,9 +58,10 @@ export class DashboardSettingsService {
     this.showRecentCases.set(s.showRecentCases);
     this.showOverdueFollowups.set(s.showOverdueFollowups);
     this.showAgentWorkload.set(s.showAgentWorkload);
+    this.widgetOrder.set(s.widgetOrder ?? [...DEFAULT_ORDER]);
   }
 
-  /** Persist current toggle states to localStorage. */
+  /** Persist current toggle states and order to localStorage. */
   private persist(): void {
     localStorage.setItem(
       STORAGE_KEY,
@@ -57,32 +71,44 @@ export class DashboardSettingsService {
         showRecentCases: this.showRecentCases(),
         showOverdueFollowups: this.showOverdueFollowups(),
         showAgentWorkload: this.showAgentWorkload(),
+        widgetOrder: this.widgetOrder(),
       }),
     );
   }
 
+  /** Move a widget from one index to another (drag-drop reorder). */
+  moveWidget(fromIndex: number, toIndex: number): void {
+    this.widgetOrder.update((order: string[]) => {
+      const updated = [...order];
+      const [moved] = updated.splice(fromIndex, 1);
+      updated.splice(toIndex, 0, moved);
+      return updated;
+    });
+    this.persist();
+  }
+
   toggleKpiCards(): void {
-    this.showKpiCards.update((v) => !v);
+    this.showKpiCards.update((v: boolean) => !v);
     this.persist();
   }
 
   toggleCharts(): void {
-    this.showCharts.update((v) => !v);
+    this.showCharts.update((v: boolean) => !v);
     this.persist();
   }
 
   toggleRecentCases(): void {
-    this.showRecentCases.update((v) => !v);
+    this.showRecentCases.update((v: boolean) => !v);
     this.persist();
   }
 
   toggleOverdueFollowups(): void {
-    this.showOverdueFollowups.update((v) => !v);
+    this.showOverdueFollowups.update((v: boolean) => !v);
     this.persist();
   }
 
   toggleAgentWorkload(): void {
-    this.showAgentWorkload.update((v) => !v);
+    this.showAgentWorkload.update((v: boolean) => !v);
     this.persist();
   }
 }

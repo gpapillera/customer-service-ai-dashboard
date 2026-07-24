@@ -1,10 +1,11 @@
-import { Component, effect, HostListener, inject, signal, viewChild } from '@angular/core';
+import { Component, computed, effect, HostListener, inject, signal, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatIconModule } from '@angular/material/icon';
 import { MatDialog } from '@angular/material/dialog';
 import { BreakpointObserver } from '@angular/cdk/layout';
+import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Title } from '@angular/platform-browser';
 import { CsIconComponent } from '../cs-icon.component';
@@ -15,7 +16,7 @@ import { NotificationBellComponent } from '../notification-bell.component';
 import { StaffAccountPanelComponent } from '../staff-account-panel.component';
 import { NavBadgeService } from '../nav-badge.service';
 import { KbdNavDirective } from '../keyboard-nav.directive';
-import { DashboardSettingsService } from '../dashboard-settings.service';
+import { DashboardSettingsService, WIDGET_LABELS } from '../dashboard-settings.service';
 
 /**
  * Application shell: a white sidenav with navigation (active = light indigo
@@ -37,6 +38,7 @@ import { DashboardSettingsService } from '../dashboard-settings.service';
     NotificationBellComponent,
     StaffAccountPanelComponent,
     KbdNavDirective,
+    DragDropModule,
   ],
   templateUrl: './layout.component.html',
   styleUrl: './layout.component.scss',
@@ -51,6 +53,7 @@ export class LayoutComponent {
   readonly navBadges = inject(NavBadgeService);
   readonly theme = inject(ThemeService);
   readonly dashSettings = inject(DashboardSettingsService);
+  readonly isAgent = computed(() => this.auth.getRole() === 'Agent');
 
   /** True on narrow viewports (<768px); the sidenav switches to overlay mode. */
   readonly isHandset = signal(false);
@@ -181,6 +184,30 @@ export class LayoutComponent {
   /** Close the settings slide-out panel. */
   closeSettings(): void {
     this.settingsOpen.set(false);
+  }
+
+  /** Ordered list of widgets with labels for the settings reorder list. */
+  readonly widgetList = computed(() => {
+    return this.dashSettings.widgetOrder()
+      .filter((id) => id !== 'workload' || !this.isAgent())
+      .map((id) => ({
+        id,
+        label: WIDGET_LABELS[id] ?? id,
+      }));
+  });
+
+  /** Handle drag-drop reorder of widgets in the settings panel.
+   *  Maps visual indices (which may exclude filtered-out items like
+   *  `workload` for agents) back to actual indices in the full
+   *  `widgetOrder` array, preventing index mismatch bugs. */
+  dropWidget(event: CdkDragDrop<string[]>): void {
+    const fullOrder = this.dashSettings.widgetOrder();
+    const filtered = fullOrder.filter((id) => id !== 'workload' || !this.isAgent());
+    const actualPrevIdx = fullOrder.indexOf(filtered[event.previousIndex]);
+    const actualCurrIdx = fullOrder.indexOf(filtered[event.currentIndex]);
+    if (actualPrevIdx >= 0 && actualCurrIdx >= 0) {
+      this.dashSettings.moveWidget(actualPrevIdx, actualCurrIdx);
+    }
   }
 
   /** Asks for confirmation, then logs the user out (only on confirm). */

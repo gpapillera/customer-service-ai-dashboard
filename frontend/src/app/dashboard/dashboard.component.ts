@@ -63,9 +63,6 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   /** Whether the current user is an Agent (vs Admin). */
   readonly isAgent = computed(() => this.auth.getRole() === 'Agent');
 
-  /** When true, agents see all 4 charts instead of the default 2. */
-  readonly showAllCharts = signal(false);
-
   /** Per-agent workload data (admin-only — populated from /api/users/agent-workload). */
   readonly agentWorkload = signal<AgentWorkload[]>([]);
 
@@ -224,10 +221,24 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     });
   }
 
-  /** Toggles the agent's chart view between 2 (default) and all 4 charts. */
-  toggleCharts(): void {
-    this.showAllCharts.update((v) => !v);
-  }
+  /** Widget sections rendered in order (respects visibility toggles). */
+  readonly widgetSections = computed(() => {
+    const order = this.dashSettings.widgetOrder();
+    const isAgent = this.isAgent();
+    const d = this.data();
+    const hasOverdue = !!(d && d.overdueFollowUpsList && d.overdueFollowUpsList.length > 0);
+    const hasWorkload = this.agentWorkload().length > 0;
+    return order.filter((id) => {
+      switch (id) {
+        case 'kpis':     return this.dashSettings.showKpiCards();
+        case 'charts':   return this.dashSettings.showCharts();
+        case 'recent':   return this.dashSettings.showRecentCases();
+        case 'overdue':  return this.dashSettings.showOverdueFollowups() && hasOverdue;
+        case 'workload': return !isAgent && this.dashSettings.showAgentWorkload() && hasWorkload;
+        default:         return false;
+      }
+    });
+  });
 
   /**
    * Handles clicks on any dashboard chart. Maps the clicked element's index
@@ -300,8 +311,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   private tryPlayEntrance(): void {
     if (this.entrancePlayed) return;
     const refs = this.chartRefs;
-    // Agents start with 2 charts (can toggle to 4); admins have 4.
-    const expected = this.isAgent() && !this.showAllCharts() ? 2 : 4;
+    const expected = 4;
     if (!refs || refs.length < expected) {
       setTimeout(() => this.tryPlayEntrance(), 30);
       return;
