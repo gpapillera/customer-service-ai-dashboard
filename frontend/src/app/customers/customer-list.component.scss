@@ -143,13 +143,13 @@
 }
 
 .filter-chip:hover {
-  border-color: var(--cs-primary);
-  color: var(--cs-primary);
+  border-color: var(--cs-accent);
+  color: var(--cs-accent);
 }
 
 .filter-chip.active {
-  background: var(--cs-primary);
-  border-color: var(--cs-primary);
+  background: var(--cs-accent);
+  border-color: var(--cs-accent);
   color: #fff;
 }
 
@@ -168,8 +168,8 @@
 }
 
 .sort-direction-btn:hover {
-  border-color: var(--cs-primary);
-  color: var(--cs-primary);
+  border-color: var(--cs-accent);
+  color: var(--cs-accent);
 }
 
 /* Phase 24f: Account badge on card top-right */
@@ -228,6 +228,7 @@
 
 .customer-card {
   border-radius: var(--cs-radius);
+  background: var(--cs-surface);
   box-shadow: var(--cs-shadow);
   cursor: pointer;
   transition: transform 0.2s var(--cs-ease), box-shadow 0.2s var(--cs-ease);

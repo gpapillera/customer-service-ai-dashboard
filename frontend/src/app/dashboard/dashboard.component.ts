@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, computed, inject, OnInit, QueryList, signal, ViewChildren } from '@angular/core';
+import { AfterViewInit, Component, computed, effect, inject, OnInit, QueryList, signal, ViewChildren } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
@@ -16,6 +16,7 @@ import { Dashboard, RecentCase, AgentWorkload } from '../shared/models';
 import { CATEGORIES } from '../shared/categories';
 import { LayoutComponent } from '../shared/layout/layout.component';
 import { AuthService } from '../auth/auth.service';
+import { ThemeService } from '../shared/theme.service';
 import { DashboardSettingsService } from '../shared/dashboard-settings.service';
 
 /**
@@ -45,6 +46,7 @@ import { DashboardSettingsService } from '../shared/dashboard-settings.service';
 export class DashboardComponent implements OnInit, AfterViewInit {
   private readonly service = inject(DashboardService);
   private readonly auth = inject(AuthService);
+  private readonly theme = inject(ThemeService);
   /** Sidenav open state (from the app shell) — the page brand logo is shown
       only when the sidenav is collapsed. */
   readonly sidenavOpen = inject(LayoutComponent).opened;
@@ -53,6 +55,14 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   private readonly routeLoading = inject(RouteLoadingService);
   private readonly router = inject(Router);
   readonly dashSettings = inject(DashboardSettingsService);
+
+  /** Watch the color theme and update Chart.js text/grid colours so canvas
+   *  text remains readable in dark mode. Runs once at init and again
+   *  whenever the user toggles light/dark. */
+  private readonly chartThemeEffect = effect(() => {
+    this.theme.isDark(); // subscribe to changes
+    this.applyChartTheme();
+  });
 
   readonly data = signal<Dashboard | null>(null);
   /** Internal data-fetch state. */
@@ -146,11 +156,14 @@ export class DashboardComponent implements OnInit, AfterViewInit {
         this.trendChart.data.labels = d.trend.map((t) => t.date);
         this.trendChart.data.datasets[0].data = d.trend.map((t) => t.count);
 
-        this.priorityChart.data.datasets[0].data = [
-          d.byPriority['Low'] ?? 0,
-          d.byPriority['Medium'] ?? 0,
-          d.byPriority['High'] ?? 0,
-        ];
+        const low = d.byPriority['Low'] ?? 0;
+        const med = d.byPriority['Medium'] ?? 0;
+        const high = d.byPriority['High'] ?? 0;
+        this.priorityChart.data.datasets[0].data = [low, med, high];
+        // Pre-format labels with counts so the legend text reads e.g.
+        // "Low (5)".  This avoids needing a custom generateLabels callback
+        // (which has unreliable interaction with chart.update()).
+        this.priorityChart.data.labels = [`Low (${low})`, `Medium (${med})`, `High (${high})`];
 
         this.categoryChart.data.labels = d.byCategory.map((c) => c.category);
         this.categoryChart.data.datasets[0].data = d.byCategory.map((c) => c.count);
@@ -253,7 +266,9 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     let params: Record<string, string> | undefined;
     if (which === 'priority') {
       const label = this.priorityChart.data.labels?.[index];
-      if (label) params = { priority: String(label) };
+      // Labels are now formatted as "Low (5)" — strip the count suffix.
+      const priority = String(label ?? '').replace(/\s*\(.*\)$/, '');
+      if (priority) params = { priority };
     } else if (which === 'status') {
       const label = this.statusChart.data.labels?.[index];
       if (label) params = { status: String(label) };
@@ -317,13 +332,71 @@ export class DashboardComponent implements OnInit, AfterViewInit {
       return;
     }
     this.entrancePlayed = true;
+    const isDark = this.theme.isDark();
+    const textColor = isDark ? '#94a3b8' : '#64748b';
+    const gridColor = isDark ? 'rgba(255, 255, 255, 0.14)' : 'rgba(0,0,0,0.06)';
+
     refs.forEach((ref) => {
       const chart = ref.chart as any;
-      if (chart) {
-        if (chart.config && chart.config.type === 'line') (window as any).__trendChart = chart;
-        chart.reset();
-        chart.update();
+      if (!chart) return;
+      const type = chart.config?.type;
+      const o = chart.options;
+
+      // Apply theme colours to the Chart.js instance options *before*
+      // the first render so dark-mode grid/ticks show immediately on load
+      // (the effect() alone cannot do this — it fires before refs are ready).
+      if (type === 'doughnut' && o?.plugins?.legend?.labels) {
+        o.plugins.legend.labels.color = textColor;
       }
+      if (o?.scales) {
+        const xs = o.scales['x'];
+        const ys = o.scales['y'];
+        if (xs?.ticks) xs.ticks.color = textColor;
+        if (ys?.ticks) ys.ticks.color = textColor;
+        if (xs?.grid) xs.grid.color = gridColor;
+        if (ys?.grid) ys.grid.color = gridColor;
+      }
+
+      if (type === 'line') (window as any).__trendChart = chart;
+      chart.reset();
+      chart.update();
+    });
+  }
+
+  /** Apply the current theme colours to every chart's axis ticks,
+   *  legend labels, and grid lines. Mutates each Chart.js instance's own
+   *  options (chart.options) rather than the component's config objects
+   *  (this.*Chart.options), which are disconnected after ng2-charts hands
+   *  them off to Chart.js during initialisation. */
+  private applyChartTheme(): void {
+    const isDark = this.theme.isDark();
+    const textColor = isDark ? '#94a3b8' : '#64748b';
+    const gridColor = isDark ? 'rgba(255, 255, 255, 0.14)' : 'rgba(0,0,0,0.06)';
+
+    if (!this.chartRefs?.length) return;
+    this.chartRefs.forEach((ref) => {
+      const chart = ref.chart;
+      if (!chart) return;
+      const type = (chart.config as any)?.type;
+      const o = chart.options;
+
+      // Doughnut — legend labels colour (kept for safety, but the
+      // manual HTML legend reads its colour from dataset backgroundColor).
+      if (type === 'doughnut' && o?.plugins?.legend?.labels) {
+        (o.plugins.legend.labels as any).color = textColor;
+      }
+
+      // Line + bar — axis ticks & grid
+      if (o?.scales) {
+        const xs = o.scales['x'];
+        const ys = o.scales['y'];
+        if (xs?.ticks) (xs.ticks as any).color = textColor;
+        if (ys?.ticks) (ys.ticks as any).color = textColor;
+        if (xs?.grid) (xs.grid as any).color = gridColor;
+        if (ys?.grid) (ys.grid as any).color = gridColor;
+      }
+
+      chart.update();
     });
   }
 
@@ -412,6 +485,19 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     };
   }
 
+  /** Items for the manual HTML legend below the doughnut. */
+  get doughnutLegendItems(): { label: string; color: string }[] {
+    const labels = this.priorityChart.data.labels ?? [];
+    const colors = this.priorityChart.data.datasets[0].backgroundColor as string[] ?? [];
+    return labels.map((label, i) => ({ label: String(label), color: colors[i] ?? '#888' }));
+  }
+
+  /** Click handler for the manual legend items. */
+  onPriorityLegendClick(label: string): void {
+    const priority = label.replace(/\s*\(.*\)$/, '');
+    if (priority) this.router.navigate(['/cases'], { queryParams: { priority } });
+  }
+
   private doughnutOptions(): ChartOptions<'doughnut'> {
     return {
       responsive: true,
@@ -419,31 +505,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
       cutout: '68%',
       animation: { animateRotate: true, animateScale: true, duration: 900, easing: 'easeOutQuart' },
       plugins: {
-        legend: {
-          display: true,
-          position: 'bottom',
-          labels: {
-            usePointStyle: true,
-            pointStyle: 'circle',
-            // Append the actual case count to each priority label, e.g.
-            // "Low (4)". Reads the live dataset values so the counts stay
-            // accurate instead of being hardcoded.
-            generateLabels: (chart: any) => {
-              const dataset = chart.data.datasets[0];
-              const data = (dataset?.data as number[]) ?? [];
-              const labels = (chart.data.labels as string[]) ?? [];
-              const colors = (dataset?.backgroundColor as string[]) ?? [];
-              return labels.map((label, i) => ({
-                text: `${label} (${data[i] ?? 0})`,
-                fillStyle: colors[i],
-                strokeStyle: colors[i],
-                lineWidth: 0,
-                hidden: false,
-                index: i,
-              }));
-            },
-          } as any,
-        },
+        legend: { display: false },
       },
     };
   }

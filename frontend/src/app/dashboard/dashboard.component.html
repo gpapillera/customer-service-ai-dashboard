@@ -47,10 +47,20 @@
                 </mat-card>
 
                 <mat-card class="cs-lift chart-card reveal" appReveal>
-                  <mat-card-content>
+                  <mat-card-content class="donut-card">
                     <h2 class="chart-title">Priority Distribution</h2>
-                    <div class="chart-box donut">
-                      <canvas baseChart [type]="priorityChart.type" [data]="priorityChart.data" [options]="priorityChart.options" (chartClick)="onChartClick('priority', $event)"></canvas>
+                    <div class="donut-body">
+                      <div class="chart-box donut">
+                        <canvas baseChart [type]="priorityChart.type" [data]="priorityChart.data" [options]="priorityChart.options" (chartClick)="onChartClick('priority', $event)"></canvas>
+                      </div>
+                    </div>
+                    <div class="donut-legend">
+                      @for (item of doughnutLegendItems; track item.label) {
+                        <button type="button" class="donut-legend-item" (click)="onPriorityLegendClick(item.label)">
+                          <span class="donut-dot" [style.background]="item.color"></span>
+                          {{ item.label }}
+                        </button>
+                      }
                     </div>
                   </mat-card-content>
                 </mat-card>

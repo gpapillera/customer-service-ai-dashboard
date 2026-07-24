@@ -150,6 +150,9 @@
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 1.25rem;
 }
+.charts-row + .charts-row {
+  margin-top: 1rem;
+}
 .trend-row {
   grid-template-columns: 1.8fr 1fr;
 }
@@ -162,6 +165,7 @@
   min-width: 0;
   overflow: hidden;
   border-radius: var(--cs-radius);
+  background: var(--cs-surface);
   box-shadow: var(--cs-shadow);
   cursor: pointer;
   transition: transform 0.25s var(--cs-ease), box-shadow 0.25s var(--cs-ease);
@@ -174,6 +178,7 @@
   margin: 0 0 1rem;
   font-size: 1.05rem;
   font-weight: 600;
+  color: var(--cs-text);
 }
 .trend-title {
   display: flex;
@@ -198,10 +203,65 @@
   min-width: 360px;
 }
 .chart-box.donut {
-  height: 240px;
+  height: 200px;
 }
 .chart-box.donut ::ng-deep canvas {
   min-width: auto;
+}
+
+/* ─── Priority Distribution card: doughnut on the right, legend below ─── */
+
+.donut-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.donut-body {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  flex: 1;
+}
+
+.donut-legend {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  padding: 0.25rem 0 0.25rem;
+}
+@media (max-width: 520px) {
+  .donut-legend {
+    gap: 0.5rem;
+  }
+  .donut-legend-item {
+    font-size: 0.8rem;
+    padding: 0.15rem 0.25rem;
+  }
+}
+
+.donut-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.88rem;
+  color: var(--cs-text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+  border-radius: 6px;
+  transition: background 0.15s var(--cs-ease);
+}
+.donut-legend-item:hover {
+  background: rgba(79, 70, 229, 0.06);
+}
+
+.donut-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
 @media (max-width: 400px) {
@@ -209,12 +269,13 @@
     height: 220px;
   }
   .chart-box.donut {
-    height: 200px;
+    height: 160px;
   }
 }
 
 .recent-card {
   border-radius: var(--cs-radius);
+  background: var(--cs-surface);
   box-shadow: var(--cs-shadow);
 }
 .recent-head {
@@ -262,6 +323,7 @@
 
 .overdue-card {
   border-radius: var(--cs-radius);
+  background: var(--cs-surface);
   box-shadow: var(--cs-shadow);
   border: 1px solid var(--cs-warning-bg);
 }

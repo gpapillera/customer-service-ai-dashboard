@@ -2,6 +2,25 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 24u — Dark Mode: Grid Line Persistence, Doughnut Layout, Filter Pill Color] (2026-07-24)
+**Status:** ✅ COMPLETE (build + browser verification)
+**What changed:**
+- **Frontend — Dashboard (TS):** Fixed dark-mode grid line color disappearing on page refresh. The `effect()` runs before `chartRefs` are populated (because `tryPlayEntrance()` polls with `setTimeout`), so `applyChartTheme()` bailed out early. Moved theme-color application into `tryPlayEntrance()` — colors are now applied to each Chart.js instance's `options` *before* the first `chart.update()` render call, so dark-mode grid/ticks show immediately on load. Removed Chart.js `legend` from `doughnutOptions()` and replaced with a manual HTML legend rendered via `doughnutLegendItems` getter and `onPriorityLegendClick()` click handler.
+- **Frontend — Dashboard (HTML):** Restructured Priority Distribution card: added `.donut-card`/`.donut-body` wrappers, doughnut canvas sits right-aligned, manual legend buttons sit below in a single row with colored dots.
+- **Frontend — Dashboard (SCSS):** Reduced doughnut height from 240px → 200px (less stretched). Added `.donut-card` (flex column), `.donut-body` (flex-end + center), `.donut-legend` row, and `.donut-legend-item` / `.donut-dot` styles. Legend stays on one row with responsive gap reduction on small screens.
+- **Frontend — Customers (SCSS):** Fixed invisible selected filter-chip in light mode. Replaced undefined CSS variable `--cs-primary` with `--cs-accent` (properly defined in both themes: `#4f46e5` light, `#818cf8` dark). Applied to `.filter-chip.active`, `.filter-chip:hover`, and `.sort-direction-btn:hover`.
+- **Result:** Grid lines persist correctly on dark-mode page refresh. Priority Distribution doughnut is smaller, right-aligned, with a clean manual legend below. Customer filter pills show a visible indigo background when selected in both light and dark modes. All builds verified.
+
+## [Phase 24s — Dark Mode: Priority Distribution Legend Color Fix] (2026-07-24)
+**Status:** ✅ COMPLETE (build + browser verification)
+**What changed:**
+- **Root cause diagnosis:** Discovered that `chart.options` on the Chart.js instance is a **different object** from the component's `ChartConfiguration.options` after ng2-charts initialization. Mutating the component config (e.g. `this.priorityChart.options.plugins.legend.labels.color`) does NOT affect the rendered chart.
+- **Frontend — Dashboard (TS):** Rewrote `applyChartTheme()` to iterate over `this.chartRefs` (`QueryList<BaseChartDirective>`) and mutate `ref.chart.options` (the actual Chart.js instance options) directly, then call `ref.chart.update()`. This ensures theme changes are reflected on the rendered canvas.
+- **Label format:** Removed custom `generateLabels` from `doughnutOptions()`. Labels are now pre-formatted with counts in `ngOnInit` (e.g. `"Low (5)"`), using standard Chart.js `labels.color` for theme-aware coloring.
+- **Click handler fix:** Updated `onChartClick` for the priority chart to strip the count suffix (e.g. `"Low (5)"` → `"Low"`) when constructing route params.
+- **Colors:** `#94a3b8` (dark) / `#64748b` (light) for legend text; `rgba(255,255,255,0.14)` (dark) / `rgba(0,0,0,0.06)` (light) for grid lines.
+- **Result:** Priority Distribution doughnut chart legend text color now correctly changes on theme toggle. Verified programmatically: dark → `#94a3b8`, light → `#64748b`, toggle back → `#94a3b8`.
+
 ## [Phase 24r — Customization Robustness: Drag-Reorder Fix & Verification] (2026-07-24)
 **Status:** ✅ COMPLETE (`ng build` → 0 errors)
 **What changed:**
