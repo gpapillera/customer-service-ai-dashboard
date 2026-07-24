@@ -105,6 +105,121 @@
   opacity: 0.5;
 }
 
+/* Phase 24f: Filter & sort bar */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  padding: 0.5rem 0;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.filter-label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--cs-text-muted);
+  margin-right: 0.2rem;
+}
+
+.filter-chip {
+  background: var(--cs-surface);
+  border: 1px solid var(--cs-border);
+  border-radius: 20px;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--cs-text-muted);
+  cursor: pointer;
+  transition: all 0.2s var(--cs-ease);
+}
+
+.filter-chip:hover {
+  border-color: var(--cs-primary);
+  color: var(--cs-primary);
+}
+
+.filter-chip.active {
+  background: var(--cs-primary);
+  border-color: var(--cs-primary);
+  color: #fff;
+}
+
+.sort-direction-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--cs-border);
+  border-radius: 50%;
+  background: var(--cs-surface);
+  cursor: pointer;
+  transition: all 0.2s var(--cs-ease);
+  color: var(--cs-text-muted);
+}
+
+.sort-direction-btn:hover {
+  border-color: var(--cs-primary);
+  color: var(--cs-primary);
+}
+
+/* Phase 24f: Account badge on card top-right */
+.account-badge {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--cs-surface);
+  border: 1px solid var(--cs-border);
+  transition: transform 0.2s var(--cs-ease);
+}
+
+.customer-card {
+  position: relative;
+}
+
+.account-badge.has-account {
+  color: #10b981;
+  border-color: #10b981;
+  background: #ecfdf5;
+}
+
+.account-badge.invited {
+  color: #f59e0b;
+  border-color: #f59e0b;
+  background: #fffbeb;
+}
+
+.account-badge.no-account {
+  color: var(--cs-neutral);
+  border-color: var(--cs-border);
+  background: var(--cs-surface);
+}
+
+.account-badge cs-icon {
+  width: 16px;
+  height: 16px;
+  font-size: 16px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));

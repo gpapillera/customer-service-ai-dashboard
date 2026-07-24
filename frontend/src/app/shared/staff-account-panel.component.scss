@@ -178,3 +178,33 @@
 
 // Reuse the existing cs-btn utility classes from styles.scss
 // (cs-btn-primary, cs-btn-ghost, cs-pill, status-* classes)
+
+.ap-scroll {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.ap-divider {
+  height: 1px;
+  background: var(--cs-border, #eef2f7);
+}
+
+.ap-signout-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 16px 20px;
+  border: none;
+  background: transparent;
+  color: var(--cs-danger, #ef4444);
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.18s var(--cs-ease, ease);
+
+  &:hover {
+    background: var(--cs-danger-bg, #fef2f2);
+  }
+}

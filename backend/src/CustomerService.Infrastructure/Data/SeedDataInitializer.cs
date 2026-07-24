@@ -32,6 +32,7 @@ public static class SeedDataInitializer
         var cases = SeedData.Cases(customers, categories);
         ctx.Cases.AddRange(cases);
         ctx.CallLogs.AddRange(SeedData.CallLogs(cases));
+        ctx.CaseComments.AddRange(SeedData.Comments(cases));
         ctx.SaveChanges();
     }
 }

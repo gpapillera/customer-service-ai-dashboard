@@ -11,16 +11,22 @@ export class CustomerService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = '/api/customers';
 
-  /** Lists all customers. */
-  list(): Observable<Customer[]> {
-    return this.http.get<Customer[]>(this.baseUrl);
+  /** Lists all customers, with optional filter/sort. */
+  list(hasAccount?: boolean | null, sortBy?: string | null, sortDirection?: string | null): Observable<Customer[]> {
+    const params: Record<string, string> = {};
+    if (hasAccount != null) params['hasAccount'] = String(hasAccount);
+    if (sortBy) params['sortBy'] = sortBy;
+    if (sortDirection) params['sortDirection'] = sortDirection;
+    return this.http.get<Customer[]>(this.baseUrl, { params });
   }
 
-  /** Searches customers by name/email/phone. */
-  search(term: string): Observable<Customer[]> {
-    return this.http.get<Customer[]>(`${this.baseUrl}/search`, {
-      params: { term },
-    });
+  /** Searches customers by name/email/phone, with optional filter/sort. */
+  search(term: string, hasAccount?: boolean | null, sortBy?: string | null, sortDirection?: string | null): Observable<Customer[]> {
+    const params: Record<string, string> = { term };
+    if (hasAccount != null) params['hasAccount'] = String(hasAccount);
+    if (sortBy) params['sortBy'] = sortBy;
+    if (sortDirection) params['sortDirection'] = sortDirection;
+    return this.http.get<Customer[]>(`${this.baseUrl}/search`, { params });
   }
 
   /** Gets a single customer by id. */

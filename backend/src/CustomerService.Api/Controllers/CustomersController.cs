@@ -28,14 +28,20 @@ public class CustomersController : ControllerBase
     }
 
     /// <summary>Lists all customers.</summary>
+    /// <param name="hasAccount">Optional: filter by account existence (true=has account, false=no account).</param>
+    /// <param name="sortBy">Optional: sort field ("name" or "activity"). Default "name".</param>
+    /// <param name="sortDirection">Optional: sort direction ("asc" or "desc"). Default "asc".</param>
     /// <returns>All customers (scoped to the caller's shared cases for an Agent).</returns>
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<IReadOnlyList<CustomerDto>> GetAll()
+    public async Task<IReadOnlyList<CustomerDto>> GetAll(
+        [FromQuery] bool? hasAccount = null,
+        [FromQuery] string? sortBy = null,
+        [FromQuery] string? sortDirection = null)
     {
         var callerUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         var callerRole = User.FindFirst(ClaimTypes.Role)?.Value;
-        return await _service.GetAllAsync(callerRole, callerUserId);
+        return await _service.GetAllAsync(callerRole, callerUserId, hasAccount, sortBy, sortDirection);
     }
 
     /// <summary>Gets a customer by id.</summary>
@@ -55,14 +61,21 @@ public class CustomersController : ControllerBase
 
     /// <summary>Searches customers by name/email/phone.</summary>
     /// <param name="term">Search term.</param>
+    /// <param name="hasAccount">Optional: filter by account existence.</param>
+    /// <param name="sortBy">Optional: sort field ("name" or "activity").</param>
+    /// <param name="sortDirection">Optional: sort direction ("asc" or "desc").</param>
     /// <returns>Matching customers (scoped to the caller's shared cases for an Agent).</returns>
     [HttpGet("search")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<IReadOnlyList<CustomerDto>> Search([FromQuery] string? term)
+    public async Task<IReadOnlyList<CustomerDto>> Search(
+        [FromQuery] string? term,
+        [FromQuery] bool? hasAccount = null,
+        [FromQuery] string? sortBy = null,
+        [FromQuery] string? sortDirection = null)
     {
         var callerUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         var callerRole = User.FindFirst(ClaimTypes.Role)?.Value;
-        return await _service.SearchAsync(term, callerRole, callerUserId);
+        return await _service.SearchAsync(term, callerRole, callerUserId, hasAccount, sortBy, sortDirection);
     }
 
     /// <summary>

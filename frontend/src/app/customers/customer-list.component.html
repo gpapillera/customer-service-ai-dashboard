@@ -25,6 +25,24 @@
   </div>
 </div>
 
+<!-- Phase 24f: Filter & sort bar -->
+<div class="filter-bar">
+  <div class="filter-group">
+    <span class="filter-label">Account:</span>
+    <button type="button" class="filter-chip" [class.active]="hasAccountFilter() === null" (click)="setAccountFilter(null)">All</button>
+    <button type="button" class="filter-chip" [class.active]="hasAccountFilter() === 'yes'" (click)="setAccountFilter('yes')">Has account</button>
+    <button type="button" class="filter-chip" [class.active]="hasAccountFilter() === 'no'" (click)="setAccountFilter('no')">No account</button>
+  </div>
+  <div class="filter-group">
+    <span class="filter-label">Sort:</span>
+    <button type="button" class="filter-chip" [class.active]="sortBy() === 'name'" (click)="setSortBy('name')">Name</button>
+    <button type="button" class="filter-chip" [class.active]="sortBy() === 'activity'" (click)="setSortBy('activity')">Activity</button>
+    <button type="button" class="sort-direction-btn" (click)="toggleSortDirection()" [attr.aria-label]="sortDirection()">
+      <cs-icon [name]="sortDirection() === 'asc' ? 'arrow_upward' : 'arrow_downward'"></cs-icon>
+    </button>
+  </div>
+</div>
+
 @if (loading()) {
   <div class="center"><mat-spinner diameter="36"></mat-spinner></div>
 } @else if (customers().length === 0) {
@@ -37,6 +55,20 @@
     @for (c of customers(); track c.id) {
       <mat-card class="cs-lift customer-card" appReveal [routerLink]="[c.id]">
         <mat-card-content>
+          <!-- Phase 24f: Account status icon top-right -->
+          <div class="account-badge"
+               [class.has-account]="c.hasAccount && c.accountActive"
+               [class.invited]="c.hasAccount && !c.accountActive"
+               [class.no-account]="!c.hasAccount"
+               [matTooltip]="accountLabel(c)" matTooltipPosition="above">
+            @if (c.hasAccount && c.accountActive) {
+              <cs-icon name="check_circle"></cs-icon>
+            } @else if (c.hasAccount && !c.accountActive) {
+              <cs-icon name="schedule"></cs-icon>
+            } @else {
+              <cs-icon name="circle_alert"></cs-icon>
+            }
+          </div>
           <div class="card-top">
             <div class="avatar" [style.background]="avatarColor(c.id)">{{ c.name.charAt(0).toUpperCase() }}</div>
             <div class="meta">

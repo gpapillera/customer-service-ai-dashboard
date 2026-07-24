@@ -43,6 +43,8 @@ import {
   MessageSquare,
   Send,
   UserCheck,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-angular/src/icons';
 
 /**
@@ -88,6 +90,8 @@ const ICON_MAP: Record<string, LucideIconData> = {
   send: Send,
   supervisor_account: UserCheck,
   settings: Settings,
+  arrow_upward: ArrowUp,
+  arrow_downward: ArrowDown,
 };
 
 @Component({

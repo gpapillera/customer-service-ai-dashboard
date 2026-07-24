@@ -1,8 +1,11 @@
 import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
+import { MatDialog } from '@angular/material/dialog';
 import { CsIconComponent } from './cs-icon.component';
 import { AuthService } from '../auth/auth.service';
+import { ConfirmDialogComponent } from './confirm-dialog.component';
 import { StaffProfile, UpdateStaffProfile } from './models';
 
 /**
@@ -23,6 +26,8 @@ import { StaffProfile, UpdateStaffProfile } from './models';
 })
 export class StaffAccountPanelComponent {
   private readonly auth = inject(AuthService);
+  private readonly dialog = inject(MatDialog);
+  private readonly router = inject(Router);
 
   /** Whether the panel is currently open. */
   readonly open = signal(false);
@@ -95,6 +100,28 @@ export class StaffAccountPanelComponent {
         const msg = err?.error?.error ?? err?.error?.title as string | undefined;
         this.error.set(msg ?? 'Could not save your profile.');
       },
+    });
+  }
+
+  /** Shows a confirmation dialog, then signs out. */
+  logout(): void {
+    const ref = this.dialog.open(ConfirmDialogComponent, {
+      data: {
+        title: 'Sign out',
+        message: 'Are you sure you want to sign out?',
+        confirmText: 'Sign out',
+        cancelText: 'Cancel',
+        icon: 'logout',
+      },
+      width: '400px',
+      maxWidth: '92vw',
+      autoFocus: false,
+    });
+    ref.afterClosed().subscribe((confirmed) => {
+      if (confirmed) {
+        this.auth.logout();
+        this.router.navigateByUrl('/login');
+      }
     });
   }
 

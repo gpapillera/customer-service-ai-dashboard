@@ -8,6 +8,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatMenuModule } from '@angular/material/menu';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialog } from '@angular/material/dialog';
 import { RevealDirective } from '../shared/reveal.directive';
 import { CsIconComponent } from '../shared/cs-icon.component';
@@ -34,6 +35,7 @@ import { LayoutComponent } from '../shared/layout/layout.component';
     MatInputModule,
     MatProgressSpinnerModule,
     MatMenuModule,
+    MatTooltipModule,
     RevealDirective,
     CsIconComponent,
   ],
@@ -56,6 +58,10 @@ export class CustomerListComponent implements OnInit {
   /** True while the list is loading OR a route navigation is in progress. */
   readonly loading = computed(() => this.dataLoading() || this.routeLoading.loading());
   readonly searchTerm = signal('');
+  // Phase 24f — filter/sort state
+  readonly hasAccountFilter = signal<string | null>(null); // null=all, "yes", "no"
+  readonly sortBy = signal<string>('name'); // "name" | "activity"
+  readonly sortDirection = signal<string>('asc'); // "asc" | "desc"
 
   ngOnInit(): void {
     this.load();
@@ -65,9 +71,18 @@ export class CustomerListComponent implements OnInit {
   load(): void {
     this.dataLoading.set(true);
     const term = this.searchTerm().trim();
+    const hasAccount = this.hasAccountFilter();
+    const sortBy = this.sortBy();
+    const sortDir = this.sortDirection();
+
+    // Convert hasAccountFilter to boolean|null
+    let accountFilter: boolean | null = null;
+    if (hasAccount === 'yes') accountFilter = true;
+    else if (hasAccount === 'no') accountFilter = false;
+
     const req = term
-      ? this.service.search(term)
-      : this.service.list();
+      ? this.service.search(term, accountFilter, sortBy, sortDir)
+      : this.service.list(accountFilter, sortBy, sortDir);
     req.subscribe({
       next: (list) => {
         this.customers.set(list);
@@ -75,6 +90,24 @@ export class CustomerListComponent implements OnInit {
       },
       error: () => this.dataLoading.set(false),
     });
+  }
+
+  /** Sets account filter and reloads. */
+  setAccountFilter(value: string | null): void {
+    this.hasAccountFilter.set(value);
+    this.load();
+  }
+
+  /** Sets sort field and reloads. */
+  setSortBy(field: string): void {
+    this.sortBy.set(field);
+    this.load();
+  }
+
+  /** Toggles sort direction and reloads. */
+  toggleSortDirection(): void {
+    this.sortDirection.update(d => (d === 'asc' ? 'desc' : 'asc'));
+    this.load();
   }
 
   /** Debounced search trigger from the input. */
@@ -108,6 +141,18 @@ export class CustomerListComponent implements OnInit {
       '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6',
     ];
     return palette[id % palette.length];
+  }
+
+  /** Returns the account icon name for a customer. */
+  accountIcon(c: Customer): string {
+    if (!c.hasAccount) return 'person_off';
+    return c.accountActive ? 'check_circle' : 'pending';
+  }
+
+  /** Returns the account status label for a customer. */
+  accountLabel(c: Customer): string {
+    if (!c.hasAccount) return 'No account';
+    return c.accountActive ? 'Active' : 'Invited';
   }
 
   /** Formats a UTC date string for display. */

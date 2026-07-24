@@ -25,13 +25,16 @@ public class CustomerService : ICustomerService
     }
 
     /// <inheritdoc/>
-    public async Task<IReadOnlyList<CustomerDto>> GetAllAsync(string? callerRole = null, string? callerUserId = null)
+    public async Task<IReadOnlyList<CustomerDto>> GetAllAsync(string? callerRole = null, string? callerUserId = null,
+        bool? hasAccount = null, string? sortBy = null, string? sortDirection = null)
     {
         var isAgent = string.Equals(callerRole, nameof(UserRole.Agent), StringComparison.OrdinalIgnoreCase);
 
         // SERVER-SIDE AGENT SCOPING (Phase 6). An Agent only sees customers who
         // have at least one case assigned to them (join/exists query, not
         // client-side filtering). Admin is unaffected.
+        IQueryable<Customer> q = _customers.Query();
+
         if (isAgent && !string.IsNullOrEmpty(callerUserId))
         {
             var customerIds = await _cases.Query()
@@ -39,44 +42,47 @@ public class CustomerService : ICustomerService
                 .Select(c => c.CustomerId)
                 .Distinct()
                 .ToListAsync();
-
-            return await _customers.Query()
-                .Where(c => customerIds.Contains(c.Id))
-                .Select(c => new CustomerDto
-                {
-                    Id = c.Id,
-                    CustomerDisplayId = c.CustomerDisplayId,
-                    Name = c.Name,
-                    Email = c.Email,
-                    Phone = c.Phone,
-                    Company = c.Company,
-                    Address = c.Address,
-                    CaseCount = c.Cases.Count,
-                    CreatedAtUtc = c.CreatedAtUtc,
-                    HasAccount = c.Account != null,
-                    AccountActive = c.Account != null && c.Account.IsActive,
-                })
-                .OrderBy(c => c.Name)
-                .ToListAsync();
+            q = q.Where(c => customerIds.Contains(c.Id));
         }
 
-        return await _customers.Query()
-            .Select(c => new CustomerDto
-            {
-                Id = c.Id,
-                CustomerDisplayId = c.CustomerDisplayId,
-                Name = c.Name,
-                Email = c.Email,
-                Phone = c.Phone,
-                Company = c.Company,
-                Address = c.Address,
-                CaseCount = c.Cases.Count,
-                CreatedAtUtc = c.CreatedAtUtc,
-                HasAccount = c.Account != null,
-                AccountActive = c.Account != null && c.Account.IsActive,
-            })
-            .OrderBy(c => c.Name)
-            .ToListAsync();
+        // Has-account filter (Phase 24f)
+        if (hasAccount.HasValue)
+        {
+            if (hasAccount.Value)
+                q = q.Where(c => c.Account != null);
+            else
+                q = q.Where(c => c.Account == null);
+        }
+
+        // Sorting (Phase 24f)
+        bool desc = string.Equals(sortDirection, "desc", StringComparison.OrdinalIgnoreCase);
+        if (string.Equals(sortBy, "activity", StringComparison.OrdinalIgnoreCase))
+        {
+            q = desc
+                ? q.OrderByDescending(c => c.Cases.Max(cs => (DateTime?)cs.CreatedAtUtc) ?? c.CreatedAtUtc)
+                : q.OrderBy(c => c.Cases.Max(cs => (DateTime?)cs.CreatedAtUtc) ?? c.CreatedAtUtc);
+        }
+        else
+        {
+            q = desc
+                ? q.OrderByDescending(c => c.Name)
+                : q.OrderBy(c => c.Name);
+        }
+
+        return await q.Select(c => new CustomerDto
+        {
+            Id = c.Id,
+            CustomerDisplayId = c.CustomerDisplayId,
+            Name = c.Name,
+            Email = c.Email,
+            Phone = c.Phone,
+            Company = c.Company,
+            Address = c.Address,
+            CaseCount = c.Cases.Count,
+            CreatedAtUtc = c.CreatedAtUtc,
+            HasAccount = c.Account != null,
+            AccountActive = c.Account != null && c.Account.IsActive,
+        }).ToListAsync();
     }
 
     /// <inheritdoc/>
@@ -130,7 +136,8 @@ public class CustomerService : ICustomerService
     }
 
     /// <inheritdoc/>
-    public async Task<IReadOnlyList<CustomerDto>> SearchAsync(string? term, string? callerRole = null, string? callerUserId = null)
+    public async Task<IReadOnlyList<CustomerDto>> SearchAsync(string? term, string? callerRole = null, string? callerUserId = null,
+        bool? hasAccount = null, string? sortBy = null, string? sortDirection = null)
     {
         var isAgent = string.Equals(callerRole, nameof(UserRole.Agent), StringComparison.OrdinalIgnoreCase);
 
@@ -155,6 +162,31 @@ public class CustomerService : ICustomerService
                 c.Email.ToLower().Contains(term) ||
                 (c.Phone != null && c.Phone.Contains(term)));
         }
+
+        // Has-account filter (Phase 24f)
+        if (hasAccount.HasValue)
+        {
+            if (hasAccount.Value)
+                q = q.Where(c => c.Account != null);
+            else
+                q = q.Where(c => c.Account == null);
+        }
+
+        // Sorting (Phase 24f)
+        bool desc = string.Equals(sortDirection, "desc", StringComparison.OrdinalIgnoreCase);
+        if (string.Equals(sortBy, "activity", StringComparison.OrdinalIgnoreCase))
+        {
+            q = desc
+                ? q.OrderByDescending(c => c.Cases.Max(cs => (DateTime?)cs.CreatedAtUtc) ?? c.CreatedAtUtc)
+                : q.OrderBy(c => c.Cases.Max(cs => (DateTime?)cs.CreatedAtUtc) ?? c.CreatedAtUtc);
+        }
+        else
+        {
+            q = desc
+                ? q.OrderByDescending(c => c.Name)
+                : q.OrderBy(c => c.Name);
+        }
+
         return await q.Select(c => new CustomerDto
         {
             Id = c.Id,
@@ -168,7 +200,7 @@ public class CustomerService : ICustomerService
             CreatedAtUtc = c.CreatedAtUtc,
             HasAccount = c.Account != null,
             AccountActive = c.Account != null && c.Account.IsActive,
-        }).OrderBy(c => c.Name).ToListAsync();
+        }).ToListAsync();
     }
 
     /// <inheritdoc/>
@@ -185,7 +217,7 @@ public class CustomerService : ICustomerService
         await _customers.AddAsync(customer);
         await _customers.SaveChangesAsync();
         // Generate a human-readable display ID after the entity is saved (Id is now set).
-        customer.CustomerDisplayId = $"CUST-{customer.Id:D5}";
+        customer.CustomerDisplayId = $"C-{customer.Id:D5}";
         _customers.Update(customer);
         await _customers.SaveChangesAsync();
         return ToDto(customer);

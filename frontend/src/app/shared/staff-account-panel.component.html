@@ -2,7 +2,8 @@
   <div class="ap-scrim" (click)="hide()"></div>
 
   <aside class="ap-panel cs-lift" role="dialog" aria-label="Account settings">
-    <header class="ap-head">
+    <div class="ap-scroll">
+      <header class="ap-head">
       <div class="ap-title">
         <cs-icon name="account_circle"></cs-icon>
         <span>My Account</span>
@@ -93,5 +94,12 @@
         <p class="ap-loading">Loading profile…</p>
       </div>
     }
+    </div>
+
+    <div class="ap-divider"></div>
+    <button type="button" class="ap-signout-btn" (click)="logout()">
+      <cs-icon name="logout"></cs-icon>
+      <span>Sign Out</span>
+    </button>
   </aside>
 }
