@@ -2,6 +2,38 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 24r — Customization Robustness: Drag-Reorder Fix & Verification] (2026-07-24)
+**Status:** ✅ COMPLETE (`ng build` → 0 errors)
+**What changed:**
+- **Frontend — Layout (TS):** Fixed drag-reorder index mismatch in `dropWidget()`. When `widgetList` filters out `workload` for agents (5→4 items), the CDK drag-drop events return visual indices (0-3) that no longer match the full `widgetOrder` array indices. Added mapping: finds the actual widget ID from the filtered list at the visual index, then resolves its position in the full `widgetOrder` array using `indexOf()`.
+- **Backend — Recovery:** Diagnosed and fixed corrupt SQLite database (`customer_service.db`) after a killed dotnet process left a 4KB corrupt file. Deleted WAL/SHM artifacts and restarted — backend re-seeded cleanly with 21 cases, 3 users, 11 customers.
+- **Verification performed:**
+  - Agent dashboard (Grace Agent) verified: 6 personal KPIs (11 My Cases, 9 My Open, 6 My High Priority, 1 My Resolved, 6 My AI Predicted, 7 My Overdue), all 4 charts with role-aware titles, 5 Recent Cases, 5 Overdue Follow-ups
+  - Agent Workload section: confirmed absent from the dashboard
+  - Settings panel: Agent Workload toggle correctly hidden, Widget Order drag list excludes `workload` entry for agents
+  - No console errors or failed API calls
+- **Result:** The customization system is fully robust for agents. Hidden Agent Workload causes no bugs — `widgetSections` computed has `!isAgent &&` guard, `loadAgentWorkload()` is admin-only, template has no workload references outside its `@case` block. Build verified, page confirmed in browser.
+
+## [Phase 24q — Agent Dashboard: All Charts, Recent, Overdue; No Workload] (2026-07-23)
+**Status:** ✅ COMPLETE (`ng build` → 0 errors)
+**What changed:**
+- **Frontend — Dashboard (TS):** Removed `showAllCharts` signal and `toggleCharts()` method. `widgetSections` computed now allows `recent` and `overdue` sections for agents (removed `!isAgent &&` guard). Agent Workload section remains admin-only via `!isAgent &&` guard. KPI getter branches by role (personal "My *" for agents).
+- **Frontend — Dashboard (HTML):** Second chart row (Category + Status) always visible — no conditional wrapping. No toggle buttons. Chart titles branch by role ("My Cases by Category" / "My Cases — Weekly Trend" for agents).
+- **Frontend — Layout (TS):** Added `isAgent` computed. Updated `widgetList` to filter out `workload` for agents so it doesn't appear in the settings Widget Order drag list.
+- **Frontend — Layout (HTML):** Agent Workload toggle wrapped in `@if (!isAgent())`. Setting descriptions updated (removed "(admin)" from recent/overdue).
+- **Result:** Agent dashboard shows all 4 charts (Trend, Priority, Category, Status), Recent Cases, and Overdue Follow-ups. Agent Workload section and its settings toggle are hidden for agents. Build verified, page visually confirmed.
+
+## [Phase 24p — Widget Reorder in Settings Panel] (2026-07-23)
+**Status:** ✅ COMPLETE (`ng build` → 0 errors)
+**What changed:**
+- **Frontend — Settings Service:** Added exported `WIDGET_LABELS` record mapping widget IDs (`kpis`, `charts`, `recent`, `overdue`, `workload`) to human-readable names.
+- **Frontend — Layout (TS):** Added `computed` import, `DragDropModule` (component imports + `CdkDragDrop` type), `widgetList` computed that pairs ordered IDs with labels, and `dropWidget(event)` handler delegating to `DashboardSettingsService.moveWidget()`.
+- **Frontend — Layout (HTML):** Replaced the empty settings body with a "Widget Order" section containing a `cdkDropList` with draggable widget items, each with a `cdkDragHandle` grip icon and label.
+- **Frontend — Layout (SCSS):** Added `.settings-hint`, `.widget-order-list`, `.widget-order-item` (card-like rows with border, hover, CDK placeholder/preview states), `.wo-drag-handle` (grab cursor + accent hover), and `.wo-label` styles.
+- **Frontend — Dashboard (TS):** Removed `CdkDragDrop` import, `DragDropModule` from component imports, and the `drop()` method — no longer handles drag-drop directly.
+- **Frontend — Dashboard (HTML):** Replaced `cdkDropList`/`cdkDrag` wrapper with plain `<div class="dashboard-sections">`, renamed `.drag-section` to `.dashboard-section`.
+- **Result:** Widget reordering is now done in the settings panel (opened via the gear icon) instead of on the dashboard page. Drag handles appear on each widget row in the panel; the dashboard renders sections in the order set there.
+
 ## [Phase 24o — Email Compose Right Panel] (2026-07-23)
 **Status:** ✅ COMPLETE (`ng build` + `dotnet build` + `dotnet test` → 0 errors, 62/64 pass — 2 pre-existing Phase 24h failures)
 **What changed:**
