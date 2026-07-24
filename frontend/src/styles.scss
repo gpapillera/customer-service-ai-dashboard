@@ -98,6 +98,16 @@ body {
   --cs-inverse-text: #ffffff;
   --cs-input-bg: #ffffff;
   --cs-table-stripe: rgba(0, 0, 0, 0.02);
+
+  /* Active-case pill (>0) — green, visible on light bg */
+  --cs-active-case-text: #047857;
+  --cs-active-case-border: #6ee7b7;
+  --cs-active-case-dot: #10b981;
+
+  /* Zero-active-case pill — amber, distinguishable on light bg */
+  --cs-zero-active-text: #d97706;
+  --cs-zero-active-border: #fcd34d;
+  --cs-zero-active-dot: #f59e0b;
 }
 
 /* ---- Dark theme ---- */
@@ -137,6 +147,16 @@ body {
   --cs-inverse-text: #0f172a;
   --cs-input-bg: #1e293b;
   --cs-table-stripe: rgba(255, 255, 255, 0.03);
+
+  /* Active-case pill (>0) — lighter green for dark bg */
+  --cs-active-case-text: #34d399;
+  --cs-active-case-border: #6ee7b7;
+  --cs-active-case-dot: #34d399;
+
+  /* Zero-active-case pill — bright cyan, distinguishable on dark bg */
+  --cs-zero-active-text: #22d3ee;
+  --cs-zero-active-border: #67e8f9;
+  --cs-zero-active-dot: #22d3ee;
 }
 
 /* ---- Reusable "alive" animations ---- */
@@ -260,6 +280,19 @@ body {
 .cs-pill.status-resolved .cs-dot { background: var(--cs-success); }
 .cs-pill.status-closed { background: transparent; color: #475569; border: 1px solid #cbd5e1; }
 .cs-pill.status-closed .cs-dot { background: var(--cs-neutral); }
+
+/* Active-case pill (>0 active cases) — green shades, theme-aware. */
+.cs-pill.active { background: transparent; color: var(--cs-active-case-text); border: 1px solid var(--cs-active-case-border); }
+.cs-pill.active .cs-dot { background: var(--cs-active-case-dot); }
+
+/* Zero-active-case pill — distinguishable per theme. */
+.cs-pill.no-active { background: transparent; color: var(--cs-zero-active-text); border: 1px solid var(--cs-zero-active-border); }
+.cs-pill.no-active .cs-dot { background: var(--cs-zero-active-dot); }
+
+/* Multi-line tooltip support (used for active-case hover lists). */
+.cs-tooltip-multiline {
+  white-space: pre-line !important;
+}
 
 /* ---- Shared card + page header patterns ---- */
 .cs-card {

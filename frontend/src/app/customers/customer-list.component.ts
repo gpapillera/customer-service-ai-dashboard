@@ -160,4 +160,9 @@ export class CustomerListComponent implements OnInit {
     if (!value) return '—';
     return new Date(value).toLocaleDateString();
   }
+
+  /** Formats the hover tooltip for active cases on a customer card. */
+  activeCasesTooltip(c: Customer): string {
+    return c.activeCases.map(ac => `• ${ac.subject} (${ac.status})`).join('\n');
+  }
 }

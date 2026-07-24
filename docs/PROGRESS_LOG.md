@@ -2,9 +2,17 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
-## [Phase 24u — Dark Mode: Grid Line Persistence, Doughnut Layout, Filter Pill Color] (2026-07-24)
-**Status:** ✅ COMPLETE (build + browser verification)
+## [Phase 24v — Customer Card: Active Case Pill with Hover Tooltip] (2026-07-24)
+**Status:** ✅ COMPLETE (build verified)
 **What changed:**
+- **Backend — CustomerDto:** Added `ActiveCaseCount` (int) and `ActiveCases` (`List<ActiveCaseInfoDto>`) fields. Active cases = cases with status *not* `Resolved` or `Closed`. Added `ActiveCaseInfoDto` class with `Subject` and `Status` (serialized as string).
+- **Backend — CustomerService:** Updated both LINQ `Select()` projections in `GetAllAsync` and `SearchAsync` to populate `ActiveCaseCount` (count filter) and `ActiveCases` (filtered + mapped list). Updated `ToDto()` helper with null-conditional handling. Added `.Include(x => x.Cases)` to `GetByIdAsync` so the single-customer query loads cases for active-case computation.
+- **Frontend — models.ts:** Added `ActiveCaseInfo` interface (`subject`, `status`) and `activeCaseCount`/`activeCases` fields to `Customer` interface.
+- **Frontend — customer-list.component.ts:** Added `activeCasesTooltip()` method that formats active cases as a bullet list with subject and status, used by the hover tooltip.
+- **Frontend — customer-list.component.html:** Replaced single `{{ c.caseCount }} cases` pill with a two-row `.case-stats` structure: (1) active-case pill showing `{{ c.activeCaseCount }} active` with hover tooltip listing each active case's subject + status, (2) total case count row below (`{{ c.caseCount }} total cases`). Active pill uses `.cs-pill.active` (green shades) when >0, `.cs-pill.no-active` (distinguishable per-theme colors) when 0.
+- **Frontend — customer-list.component.scss:** Added `.case-stats` (flex column layout), `.active-case-row`, `.total-case-row` styles.
+- **Frontend — styles.scss:** Added CSS variables for active-case pill (`--cs-active-case-*`: green `#047857` light / `#34d399` dark) and zero-active pill (`--cs-zero-active-*`: amber `#d97706` light / cyan `#22d3ee` dark). Added `.cs-pill.active` and `.cs-pill.no-active` theme-aware pill classes alongside existing status/priority pills. Added `.cs-tooltip-multiline` class for multi-line tooltip support.
+- **Result:** Customer card now shows active case count in a green pill with hover tooltip revealing each active case's subject and status. Below it shows total case count in subtle text. Zero active cases shows a distinguishable color (amber light, cyan dark). Both builds verified.
 - **Frontend — Dashboard (TS):** Fixed dark-mode grid line color disappearing on page refresh. The `effect()` runs before `chartRefs` are populated (because `tryPlayEntrance()` polls with `setTimeout`), so `applyChartTheme()` bailed out early. Moved theme-color application into `tryPlayEntrance()` — colors are now applied to each Chart.js instance's `options` *before* the first `chart.update()` render call, so dark-mode grid/ticks show immediately on load. Removed Chart.js `legend` from `doughnutOptions()` and replaced with a manual HTML legend rendered via `doughnutLegendItems` getter and `onPriorityLegendClick()` click handler.
 - **Frontend — Dashboard (HTML):** Restructured Priority Distribution card: added `.donut-card`/`.donut-body` wrappers, doughnut canvas sits right-aligned, manual legend buttons sit below in a single row with colored dots.
 - **Frontend — Dashboard (SCSS):** Reduced doughnut height from 240px → 200px (less stretched). Added `.donut-card` (flex column), `.donut-body` (flex-end + center), `.donut-legend` row, and `.donut-legend-item` / `.donut-dot` styles. Legend stays on one row with responsive gap reduction on small screens.

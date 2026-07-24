@@ -314,6 +314,24 @@
   padding-top: 0.9rem;
   border-top: 1px solid var(--cs-border);
 }
+
+.case-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.active-case-row {
+  display: flex;
+  align-items: center;
+}
+
+.total-case-row {
+  font-size: 0.75rem;
+  color: var(--cs-text-muted);
+  padding-left: 0.15rem;
+}
+
 .since {
   font-size: 0.78rem;
   color: var(--cs-text-muted);

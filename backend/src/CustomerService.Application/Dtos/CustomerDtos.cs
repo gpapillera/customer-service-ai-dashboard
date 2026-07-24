@@ -64,6 +64,12 @@ public class CustomerDto
     /// <summary>Number of cases raised by this customer.</summary>
     public int CaseCount { get; set; }
 
+    /// <summary>Number of active (non-resolved, non-closed) cases.</summary>
+    public int ActiveCaseCount { get; set; }
+
+    /// <summary>Active cases with subject and status (for hover tooltip).</summary>
+    public List<ActiveCaseInfoDto> ActiveCases { get; set; } = new();
+
     /// <summary>UTC timestamp when the customer record was created.</summary>
     public DateTime CreatedAtUtc { get; set; }
 
@@ -72,4 +78,14 @@ public class CustomerDto
 
     /// <summary>True if the customer's account is active (password set).</summary>
     public bool AccountActive { get; set; }
+}
+
+/// <summary>Minimal info for an active case (subject + status).</summary>
+public class ActiveCaseInfoDto
+{
+    /// <summary>Case subject.</summary>
+    public string Subject { get; set; } = string.Empty;
+
+    /// <summary>Case status (serialized as string via JsonStringEnumConverter).</summary>
+    public CaseStatus Status { get; set; }
 }

@@ -28,9 +28,17 @@ export interface Customer {
   company: string | null;
   address: string | null;
   caseCount: number;
+  activeCaseCount: number;
+  activeCases: ActiveCaseInfo[];
   createdAtUtc?: string;
   hasAccount: boolean;
   accountActive: boolean;
+}
+
+/** Minimal active case info (subject + status). */
+export interface ActiveCaseInfo {
+  subject: string;
+  status: string;
 }
 
 /** Payload for creating a customer. */

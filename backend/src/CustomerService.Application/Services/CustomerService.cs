@@ -79,6 +79,15 @@ public class CustomerService : ICustomerService
             Company = c.Company,
             Address = c.Address,
             CaseCount = c.Cases.Count,
+            ActiveCaseCount = c.Cases.Count(cs => cs.Status != CaseStatus.Resolved && cs.Status != CaseStatus.Closed),
+            ActiveCases = c.Cases
+                .Where(cs => cs.Status != CaseStatus.Resolved && cs.Status != CaseStatus.Closed)
+                .Select(cs => new ActiveCaseInfoDto
+                {
+                    Subject = cs.Subject,
+                    Status = cs.Status,
+                })
+                .ToList(),
             CreatedAtUtc = c.CreatedAtUtc,
             HasAccount = c.Account != null,
             AccountActive = c.Account != null && c.Account.IsActive,
@@ -90,6 +99,7 @@ public class CustomerService : ICustomerService
     {
         var c = await _customers.Query()
             .Include(x => x.Account)
+            .Include(x => x.Cases)
             .FirstOrDefaultAsync(x => x.Id == id);
         if (c is null) return null;
 
@@ -197,6 +207,15 @@ public class CustomerService : ICustomerService
             Company = c.Company,
             Address = c.Address,
             CaseCount = c.Cases.Count,
+            ActiveCaseCount = c.Cases.Count(cs => cs.Status != CaseStatus.Resolved && cs.Status != CaseStatus.Closed),
+            ActiveCases = c.Cases
+                .Where(cs => cs.Status != CaseStatus.Resolved && cs.Status != CaseStatus.Closed)
+                .Select(cs => new ActiveCaseInfoDto
+                {
+                    Subject = cs.Subject,
+                    Status = cs.Status,
+                })
+                .ToList(),
             CreatedAtUtc = c.CreatedAtUtc,
             HasAccount = c.Account != null,
             AccountActive = c.Account != null && c.Account.IsActive,
@@ -256,6 +275,14 @@ public class CustomerService : ICustomerService
         Company = c.Company,
         Address = c.Address,
         CaseCount = c.Cases?.Count ?? 0,
+        ActiveCaseCount = c.Cases?.Count(cs => cs.Status != CaseStatus.Resolved && cs.Status != CaseStatus.Closed) ?? 0,
+        ActiveCases = (c.Cases?.Where(cs => cs.Status != CaseStatus.Resolved && cs.Status != CaseStatus.Closed)
+            .Select(cs => new ActiveCaseInfoDto
+            {
+                Subject = cs.Subject,
+                Status = cs.Status,
+            })
+            .ToList()) ?? new List<ActiveCaseInfoDto>(),
         CreatedAtUtc = c.CreatedAtUtc,
         HasAccount = c.Account != null,
         AccountActive = c.Account != null && c.Account.IsActive,
