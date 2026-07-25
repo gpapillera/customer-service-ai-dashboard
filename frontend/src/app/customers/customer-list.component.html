@@ -80,11 +80,6 @@
                 <div class="sub">{{ c.company }}</div>
               }
             </div>
-            @if (auth.getRole() !== 'Agent') {
-              <button type="button" class="card-delete-btn" matTooltip="Delete customer" matTooltipPosition="above" (click)="$event.stopPropagation(); remove(c.id, c.name, c.caseCount)">
-                <cs-icon name="delete"></cs-icon>
-              </button>
-            }
           </div>
           <div class="rows">
             <div class="row"><cs-icon name="mail"></cs-icon><span>{{ c.email }}</span></div>
@@ -109,14 +104,23 @@
                 <span>{{ c.caseCount }} total case{{ c.caseCount !== 1 ? 's' : '' }}</span>
               </div>
             </div>
-            @if (c.lastActivityDescription) {
-              <div class="last-activity">
-                <div class="activity-desc">{{ c.lastActivityDescription }}</div>
-                <div class="activity-time">{{ formatDateTime(c.lastActivityAtUtc) }}</div>
-              </div>
-            } @else {
-              <span class="since">Since {{ formatDate(c.createdAtUtc) }}</span>
-            }
+            <div class="footer-right">
+              @if (c.lastActivityDescription) {
+                <div class="last-activity">
+                  <div class="activity-desc">{{ c.lastActivityDescription }}</div>
+                  <div class="activity-time">{{ formatDateTime(c.lastActivityAtUtc) }}</div>
+                </div>
+              } @else {
+                <span class="since">Since {{ formatDate(c.createdAtUtc) }}</span>
+              }
+              @if (auth.getRole() !== 'Agent') {
+                <button type="button" class="footer-delete-btn"
+                        matTooltip="Delete customer" matTooltipPosition="above"
+                        (click)="$event.stopPropagation(); remove(c.id, c.name, c.caseCount)">
+                  <cs-icon name="delete"></cs-icon>
+                </button>
+              }
+            </div>
           </div>
         </mat-card-content>
       </mat-card>
