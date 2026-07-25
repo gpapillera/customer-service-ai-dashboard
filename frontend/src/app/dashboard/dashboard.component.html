@@ -153,18 +153,18 @@
                   <h2 class="chart-title workload-title"><cs-icon name="supervisor_account" class="workload-icon"></cs-icon> Agent Workload</h2>
                   <div class="workload-grid">
                     <div class="workload-head">
-                      <span class="workload-col">Agent</span>
-                      <span class="workload-col">Open</span>
-                      <span class="workload-col">High Priority</span>
-                      <span class="workload-col">Resolved</span>
-                      <span class="workload-col">Overdue</span>
+                      <span class="workload-col col-agent">Agent</span>
+                      <span class="workload-col col-open">Open</span>
+                      <span class="workload-col col-high">High Priority</span>
+                      <span class="workload-col col-resolved">Resolved</span>
+                      <span class="workload-col col-overdue">Overdue</span>
                     </div>
                     @for (w of agentWorkload(); track w.agentId) {
                       <div class="workload-row">
                         <span class="workload-col workload-name">{{ w.fullName }}</span>
-                        <span class="workload-col">{{ w.openCaseCount }}</span>
-                        <span class="workload-col">{{ w.highPriorityCount }}</span>
-                        <span class="workload-col">{{ w.resolvedCount }}</span>
+                        <span class="workload-col col-open-num">{{ w.openCaseCount }}</span>
+                        <span class="workload-col col-high-num">{{ w.highPriorityCount }}</span>
+                        <span class="workload-col col-resolved-num">{{ w.resolvedCount }}</span>
                         <span class="workload-col" [class.overdue-warn]="w.overdueCount > 0" [class.overdue-safe]="w.overdueCount === 0">{{ w.overdueCount }}</span>
                       </div>
                     }

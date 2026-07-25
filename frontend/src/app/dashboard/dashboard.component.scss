@@ -395,54 +395,97 @@
   display: flex;
   flex-direction: column;
   border: 1px solid var(--cs-border);
-  border-radius: var(--cs-radius);
+  border-radius: var(--cs-radius-sm);
   overflow: hidden;
 }
+
+/* ── Header row: each column gets a KPI-card-style tinted background ── */
 
 .workload-head {
   display: grid;
   grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
-  gap: 0.5rem;
-  padding: 0.7rem 1rem;
-  background: var(--cs-accent-light);
+}
+
+.workload-head .workload-col {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.65rem 0.5rem;
   font-weight: 700;
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--cs-text-muted);
+  border-right: 1px solid var(--cs-border);
 }
+.workload-head .workload-col:last-child {
+  border-right: none;
+}
+
+/* Per-column header tones — matching KPI card tone backgrounds */
+.col-agent    { background: var(--cs-accent-light); color: var(--cs-accent); }
+.col-open     { background: var(--cs-info-bg);      color: var(--cs-info); }
+.col-high     { background: var(--cs-danger-bg);    color: var(--cs-danger); }
+.col-resolved { background: var(--cs-success-bg);   color: var(--cs-success); }
+.col-overdue  { background: var(--cs-warning-bg);   color: var(--cs-warning-strong); }
+
+/* ── Data rows ── */
 
 .workload-row {
   display: grid;
   grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
-  gap: 0.5rem;
-  padding: 0.7rem 1rem;
   border-bottom: 1px solid var(--cs-border);
-  font-size: 0.92rem;
-  font-weight: 500;
-  transition: background 0.15s var(--cs-ease);
+  transition: background 0.15s var(--cs-ease), transform 0.2s var(--cs-ease);
 }
 .workload-row:last-child {
   border-bottom: none;
 }
 .workload-row:hover {
-  background: var(--cs-accent-light);
+  background: var(--cs-bg-subtle);
 }
 
-.workload-col {
+.workload-row .workload-col {
   display: flex;
   align-items: center;
+  justify-content: center;
+  padding: 0.75rem 0.5rem;
+  font-size: 1rem;
+  border-right: 1px solid var(--cs-border);
+}
+.workload-row .workload-col:last-child {
+  border-right: none;
 }
 
-.workload-name {
+/* Agent name — left-aligned, prominent */
+.workload-row .workload-name {
+  justify-content: flex-start;
+  padding-left: 1rem;
   font-weight: 600;
+  font-size: 0.92rem;
+  gap: 0.5rem;
 }
 
+/* Numeric columns — KPI-card-style bold values */
+.col-open-num,
+.col-high-num,
+.col-resolved-num {
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* Per-column numeric tones — match header */
+.col-open-num    { color: var(--cs-info); }
+.col-high-num    { color: var(--cs-danger); }
+.col-resolved-num { color: var(--cs-success); }
+
+/* Overdue column */
 .overdue-warn {
   color: var(--cs-danger);
   font-weight: 700;
+  font-size: 1.15rem;
 }
 .overdue-safe {
   color: var(--cs-success);
   font-weight: 700;
+  font-size: 1.15rem;
 }
