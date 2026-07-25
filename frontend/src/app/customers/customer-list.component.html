@@ -55,18 +55,27 @@
     @for (c of customers(); track c.id) {
       <mat-card class="cs-lift customer-card" appReveal [routerLink]="[c.id]">
         <mat-card-content>
-          <!-- Phase 24f: Account status icon top-right -->
-          <div class="account-badge"
-               [class.has-account]="c.hasAccount && c.accountActive"
-               [class.invited]="c.hasAccount && !c.accountActive"
-               [class.no-account]="!c.hasAccount"
-               [matTooltip]="accountLabel(c)" matTooltipPosition="above">
-            @if (c.hasAccount && c.accountActive) {
-              <cs-icon name="check_circle"></cs-icon>
-            } @else if (c.hasAccount && !c.accountActive) {
-              <cs-icon name="schedule"></cs-icon>
-            } @else {
-              <cs-icon name="circle_alert"></cs-icon>
+          <!-- Account badge + admin actions top-right -->
+          <div class="card-top-right">
+            <div class="account-badge"
+                 [class.has-account]="c.hasAccount && c.accountActive"
+                 [class.invited]="c.hasAccount && !c.accountActive"
+                 [class.no-account]="!c.hasAccount"
+                 [matTooltip]="accountLabel(c)" matTooltipPosition="above">
+              @if (c.hasAccount && c.accountActive) {
+                <cs-icon name="check_circle"></cs-icon>
+              } @else if (c.hasAccount && !c.accountActive) {
+                <cs-icon name="schedule"></cs-icon>
+              } @else {
+                <cs-icon name="circle_alert"></cs-icon>
+              }
+            </div>
+            @if (auth.getRole() !== 'Agent') {
+              <button type="button" class="card-delete-btn"
+                      matTooltip="Delete customer" matTooltipPosition="above"
+                      (click)="$event.stopPropagation(); remove(c.id, c.name, c.caseCount)">
+                <cs-icon name="delete"></cs-icon>
+              </button>
             }
           </div>
           <div class="card-top">
@@ -112,13 +121,6 @@
                 </div>
               } @else {
                 <span class="since">Since {{ formatDate(c.createdAtUtc) }}</span>
-              }
-              @if (auth.getRole() !== 'Agent') {
-                <button type="button" class="footer-delete-btn"
-                        matTooltip="Delete customer" matTooltipPosition="above"
-                        (click)="$event.stopPropagation(); remove(c.id, c.name, c.caseCount)">
-                  <cs-icon name="delete"></cs-icon>
-                </button>
               }
             </div>
           </div>

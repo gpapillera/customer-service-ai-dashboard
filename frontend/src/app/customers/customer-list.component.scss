@@ -172,11 +172,19 @@
   color: var(--cs-accent);
 }
 
-/* Phase 24f: Account badge on card top-right */
-.account-badge {
+/* Phase 24f: Account badge + delete button top-right */
+.card-top-right {
   position: absolute;
   top: 0.75rem;
   right: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  z-index: 1;
+}
+
+.account-badge {
   width: 28px;
   height: 28px;
   border-radius: 50%;
@@ -244,45 +252,46 @@
   gap: 0.75rem;
 }
 
+.card-delete-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--cs-text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s var(--cs-ease), color 0.2s var(--cs-ease), background 0.2s var(--cs-ease), border-color 0.2s var(--cs-ease);
+  flex-shrink: 0;
+  padding: 0;
+  line-height: 1;
+}
+.customer-card:hover .card-delete-btn {
+  opacity: 0.4;
+}
+.card-delete-btn:hover {
+  opacity: 1 !important;
+  color: var(--cs-danger);
+  background: var(--cs-danger-bg);
+  border-color: var(--cs-danger);
+}
+.card-delete-btn cs-icon {
+  font-size: 0.85rem;
+  width: 0.85rem;
+  height: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .footer-right {
   display: flex;
   align-items: center;
   gap: 0.75rem;
   flex-shrink: 0;
-}
-
-.footer-delete-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: none;
-  background: transparent;
-  color: var(--cs-text-muted);
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity 0.2s var(--cs-ease), color 0.2s var(--cs-ease), background 0.2s var(--cs-ease);
-  flex-shrink: 0;
-  padding: 0;
-  line-height: 1;
-}
-.customer-card:hover .footer-delete-btn {
-  opacity: 0.5;
-}
-.footer-delete-btn:hover {
-  opacity: 1 !important;
-  color: #ef4444;
-  background: #fef2f2;
-}
-.footer-delete-btn cs-icon {
-  font-size: 1.05rem;
-  width: 1.05rem;
-  height: 1.05rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .avatar {
