@@ -458,7 +458,6 @@
   padding: 0.75rem 0.5rem;
   font-size: 1rem;
   border-right: 1px solid var(--cs-border);
-  color: var(--cs-text);
 }
 .workload-row .workload-col:last-child {
   border-right: none;
@@ -482,18 +481,18 @@
   letter-spacing: -0.01em;
 }
 
-/* Per-column numeric tones — match header */
-.col-open-num    { color: var(--cs-info); }
-.col-high-num    { color: var(--cs-danger); }
-.col-resolved-num { color: var(--cs-success); }
+/* Per-column numeric tones — match header (high specificity to beat .workload-row .workload-col) */
+.workload-row .workload-col.col-open-num    { color: var(--cs-info); }
+.workload-row .workload-col.col-high-num    { color: var(--cs-danger); }
+.workload-row .workload-col.col-resolved-num { color: var(--cs-success); }
 
-/* Overdue column */
-.overdue-warn {
+/* Overdue column — high specificity to beat .workload-row .workload-col */
+.workload-row .workload-col.overdue-warn {
   color: var(--cs-danger);
   font-weight: 700;
   font-size: 1.15rem;
 }
-.overdue-safe {
+.workload-row .workload-col.overdue-safe {
   color: var(--cs-success);
   font-weight: 700;
   font-size: 1.15rem;
