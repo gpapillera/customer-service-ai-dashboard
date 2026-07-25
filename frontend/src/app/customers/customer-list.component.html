@@ -35,8 +35,8 @@
   </div>
   <div class="filter-group">
     <span class="filter-label">Sort:</span>
-    <button type="button" class="filter-chip" [class.active]="sortBy() === 'name'" (click)="setSortBy('name')">Name</button>
     <button type="button" class="filter-chip" [class.active]="sortBy() === 'activity'" (click)="setSortBy('activity')">Activity</button>
+    <button type="button" class="filter-chip" [class.active]="sortBy() === 'name'" (click)="setSortBy('name')">Name</button>
     <button type="button" class="sort-direction-btn" (click)="toggleSortDirection()" [attr.aria-label]="sortDirection()">
       <cs-icon [name]="sortDirection() === 'asc' ? 'arrow_upward' : 'arrow_downward'"></cs-icon>
     </button>

@@ -63,8 +63,8 @@ export class CustomerListComponent implements OnInit {
   readonly searchTerm = signal('');
   // Phase 24f — filter/sort state
   readonly hasAccountFilter = signal<string | null>(null); // null=all, "yes", "no"
-  readonly sortBy = signal<string>('name'); // "name" | "activity"
-  readonly sortDirection = signal<string>('asc'); // "asc" | "desc"
+  readonly sortBy = signal<string>('activity'); // "name" | "activity"
+  readonly sortDirection = signal<string>('desc'); // "asc" | "desc"
 
   ngOnInit(): void {
     this.load();
