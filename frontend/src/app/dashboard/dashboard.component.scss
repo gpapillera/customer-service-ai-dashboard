@@ -472,14 +472,13 @@
   color: var(--cs-text);
 }
 
-/* Numeric columns — KPI-card-style bold values, same color as KPI card values */
+/* Numeric columns — muted label color like KPI labels, normal weight */
 .col-open-num,
 .col-high-num,
 .col-resolved-num {
   font-size: 1.15rem;
-  font-weight: 700;
   letter-spacing: -0.01em;
-  color: var(--cs-text);
+  color: var(--cs-text-muted);
 }
 
 /* Overdue column — high specificity to beat .workload-row .workload-col */

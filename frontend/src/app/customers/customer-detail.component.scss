@@ -32,6 +32,8 @@
 
 .profile,
 .history {
+  background: var(--cs-surface);
+  border: 1px solid var(--cs-border);
   border-radius: var(--cs-radius);
   box-shadow: var(--cs-shadow);
 }

@@ -119,7 +119,10 @@
 }
 
 .agent-card {
+  background: var(--cs-surface);
+  border: 1px solid var(--cs-border);
   border-radius: var(--cs-radius, 16px);
+  box-shadow: var(--cs-shadow);
 }
 
 .agent-top {

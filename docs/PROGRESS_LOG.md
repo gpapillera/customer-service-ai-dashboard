@@ -2,6 +2,15 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 24y — Card Background Theming + Workload Text Color] (2026-07-25)
+**Status:** ✅ COMPLETE (build verified, 0 errors)
+**What changed:**
+- **Frontend — Dashboard (SCSS):** Changed `.col-open-num`, `.col-high-num`, `.col-resolved-num` color from `var(--cs-text)` to `var(--cs-text-muted)` (`#64748b` light / `#94a3b8` dark) matching KPI label styling. Removed `font-weight: 700` to keep normal weight — numbers in the Open, High Priority, and Resolved columns now use the same muted tone as KPI labels for a more cohesive, less emphatic appearance.
+- **Frontend — Customer Detail (SCSS):** Added `background: var(--cs-surface)` and `border: 1px solid var(--cs-border)` to `.profile` and `.history` cards, making them theme-aware (white `#ffffff` light / slate `#1e293b` dark) consistent with KPI cards.
+- **Frontend — Case Detail (SCSS):** Added `background: var(--cs-surface)` and `border: 1px solid var(--cs-border)` to `.case-card`, `.ai-card`, `.comment-card`, `.log-card`, and `.side-card` containers. The `.readonly-banner` variant retains its own amber border/background overrides.
+- **Frontend — Agent List (SCSS):** Added `background: var(--cs-surface)`, `border: 1px solid var(--cs-border)`, and `box-shadow: var(--cs-shadow)` to `.agent-card` for consistent card appearance.
+- **Result:** All card containers across Customer Detail, Case Detail, and Agent List pages now properly respect light/dark theme variables. The Agent Workload table numeric columns use muted text matching the KPI label aesthetic. Build 0 errors.
+
 ## [Phase 24x — Admin Customer Deletion with Safe Cascade Handling] (2026-07-25)
 **Status:** ✅ COMPLETE (build + API verified)
 **What changed:**
