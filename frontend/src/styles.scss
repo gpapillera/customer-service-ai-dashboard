@@ -281,6 +281,16 @@ body {
 .cs-pill.status-closed { background: transparent; color: #475569; border: 1px solid #cbd5e1; }
 .cs-pill.status-closed .cs-dot { background: var(--cs-neutral); }
 
+/* ---- Dark mode pill overrides ---- */
+[data-theme='dark'] .cs-pill.priority-low { color: #34d399; border-color: #6ee7b7; }
+[data-theme='dark'] .cs-pill.priority-medium { color: #fbbf24; border-color: #fcd34d; }
+[data-theme='dark'] .cs-pill.priority-high { color: #f87171; border-color: #fca5a5; }
+[data-theme='dark'] .cs-pill.status-new { color: #93c5fd; border-color: #93c5fd; }
+[data-theme='dark'] .cs-pill.status-inprogress { color: #a5b4fc; border-color: #c7d2fe; }
+[data-theme='dark'] .cs-pill.status-escalated { color: #f87171; border-color: #fca5a5; }
+[data-theme='dark'] .cs-pill.status-resolved { color: #34d399; border-color: #6ee7b7; }
+[data-theme='dark'] .cs-pill.status-closed { color: #94a3b8; border-color: #64748b; }
+
 /* Active-case pill (>0 active cases) — green shades, theme-aware. */
 .cs-pill.active { background: transparent; color: var(--cs-active-case-text); border: 1px solid var(--cs-active-case-border); }
 .cs-pill.active .cs-dot { background: var(--cs-active-case-dot); }

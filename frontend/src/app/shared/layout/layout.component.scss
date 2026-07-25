@@ -350,7 +350,7 @@
 }
 
 @media (max-width: 767px) {
-  .content:not(.sidebar-bottom-nav) {
+  .content:not(.sidebar-closed):not(.sidebar-bottom-nav) {
     padding-left: 1rem;
     padding-right: 1rem;
   }

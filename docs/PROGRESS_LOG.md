@@ -2,6 +2,17 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 24z — Case Detail UI Overhaul: Dark Mode Colors, Chat Bubbles, Log Form, Rail Fix] (2026-07-25)
+**Status:** ✅ COMPLETE (build verified, 0 errors)
+**What changed:**
+- **Frontend — Case Detail (SCSS) — Hardcoded Colors:** Replaced all `#3a3a3c` text colors with `var(--cs-text)` on `.desc`, `.ai-reason`, `.log-notes`, and `.comment-body` — these were invisible in dark mode on `#1e293b` card backgrounds. Replaced `.log-item` `background: #fff` with `var(--cs-surface)` and `.log-duration` `background: #f0f0f2` with `var(--cs-bg-subtle)` for theme consistency. Replaced `.dir.inbound`/`.outbound` hardcoded tints (`#e8f1ff`/`#0071e3`, `#e6f7ec`/`#1a7f37`) with CSS variable equivalents (`var(--cs-info-bg)`/`var(--cs-info)`, `var(--cs-success-bg)`/`var(--cs-success)`).
+- **Frontend — styles.scss — Dark Mode Pill Overrides:** Added `[data-theme='dark']` overrides for all `.cs-pill.priority-*` and `.cs-pill.status-*` classes with lighter, dark-background-optimized color values (e.g., `#34d399` for low-priority, `#93c5fd` for new-status, `#f87171` for high/escalated), ensuring pill text and borders remain readable on `#1e293b` surfaces.
+- **Frontend — Case Detail (SCSS) — Spacing:** Added `margin-bottom: 0.75rem` to `.head` to create proper vertical gap between the pill row and the `.facts` description list below.
+- **Frontend — Case Detail (SCSS) — Chat Bubbles:** Replaced the left-border-block design with proper sent/received chat bubbles. Staff messages use `margin-left: auto` with `border-radius: 16px 16px 4px 16px` and `background: var(--cs-accent-light)`. Customer messages use `border-radius: 16px 16px 16px 4px` with `background: var(--cs-bg-subtle)`. Both capped at `max-width: 85%` for readability.
+- **Frontend — Case Detail (HTML + SCSS) — Log Form:** Reordered form fields from "Direction → Notes → Add" to "Notes → Direction → Add" with grid `1fr auto auto` and `align-items: center`. Reduced `.dir-field` dropdown inner padding (`0.75rem` → `0.5rem`) and font-weight (600 → 500) so "Inbound"/"Outbound" text is fully readable without clipping.
+- **Frontend — Layout (SCSS) — Rail Overlap:** Added `:not(.sidebar-closed)` to the `@media (max-width: 767px)` content padding rule, preventing the media query from overriding the rail offset (`padding-left: 4.5rem`) when the sidebar is collapsed at mid-range viewports (480-768px).
+- **Result:** All hardcoded colors are now theme-aware. Pill shapes are readable in dark mode. Chat bubbles use proper sent/received styling. Log form layout is more natural with adequate dropdown text readability. Rail no longer overlaps content at mid-range breakpoints. Build 0 errors.
+
 ## [Phase 24y — Card Background Theming + Workload Text Color] (2026-07-25)
 **Status:** ✅ COMPLETE (build verified, 0 errors)
 **What changed:**

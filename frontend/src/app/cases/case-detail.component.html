@@ -98,18 +98,18 @@
             }
 
             <form [formGroup]="logForm" (ngSubmit)="addLog()" class="log-form">
+              <mat-form-field appearance="outline" class="notes-field">
+                <mat-label>Notes</mat-label>
+                <textarea matInput formControlName="notes" rows="2"
+                  [disabled]="!canEdit()"
+                  (keydown)="onTextareaKeydown($event, 'log')"></textarea>
+              </mat-form-field>
               <mat-form-field appearance="outline" class="dir-field">
                 <mat-label>Direction</mat-label>
                 <mat-select formControlName="direction" [disabled]="!canEdit()">
                   <mat-option value="Inbound">Inbound</mat-option>
                   <mat-option value="Outbound">Outbound</mat-option>
                 </mat-select>
-              </mat-form-field>
-              <mat-form-field appearance="outline" class="notes-field">
-                <mat-label>Notes</mat-label>
-                <textarea matInput formControlName="notes" rows="2"
-                  [disabled]="!canEdit()"
-                  (keydown)="onTextareaKeydown($event, 'log')"></textarea>
               </mat-form-field>
               <button mat-flat-button color="primary" type="submit" [disabled]="!canEdit() || savingLog()">
                 <cs-icon name="add"></cs-icon> Add
