@@ -472,19 +472,15 @@
   color: var(--cs-text);
 }
 
-/* Numeric columns — KPI-card-style bold values */
+/* Numeric columns — KPI-card-style bold values, same color as KPI card values */
 .col-open-num,
 .col-high-num,
 .col-resolved-num {
   font-size: 1.15rem;
   font-weight: 700;
   letter-spacing: -0.01em;
+  color: var(--cs-text);
 }
-
-/* Per-column numeric tones — match header (high specificity to beat .workload-row .workload-col) */
-.workload-row .workload-col.col-open-num    { color: var(--cs-info); }
-.workload-row .workload-col.col-high-num    { color: var(--cs-danger); }
-.workload-row .workload-col.col-resolved-num { color: var(--cs-success); }
 
 /* Overdue column — high specificity to beat .workload-row .workload-col */
 .workload-row .workload-col.overdue-warn {
