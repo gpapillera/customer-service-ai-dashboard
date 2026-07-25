@@ -2,6 +2,21 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 24x — Admin Customer Deletion with Safe Cascade Handling] (2026-07-25)
+**Status:** ✅ COMPLETE (build + API verified)
+**What changed:**
+- **Backend — ICustomerService.cs:** Changed `DeleteAsync` signature from `DeleteAsync(int id)` to `DeleteAsync(int id, string? callerRole = null)` to enforce Admin-only authorization at the service layer.
+- **Backend — CustomerService.cs:** Updated `DeleteAsync` to throw `ForbiddenException` when `callerRole` is not `Admin`. Loads customer with `.Include(c => c.Cases).ThenInclude(cs => cs.Comments)` — before calling `Remove()`, iterates all comments across all cases and nullifies `AuthorCustomerId` where it matches the deleted customer's ID, safely bypassing the `NoAction` FK constraint. Comments survive on cases but lose authorship link.
+- **Backend — CustomersController.cs:** Added explicit `[Authorize(Roles = "Admin")]` to the `DELETE` endpoint (overrides controller-level `Admin,Agent`). Extracts `callerRole` from JWT claims. Returns `403 Forbidden` for non-admin callers, `404 NotFound` for unknown IDs via `KeyNotFoundException` catch.
+- **Frontend — customer-detail.component.ts:** Added `ConfirmDialogComponent` imports and `deleteCustomer()` method that opens a confirmation dialog (showing customer name + case count), then navigates to `/customers` on successful deletion.
+- **Frontend — customer-detail.component.html:** Added Delete button in the `.actions` area alongside the existing Edit button, guarded by `auth.getRole() !== 'Agent'`.
+- **Frontend — customer-detail.component.scss:** Added `.delete-btn` styles (red color `#ef4444`, red border `#fca5a5`, `margin-left: auto`, red-tinted hover background).
+- **Frontend — customer-list.component.ts:** Replaced `confirm()` with `MatDialog`-based `ConfirmDialogComponent`. Injected `AuthService`. New `remove(id, name, caseCount)` shows a confirmation dialog with customer name and case count before deleting.
+- **Frontend — customer-list.component.html:** Added a hover-visible delete icon button (`card-delete-btn`) in the card top area, guarded by `auth.getRole() !== 'Agent'` (Admins only).
+- **Frontend — customer-list.component.scss:** Added `.card-delete-btn` styles — hidden by default (`opacity: 0`), fades in (`opacity: 0.6`) on card hover, full opacity + red-tinted background (`#fef2f2`) on button hover.
+- **Safe deletion semantics:** Customers who authored comments have those comments' `AuthorCustomerId` nullified — comments stay on cases, audit trail preserved. Customers with cases still cascade-delete normally. Customers with no cases or comments delete directly.
+- **Result:** Admin-only customer deletion with safe nullification of author references. Build 0 errors, tests 62/64 pass (2 pre-existing Phase 24h failures).
+
 ## [Phase 24w — Customer Card: Last Activity Timestamp] (2026-07-25)
 **Status:** ✅ COMPLETE (build + API + tests verified)
 **What changed:**

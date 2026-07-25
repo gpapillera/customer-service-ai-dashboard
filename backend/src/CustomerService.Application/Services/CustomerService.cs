@@ -340,10 +340,36 @@ public class CustomerService : ICustomerService
     }
 
     /// <inheritdoc/>
-    public async Task DeleteAsync(int id)
+    public async Task DeleteAsync(int id, string? callerRole = null)
     {
-        var customer = await _customers.GetByIdAsync(id)
+        // Only Admin may delete customers (mirrors CaseService.DeleteAsync).
+        if (!string.Equals(callerRole, nameof(UserRole.Admin), StringComparison.OrdinalIgnoreCase))
+            throw new ForbiddenException("Only admins can delete customers.");
+
+        // Load the customer with the full graph so we can nullify
+        // CaseComment.AuthorCustomerId before removal (that FK uses NoAction,
+        // so EF cannot auto-cascade and would throw on DELETE).
+        var customer = await _customers.Query()
+            .Include(c => c.Cases).ThenInclude(cs => cs.Comments)
+            .FirstOrDefaultAsync(c => c.Id == id)
             ?? throw new KeyNotFoundException($"Customer {id} not found.");
+
+        // Nullify CaseComment.AuthorCustomerId on every comment authored by
+        // this customer — comments survive on their cases but lose the
+        // authorship link (acceptable since the customer is being deleted).
+        if (customer.Cases is not null)
+        {
+            foreach (var cs in customer.Cases)
+            {
+                if (cs.Comments is null) continue;
+                foreach (var comment in cs.Comments)
+                {
+                    if (comment.AuthorCustomerId == id)
+                        comment.AuthorCustomerId = null;
+                }
+            }
+        }
+
         _customers.Remove(customer);
         await _customers.SaveChangesAsync();
     }

@@ -80,6 +80,11 @@
                 <div class="sub">{{ c.company }}</div>
               }
             </div>
+            @if (auth.getRole() !== 'Agent') {
+              <button type="button" class="card-delete-btn" matTooltip="Delete customer" matTooltipPosition="above" (click)="$event.stopPropagation(); remove(c.id, c.name, c.caseCount)">
+                <cs-icon name="delete"></cs-icon>
+              </button>
+            }
           </div>
           <div class="rows">
             <div class="row"><cs-icon name="mail"></cs-icon><span>{{ c.email }}</span></div>

@@ -1,6 +1,6 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -11,6 +11,7 @@ import { CsIconComponent } from '../shared/cs-icon.component';
 import { CustomerService } from './customer.service';
 import { CustomerFormComponent } from './customer-form.component';
 import { CaseFormComponent, CaseFormDialogData } from '../cases/case-form.component';
+import { ConfirmDialogComponent, ConfirmDialogData } from '../shared/confirm-dialog.component';
 import { Customer, Case } from '../shared/models';
 import { AuthService } from '../auth/auth.service';
 
@@ -38,6 +39,7 @@ export class CustomerDetailComponent implements OnInit {
   private readonly service = inject(CustomerService);
   private readonly dialog = inject(MatDialog);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   readonly auth = inject(AuthService);
 
   readonly customer = signal<Customer | null>(null);
@@ -107,6 +109,35 @@ export class CustomerDetailComponent implements OnInit {
   priorityClass(p: string): string {
     return 'priority-' + p.toLowerCase();
   }
+  /** Deletes the customer after a confirmation dialog. */
+  deleteCustomer(): void {
+    const c = this.customer();
+    if (!c) return;
+    const ref = this.dialog.open<
+      ConfirmDialogComponent,
+      ConfirmDialogData,
+      boolean
+    >(ConfirmDialogComponent, {
+      data: {
+        title: 'Delete customer',
+        message: `Delete ${c.name}${c.caseCount > 0 ? ` (${c.caseCount} case${c.caseCount !== 1 ? 's' : ''})` : ''}? This can't be undone.`,
+        confirmText: 'Delete',
+        cancelText: 'Cancel',
+        icon: 'delete',
+      },
+      width: '400px',
+      maxWidth: '92vw',
+      autoFocus: false,
+    });
+    ref.afterClosed().subscribe((confirmed) => {
+      if (confirmed) {
+        this.service.delete(c.id).subscribe(() => {
+          this.router.navigate(['/customers']);
+        });
+      }
+    });
+  }
+
   formatDate(value?: string): string {
     if (!value) return '—';
     return new Date(value).toLocaleDateString();

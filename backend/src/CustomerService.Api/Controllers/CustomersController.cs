@@ -124,14 +124,25 @@ public class CustomersController : ControllerBase
         return NoContent();
     }
 
-    /// <summary>Deletes a customer.</summary>
+    /// <summary>Deletes a customer (Admin only).</summary>
     /// <param name="id">Customer id.</param>
     [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Admin")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(int id)
     {
-        await _service.DeleteAsync(id);
-        return NoContent();
+        var callerRole = User.FindFirst(ClaimTypes.Role)?.Value;
+        try
+        {
+            await _service.DeleteAsync(id, callerRole);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
     }
 
     /// <summary>

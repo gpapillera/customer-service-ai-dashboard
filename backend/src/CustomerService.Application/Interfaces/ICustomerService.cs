@@ -43,7 +43,8 @@ public interface ICustomerService
     /// <param name="dto">Update payload (must include id).</param>
     Task UpdateAsync(UpdateCustomerDto dto);
 
-    /// <summary>Deletes a customer.</summary>
+    /// <summary>Deletes a customer (Admin only).</summary>
     /// <param name="id">Customer id.</param>
-    Task DeleteAsync(int id);
+    /// <param name="callerRole">Role of the calling user — only Admin is allowed.</param>
+    Task DeleteAsync(int id, string? callerRole = null);
 }

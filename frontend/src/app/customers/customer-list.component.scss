@@ -244,6 +244,36 @@
   gap: 0.75rem;
 }
 
+.card-delete-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: #ef4444;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--cs-ease, 0.2s), background var(--cs-ease, 0.2s);
+  flex-shrink: 0;
+  padding: 0;
+  line-height: 1;
+}
+.customer-card:hover .card-delete-btn {
+  opacity: 0.6;
+}
+.card-delete-btn:hover {
+  opacity: 1 !important;
+  background: #fef2f2;
+}
+.card-delete-btn cs-icon {
+  font-size: 1.15rem;
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
 .avatar {
   width: 46px;
   height: 46px;

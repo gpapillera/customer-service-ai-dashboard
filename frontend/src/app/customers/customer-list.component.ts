@@ -15,7 +15,9 @@ import { CsIconComponent } from '../shared/cs-icon.component';
 import { RouteLoadingService } from '../shared/route-loading.service';
 import { CustomerService } from './customer.service';
 import { CustomerFormComponent } from './customer-form.component';
+import { ConfirmDialogComponent, ConfirmDialogData } from '../shared/confirm-dialog.component';
 import { Customer } from '../shared/models';
+import { AuthService } from '../auth/auth.service';
 import { LayoutComponent } from '../shared/layout/layout.component';
 
 /**
@@ -46,6 +48,7 @@ export class CustomerListComponent implements OnInit {
   private readonly service = inject(CustomerService);
   private readonly dialog = inject(MatDialog);
   private readonly routeLoading = inject(RouteLoadingService);
+  readonly auth = inject(AuthService);
 
   readonly customers = signal<Customer[]>([]);
   /** Sidenav open state (from the app shell) — the page brand logo is shown
@@ -128,10 +131,29 @@ export class CustomerListComponent implements OnInit {
     });
   }
 
-  /** Deletes a customer after confirmation. */
-  remove(id: number): void {
-    if (!confirm('Delete this customer? This cannot be undone.')) return;
-    this.service.delete(id).subscribe(() => this.load());
+  /** Deletes a customer after a confirmation dialog. */
+  remove(id: number, name: string, caseCount: number): void {
+    const ref = this.dialog.open<
+      ConfirmDialogComponent,
+      ConfirmDialogData,
+      boolean
+    >(ConfirmDialogComponent, {
+      data: {
+        title: 'Delete customer',
+        message: `Delete ${name}${caseCount > 0 ? ` (${caseCount} case${caseCount !== 1 ? 's' : ''})` : ''}? This can't be undone.`,
+        confirmText: 'Delete',
+        cancelText: 'Cancel',
+        icon: 'delete',
+      },
+      width: '400px',
+      maxWidth: '92vw',
+      autoFocus: false,
+    });
+    ref.afterClosed().subscribe((confirmed) => {
+      if (confirmed) {
+        this.service.delete(id).subscribe(() => this.load());
+      }
+    });
   }
 
   /** Deterministic avatar color from the customer id. */
