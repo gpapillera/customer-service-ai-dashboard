@@ -165,7 +165,7 @@
                         <span class="workload-col">{{ w.openCaseCount }}</span>
                         <span class="workload-col">{{ w.highPriorityCount }}</span>
                         <span class="workload-col">{{ w.resolvedCount }}</span>
-                        <span class="workload-col" [class.overdue-warn]="w.overdueCount > 0">{{ w.overdueCount }}</span>
+                        <span class="workload-col" [class.overdue-warn]="w.overdueCount > 0" [class.overdue-safe]="w.overdueCount === 0">{{ w.overdueCount }}</span>
                       </div>
                     }
                   </div>

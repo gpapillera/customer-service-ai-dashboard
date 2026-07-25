@@ -419,13 +419,14 @@
   padding: 0.7rem 1rem;
   border-bottom: 1px solid var(--cs-border);
   font-size: 0.92rem;
+  font-weight: 500;
   transition: background 0.15s var(--cs-ease);
 }
 .workload-row:last-child {
   border-bottom: none;
 }
 .workload-row:hover {
-  background: rgba(79, 70, 229, 0.04);
+  background: var(--cs-accent-light);
 }
 
 .workload-col {
@@ -439,5 +440,9 @@
 
 .overdue-warn {
   color: var(--cs-danger);
+  font-weight: 700;
+}
+.overdue-safe {
+  color: var(--cs-success);
   font-weight: 700;
 }
