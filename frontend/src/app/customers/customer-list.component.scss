@@ -336,3 +336,23 @@
   font-size: 0.78rem;
   color: var(--cs-text-muted);
 }
+
+.last-activity {
+  text-align: right;
+  line-height: 1.3;
+}
+
+.activity-desc {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--cs-accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+
+.activity-time {
+  font-size: 0.72rem;
+  color: var(--cs-text-muted);
+}

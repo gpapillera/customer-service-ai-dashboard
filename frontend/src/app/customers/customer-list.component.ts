@@ -155,10 +155,18 @@ export class CustomerListComponent implements OnInit {
     return c.accountActive ? 'Active' : 'Invited';
   }
 
-  /** Formats a UTC date string for display. */
+  /** Formats a UTC date string for display (date only). */
   formatDate(value?: string): string {
     if (!value) return '—';
     return new Date(value).toLocaleDateString();
+  }
+
+  /** Formats a UTC date string as "MMM DD, HH:MM AM/PM". */
+  formatDateTime(value?: string): string {
+    if (!value) return '—';
+    const d = new Date(value);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) +
+      ', ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   }
 
   /** Formats the hover tooltip for active cases on a customer card. */

@@ -2,6 +2,20 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 24w — Customer Card: Last Activity Timestamp] (2026-07-25)
+**Status:** ✅ COMPLETE (build + API + tests verified)
+**What changed:**
+- **Backend — Notification entity:** Added `Case` navigation property (`public Case? Case { get; set; }`) to enable EF Core traversal from notifications back to their parent case.
+- **Backend — Case entity:** Added `Notifications` collection (`ICollection<Notification>`) to complete the bidirectional navigation with `Notification.Case`.
+- **Backend — AppDbContext:** Updated `Notification` configuration from `.HasOne<Case>().WithMany()` to `.HasOne(n => n.Case).WithMany(c => c.Notifications)` for proper relationship mapping with `SetNull` delete behavior.
+- **Backend — CustomerDto:** Added `LastActivityAtUtc` (DateTime?) and `LastActivityDescription` (string?) fields to expose the most recent interaction timestamp and a human-readable summary.
+- **Backend — CustomerService:** Added `ComputeLastActivity(Customer c)` private static method that scans all of a customer's cases and for each case inspects: `CreatedAtUtc` ("Opened case #X"), `UpdatedAtUtc` ("Resolved/Closed/Updated case #X"), `ResolvedAtUtc` ("Resolved/Closed case #X"), `CallLogs` ("Updated call log"), `Comments` ("Messaged customer" / "Customer replied"), and `Notifications` ("Sent email" — only counting `Channel.Email` or `Type.AdminManual`, skipping internal overdue alerts). Returns the most recent `(DateTime?, string?)`. Updated `GetAllAsync`, `GetByIdAsync`, `SearchAsync` to `.Include()` the full graph (`Cases → CallLogs`, `Cases → Comments`, `Cases → Notifications`). Updated `ToDto()` to invoke `ComputeLastActivity`. Re-sorts in-memory when `sortBy=activity` after computing actual last-activity timestamps.
+- **Frontend — models.ts:** Added `lastActivityAtUtc?: string` and `lastActivityDescription?: string` to the `Customer` interface.
+- **Frontend — customer-list.component.ts:** Added `formatDateTime(value?: string)` method returning "MMM DD, HH:MM AM/PM" format for displaying the activity timestamp.
+- **Frontend — customer-list.component.html:** Replaced the static "Since {date}" display with a conditional block: when `lastActivityDescription` exists, renders `.last-activity` with description and formatted time; otherwise falls back to "Since {date}".
+- **Frontend — customer-list.component.scss:** Added `.last-activity` (text-align right, line-height 1.3), `.activity-desc` (0.78rem, 500 weight, accent color, single-line ellipsis, max-width 160px), and `.activity-time` (0.72rem, muted text) styles.
+- **Result:** Customer card footer now shows the most recent activity description and timestamp instead of the static creation date. New customers with no activity fall back to "Since {date}". Active case pill behavior (Phase 24v) is unchanged. Build 0 errors, tests 62/64 pass (2 pre-existing Phase 24h failures).
+
 ## [Phase 24v — Customer Card: Active Case Pill with Hover Tooltip] (2026-07-24)
 **Status:** ✅ COMPLETE (build verified)
 **What changed:**

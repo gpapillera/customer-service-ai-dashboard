@@ -130,8 +130,8 @@ public class AppDbContext : DbContext
             e.Property(n => n.Message).IsRequired().HasMaxLength(1000);
             e.Property(n => n.Link).HasMaxLength(200);
             // Notifications reference a case but must survive case deletion.
-            e.HasOne<Case>().WithMany().HasForeignKey(n => n.CaseId)
-                .OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(n => n.Case).WithMany(c => c.Notifications)
+                .HasForeignKey(n => n.CaseId).OnDelete(DeleteBehavior.SetNull);
         });
 
         builder.Entity<ConversationReadState>(e =>

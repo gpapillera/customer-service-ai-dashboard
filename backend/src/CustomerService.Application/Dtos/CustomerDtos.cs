@@ -73,6 +73,12 @@ public class CustomerDto
     /// <summary>UTC timestamp when the customer record was created.</summary>
     public DateTime CreatedAtUtc { get; set; }
 
+    /// <summary>UTC timestamp of the most recent activity across all customer cases.</summary>
+    public DateTime? LastActivityAtUtc { get; set; }
+
+    /// <summary>Human-readable description of the most recent activity (e.g. "Messaged customer").</summary>
+    public string? LastActivityDescription { get; set; }
+
     /// <summary>True if the customer has an account record (login credentials).</summary>
     public bool HasAccount { get; set; }
 

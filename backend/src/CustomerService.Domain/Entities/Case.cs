@@ -111,4 +111,7 @@ public class Case
 
     /// <summary>Navigation property: comments on the shared customer/staff thread.</summary>
     public ICollection<CaseComment> Comments { get; set; } = new List<CaseComment>();
+
+    /// <summary>Navigation property: notifications associated with this case.</summary>
+    public ICollection<Notification> Notifications { get; set; } = new List<Notification>();
 }

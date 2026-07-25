@@ -31,6 +31,8 @@ export interface Customer {
   activeCaseCount: number;
   activeCases: ActiveCaseInfo[];
   createdAtUtc?: string;
+  lastActivityAtUtc?: string;
+  lastActivityDescription?: string;
   hasAccount: boolean;
   accountActive: boolean;
 }

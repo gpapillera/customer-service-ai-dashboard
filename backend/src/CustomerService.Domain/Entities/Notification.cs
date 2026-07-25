@@ -100,6 +100,9 @@ public class Notification
     /// <summary>Foreign key to the related case, when applicable.</summary>
     public int? CaseId { get; set; }
 
+    /// <summary>Navigation property to the related case.</summary>
+    public Case? Case { get; set; }
+
     /// <summary>
     /// Recipient address for outbound channels (Email address or phone
     /// number). Null for InApp notifications, which are shown in the bell.

@@ -24,6 +24,95 @@ public class CustomerService : ICustomerService
         _cases = cases;
     }
 
+    /// <summary>
+    /// Scans all cases (and their call logs, comments, notifications) for a customer
+    /// and returns the most recent activity timestamp and a human-readable description.
+    /// </summary>
+    private static (DateTime? atUtc, string? description) ComputeLastActivity(Customer c)
+    {
+        DateTime? latest = null;
+        string? desc = null;
+
+        if (c.Cases is null) return (null, null);
+
+        foreach (var cs in c.Cases)
+        {
+            // Case creation
+            if (cs.CreatedAtUtc > latest || latest is null)
+            {
+                latest = cs.CreatedAtUtc;
+                desc = $"Opened case #{cs.Id}";
+            }
+
+            // Case update (status change)
+            if (cs.UpdatedAtUtc.HasValue && (cs.UpdatedAtUtc > latest || latest is null))
+            {
+                latest = cs.UpdatedAtUtc.Value;
+                desc = cs.Status switch
+                {
+                    CaseStatus.Resolved => $"Resolved case #{cs.Id}",
+                    CaseStatus.Closed => $"Closed case #{cs.Id}",
+                    _ => $"Updated case #{cs.Id}",
+                };
+            }
+
+            // Resolution timestamp (separate from UpdatedAtUtc for resolved/closed)
+            if (cs.ResolvedAtUtc.HasValue && (cs.ResolvedAtUtc > latest || latest is null))
+            {
+                latest = cs.ResolvedAtUtc.Value;
+                desc = cs.Status switch
+                {
+                    CaseStatus.Closed => $"Closed case #{cs.Id}",
+                    _ => $"Resolved case #{cs.Id}",
+                };
+            }
+
+            // Call logs
+            if (cs.CallLogs is not null)
+            {
+                foreach (var log in cs.CallLogs)
+                {
+                    if (log.CreatedAtUtc > latest || latest is null)
+                    {
+                        latest = log.CreatedAtUtc;
+                        desc = "Updated call log";
+                    }
+                }
+            }
+
+            // Comments
+            if (cs.Comments is not null)
+            {
+                foreach (var comment in cs.Comments)
+                {
+                    if (comment.CreatedAtUtc > latest || latest is null)
+                    {
+                        latest = comment.CreatedAtUtc;
+                        desc = comment.AuthorUserId != null ? "Messaged customer" : "Customer replied";
+                    }
+                }
+            }
+
+            // Notifications — only count actual email sends (AdminManual or Email channel),
+            // not internal in-app alerts (overdue reminders etc.).
+            if (cs.Notifications is not null)
+            {
+                foreach (var n in cs.Notifications)
+                {
+                    if (n.Channel != NotificationChannel.Email && n.Type != NotificationType.AdminManual)
+                        continue;
+                    if (n.CreatedAtUtc > latest || latest is null)
+                    {
+                        latest = n.CreatedAtUtc;
+                        desc = "Sent email";
+                    }
+                }
+            }
+        }
+
+        return (latest, desc);
+    }
+
     /// <inheritdoc/>
     public async Task<IReadOnlyList<CustomerDto>> GetAllAsync(string? callerRole = null, string? callerUserId = null,
         bool? hasAccount = null, string? sortBy = null, string? sortDirection = null)
@@ -69,29 +158,25 @@ public class CustomerService : ICustomerService
                 : q.OrderBy(c => c.Name);
         }
 
-        return await q.Select(c => new CustomerDto
+        // Load full entity graph for in-memory mapping (needed for ComputeLastActivity).
+        var loaded = await q
+            .Include(c => c.Account)
+            .Include(c => c.Cases).ThenInclude(cs => cs.CallLogs)
+            .Include(c => c.Cases).ThenInclude(cs => cs.Comments)
+            .Include(c => c.Cases).ThenInclude(cs => cs.Notifications)
+            .ToListAsync();
+
+        var result = loaded.Select(c => ToDto(c)).ToList();
+
+        // Re-sort by computed last-activity when sortBy=activity (in-memory after computing).
+        if (string.Equals(sortBy, "activity", StringComparison.OrdinalIgnoreCase))
         {
-            Id = c.Id,
-            CustomerDisplayId = c.CustomerDisplayId,
-            Name = c.Name,
-            Email = c.Email,
-            Phone = c.Phone,
-            Company = c.Company,
-            Address = c.Address,
-            CaseCount = c.Cases.Count,
-            ActiveCaseCount = c.Cases.Count(cs => cs.Status != CaseStatus.Resolved && cs.Status != CaseStatus.Closed),
-            ActiveCases = c.Cases
-                .Where(cs => cs.Status != CaseStatus.Resolved && cs.Status != CaseStatus.Closed)
-                .Select(cs => new ActiveCaseInfoDto
-                {
-                    Subject = cs.Subject,
-                    Status = cs.Status,
-                })
-                .ToList(),
-            CreatedAtUtc = c.CreatedAtUtc,
-            HasAccount = c.Account != null,
-            AccountActive = c.Account != null && c.Account.IsActive,
-        }).ToListAsync();
+            result = desc
+                ? result.OrderByDescending(dto => dto.LastActivityAtUtc ?? dto.CreatedAtUtc).ToList()
+                : result.OrderBy(dto => dto.LastActivityAtUtc ?? dto.CreatedAtUtc).ToList();
+        }
+
+        return result;
     }
 
     /// <inheritdoc/>
@@ -99,7 +184,9 @@ public class CustomerService : ICustomerService
     {
         var c = await _customers.Query()
             .Include(x => x.Account)
-            .Include(x => x.Cases)
+            .Include(x => x.Cases).ThenInclude(cs => cs.CallLogs)
+            .Include(x => x.Cases).ThenInclude(cs => cs.Comments)
+            .Include(x => x.Cases).ThenInclude(cs => cs.Notifications)
             .FirstOrDefaultAsync(x => x.Id == id);
         if (c is null) return null;
 
@@ -197,29 +284,25 @@ public class CustomerService : ICustomerService
                 : q.OrderBy(c => c.Name);
         }
 
-        return await q.Select(c => new CustomerDto
+        // Load full entity graph for in-memory mapping (needed for ComputeLastActivity).
+        var loaded = await q
+            .Include(c => c.Account)
+            .Include(c => c.Cases).ThenInclude(cs => cs.CallLogs)
+            .Include(c => c.Cases).ThenInclude(cs => cs.Comments)
+            .Include(c => c.Cases).ThenInclude(cs => cs.Notifications)
+            .ToListAsync();
+
+        var result = loaded.Select(c => ToDto(c)).ToList();
+
+        // Re-sort by computed last-activity when sortBy=activity (in-memory after computing).
+        if (string.Equals(sortBy, "activity", StringComparison.OrdinalIgnoreCase))
         {
-            Id = c.Id,
-            CustomerDisplayId = c.CustomerDisplayId,
-            Name = c.Name,
-            Email = c.Email,
-            Phone = c.Phone,
-            Company = c.Company,
-            Address = c.Address,
-            CaseCount = c.Cases.Count,
-            ActiveCaseCount = c.Cases.Count(cs => cs.Status != CaseStatus.Resolved && cs.Status != CaseStatus.Closed),
-            ActiveCases = c.Cases
-                .Where(cs => cs.Status != CaseStatus.Resolved && cs.Status != CaseStatus.Closed)
-                .Select(cs => new ActiveCaseInfoDto
-                {
-                    Subject = cs.Subject,
-                    Status = cs.Status,
-                })
-                .ToList(),
-            CreatedAtUtc = c.CreatedAtUtc,
-            HasAccount = c.Account != null,
-            AccountActive = c.Account != null && c.Account.IsActive,
-        }).ToListAsync();
+            result = desc
+                ? result.OrderByDescending(dto => dto.LastActivityAtUtc ?? dto.CreatedAtUtc).ToList()
+                : result.OrderBy(dto => dto.LastActivityAtUtc ?? dto.CreatedAtUtc).ToList();
+        }
+
+        return result;
     }
 
     /// <inheritdoc/>
@@ -265,28 +348,34 @@ public class CustomerService : ICustomerService
         await _customers.SaveChangesAsync();
     }
 
-    private static CustomerDto ToDto(Customer c) => new()
+    private static CustomerDto ToDto(Customer c)
     {
-        Id = c.Id,
-        CustomerDisplayId = c.CustomerDisplayId,
-        Name = c.Name,
-        Email = c.Email,
-        Phone = c.Phone,
-        Company = c.Company,
-        Address = c.Address,
-        CaseCount = c.Cases?.Count ?? 0,
-        ActiveCaseCount = c.Cases?.Count(cs => cs.Status != CaseStatus.Resolved && cs.Status != CaseStatus.Closed) ?? 0,
-        ActiveCases = (c.Cases?.Where(cs => cs.Status != CaseStatus.Resolved && cs.Status != CaseStatus.Closed)
-            .Select(cs => new ActiveCaseInfoDto
-            {
-                Subject = cs.Subject,
-                Status = cs.Status,
-            })
-            .ToList()) ?? new List<ActiveCaseInfoDto>(),
-        CreatedAtUtc = c.CreatedAtUtc,
-        HasAccount = c.Account != null,
-        AccountActive = c.Account != null && c.Account.IsActive,
-    };
+        var (lastActivityAt, lastActivityDesc) = ComputeLastActivity(c);
+        return new()
+        {
+            Id = c.Id,
+            CustomerDisplayId = c.CustomerDisplayId,
+            Name = c.Name,
+            Email = c.Email,
+            Phone = c.Phone,
+            Company = c.Company,
+            Address = c.Address,
+            CaseCount = c.Cases?.Count ?? 0,
+            ActiveCaseCount = c.Cases?.Count(cs => cs.Status != CaseStatus.Resolved && cs.Status != CaseStatus.Closed) ?? 0,
+            ActiveCases = (c.Cases?.Where(cs => cs.Status != CaseStatus.Resolved && cs.Status != CaseStatus.Closed)
+                .Select(cs => new ActiveCaseInfoDto
+                {
+                    Subject = cs.Subject,
+                    Status = cs.Status,
+                })
+                .ToList()) ?? new List<ActiveCaseInfoDto>(),
+            CreatedAtUtc = c.CreatedAtUtc,
+            LastActivityAtUtc = lastActivityAt,
+            LastActivityDescription = lastActivityDesc,
+            HasAccount = c.Account != null,
+            AccountActive = c.Account != null && c.Account.IsActive,
+        };
+    }
 
     private static string NormalizeEmail(string email) => email.Trim().ToLower();
 
