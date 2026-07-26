@@ -2,6 +2,27 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 25b — Log Card Textarea: Sizing, Outline Padding, Bottom Alignment with Add Button] (2026-07-26)
+**Status:** ✅ COMPLETE (build verified, 0 errors)
+**What changed:**
+- **Frontend — Case Detail (HTML):** Changed notes textarea `rows="2"` → `rows="3"` for a more comfortable default height.
+- **Frontend — Case Detail (SCSS):** 
+  - `.log-form`: Changed `align-items: start` → `align-items: stretch` so both grid columns fill the same row height.
+  - `.mat-mdc-form-field-infix`: Restored `padding-top: 12px; padding-bottom: 8px` (was 0/8) so text has comfortable breathing room from the top outline border.
+  - `.notes-field textarea`: Reduced `min-height` from `120px` → `80px` for a more proportional size for quick notes. Added `width: 100%; box-sizing: border-box;` to fill outline responsively.
+  - `.log-actions`: Added `justify-content: space-between` to push the Add button to the bottom of its column, aligning its bottom edge with the textarea outline bottom.
+  - `.notes-field`, `.mat-mdc-text-field-wrapper`, `.mat-mdc-form-field-flex`, `.mat-mdc-form-field-infix`: Added `width: 100%` and removed `display: flex; flex-direction: column` overrides on MDC internal elements — this fixed a bug where the textarea was narrower than its outlined border because the flex-direction override broke Material's native row-based width propagation.
+- **Result:** Textarea has comfortable top spacing from its outline border, a natural starting height, its bottom edge aligns perfectly with the Add button, and the textarea width now matches the outline width responsively. Build 0 errors.
+
+## [Phase 25a — Call Log: Direction Dropdown Button Stacked Above Add; Responsive Breakpoints] (2026-07-25)
+**Status:** ✅ COMPLETE (build verified, 0 errors, responsive layout verified in-browser)
+**What changed:**
+- **Frontend — Icon Component:** Added `chevron_down: ChevronDown` to `ICON_MAP` and imported `ChevronDown` from `lucide-angular/src/icons`.
+- **Frontend — Case Detail (TS):** Imported `MatMenuModule` for dropdown menu support. Added to component imports.
+- **Frontend — Case Detail (HTML):** Replaced the direction `mat-form-field` with a `mat-stroked-button` dropdown button (`.dir-btn`) that displays the current direction with a `chevron_down` icon. Clicking opens a `mat-menu` with Inbound/Outbound options that `patchValue` on the form control. Wrapped both the direction button and the Add button in a `.log-actions` container div, making the form grid `1fr auto` (notes | actions column) instead of `1fr auto auto`.
+- **Frontend — Case Detail (SCSS):** Added `.dir-btn` styles (48px height, border, hover accent, chevron rotate on `aria-expanded`), `.dir-menu` styles for menu items, and `.log-actions` column layout (`flex-direction: column`, `gap: 0.6rem`, `align-items: stretch`). Removed now-unused `.dir-field` styles. Updated responsive breakpoints: at `≤700px` the form becomes single-column with buttons side-by-side (`flex-direction: row`); at `≤480px` they stack vertically full-width (`flex-direction: column`).
+- **Result:** Call Log form now has a compact direction dropdown button stacked above the Add button on desktop, switching to side-by-side at medium widths and stacked full-width on very narrow screens. Build 0 errors. All three breakpoints verified in-browser.
+
 ## [Phase 24z — Case Detail UI Overhaul: Dark Mode Colors, Chat Bubbles, Log Form, Rail Fix] (2026-07-25)
 **Status:** ✅ COMPLETE (build verified, 0 errors)
 **What changed:**

@@ -45,6 +45,7 @@ import {
   UserCheck,
   ArrowUp,
   ArrowDown,
+  ChevronDown,
 } from 'lucide-angular/src/icons';
 
 /**
@@ -92,6 +93,7 @@ const ICON_MAP: Record<string, LucideIconData> = {
   settings: Settings,
   arrow_upward: ArrowUp,
   arrow_downward: ArrowDown,
+  chevron_down: ChevronDown,
 };
 
 @Component({

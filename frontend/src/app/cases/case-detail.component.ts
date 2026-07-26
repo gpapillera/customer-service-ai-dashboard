@@ -10,6 +10,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatDialog } from '@angular/material/dialog';
 import { RevealDirective } from '../shared/reveal.directive';
@@ -40,6 +41,7 @@ import { AuthService } from '../auth/auth.service';
     MatFormFieldModule,
     MatInputModule,
     MatSelectModule,
+    MatMenuModule,
     MatProgressSpinnerModule,
     RevealDirective,
     CsIconComponent,
