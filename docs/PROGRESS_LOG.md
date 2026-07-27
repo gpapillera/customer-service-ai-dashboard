@@ -2,6 +2,13 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 25f — Fix: Overdue Follow-ups Card Hidden Despite Toggle Being ON] (2026-07-27)
+**Status:** ✅ COMPLETE (build verified, 0 errors)
+**What changed:**
+- **Problem:** The "Overdue Follow-ups" card was silently hidden from the dashboard when there were no overdue items — even if the user had toggled the switch to ON in settings. Root cause: `widgetSections` computed signal filtered out the overdue section when `d.overdueFollowUpsList` was empty (`hasOverdue = false`). This meant Maria Santos (agent with no overdue follow-ups) could toggle the switch ON, refresh, and see nothing — as if the toggle was broken.
+- **Frontend — `dashboard.component.ts`:** Removed the `hasOverdue` data-dependent gate from the overdue section filter. The card now renders whenever the toggle is ON, regardless of whether there are items. An empty `@for` loop naturally shows just the section header, which is consistent with how every other section works.
+- **Result:** Any user who toggles Overdue Follow-ups ON will always see the card. If there are no overdue items, the header appears with an empty list — clear, intentional, and consistent with other sections. This also prevents the same bug for future accounts that might have zero overdue follow-ups.
+
 ## [Phase 25e — Per-User Dashboard Widget Settings: Fix Cross-Account Settings Leak] (2026-07-27)
 **Status:** ✅ COMPLETE (build verified, 0 errors)
 **What changed:**

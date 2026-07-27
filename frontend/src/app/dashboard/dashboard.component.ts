@@ -238,15 +238,13 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   readonly widgetSections = computed(() => {
     const order = this.dashSettings.widgetOrder();
     const isAgent = this.isAgent();
-    const d = this.data();
-    const hasOverdue = !!(d && d.overdueFollowUpsList && d.overdueFollowUpsList.length > 0);
     const hasWorkload = this.agentWorkload().length > 0;
     return order.filter((id) => {
       switch (id) {
         case 'kpis':     return this.dashSettings.showKpiCards();
         case 'charts':   return this.dashSettings.showCharts();
         case 'recent':   return this.dashSettings.showRecentCases();
-        case 'overdue':  return this.dashSettings.showOverdueFollowups() && hasOverdue;
+        case 'overdue':  return this.dashSettings.showOverdueFollowups();
         case 'workload': return !isAgent && this.dashSettings.showAgentWorkload() && hasWorkload;
         default:         return false;
       }
