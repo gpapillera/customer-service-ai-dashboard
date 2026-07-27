@@ -2,6 +2,20 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 25e — Per-User Dashboard Widget Settings: Fix Cross-Account Settings Leak] (2026-07-27)
+**Status:** ✅ COMPLETE (build verified, 0 errors)
+**What changed:**
+- **Problem:** `DashboardSettingsService` stored all widget visibility toggles and reorder state in `localStorage` under a single fixed key `cs-dashboard-widgets`. Changes made by an admin (hiding KPI cards, reordering widgets, etc.) immediately affected the agent's dashboard and vice versa — exactly the same class of bug as the theme leak in Phase 25c.
+- **Frontend — `dashboard-settings.service.ts`:** Applied the same per-user scoping pattern used in `ThemeService`:
+  - Injected `AuthService` to access the currently logged-in user.
+  - Dropped the module-level `loadSettings()` function — merged into a `loadSettings()` instance method that uses `this.storageKey()`.
+  - Renamed `STORAGE_KEY` constant to `LEGACY_KEY` (used as fallback).
+  - Added `storageKey()` method: returns `cs-dashboard-widgets-{userName}` when a user is logged in, falls back to the legacy `cs-dashboard-widgets` key otherwise.
+  - Added one-time migration from legacy to scoped key on first access per user.
+  - Added an `effect` watching `AuthService.currentUser()` so settings reload automatically on login/logout/switch.
+  - All `persist()` calls now write to the scoped key.
+- **Result:** Admin can hide charts, reorder widgets, etc. and those settings stay isolated from the agent's dashboard. Build 0 errors.
+
 ## [Phase 25d — Login Page Theme Toggle with Animated Sun/Moon Icon] (2026-07-27)
 **Status:** ✅ COMPLETE (build verified, 0 errors)
 **What changed:**
