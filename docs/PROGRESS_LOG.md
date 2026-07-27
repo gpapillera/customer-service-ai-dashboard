@@ -2,6 +2,29 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 25d — Login Page Theme Toggle with Animated Sun/Moon Icon] (2026-07-27)
+**Status:** ✅ COMPLETE (build verified, 0 errors)
+**What changed:**
+- **Problem:** Login pages (staff and customer) had no theme toggle, so users had to log in first to switch dark/light mode from the main app settings panel.
+- **Frontend — `cs-icon.component.ts`:** Added `Sun` and `Moon` Lucide icon imports and their `sun`/`moon` entries in `ICON_MAP`.
+- **Frontend — `theme-toggle.component.ts` (new):** A standalone animated toggle button. Displays a sun icon in light mode, moon icon in dark mode. On click, it calls `ThemeService.toggle()` and plays a smooth spin-scale CSS animation (`@keyframes spin-toggle` — 360° rotation with a mid-point scale-down). Honors `prefers-reduced-motion`. Focus-visible outline for keyboard accessibility.
+- **Frontend — Staff `LoginComponent` (TS/HTML/SCSS):** Imported and registered `ThemeToggleComponent`. Wrapped the existing template in a `.login-page` container with a fixed `.theme-toggle-corner` (top-right). Added responsive positioning: `1.25rem` on desktop, `0.75rem` on narrow screens (≤480px).
+- **Frontend — Customer `CustomerLoginComponent` (TS/HTML/SCSS):** Same changes applied to the customer portal login page.
+- **Result:** Both login pages now have a theme toggle button in the upper-right corner. Clicking it toggles dark/light mode with a smooth icon spin animation. The setting persists (from the Phase 25c per-user scoping). Build 0 errors.
+
+## [Phase 25c — Per-User Theme Persistence: Fix Cross-Account Dark/Light Mode Leak] (2026-07-27)
+**Status:** ✅ COMPLETE (build verified, 0 errors)
+**What changed:**
+- **Root cause:** `ThemeService` stored the theme preference in `localStorage` under a single fixed key `cs-theme`. When admin and agent accounts were used on the same browser, they shared this key — toggling dark mode in one account immediately affected the other, even surviving a page refresh.
+- **Frontend — `theme.service.ts`:** Refactored to scope the localStorage key per user (`cs-theme-{userName}`). Key changes:
+  - Injected `AuthService` to access the currently logged-in user's identity.
+  - Added `storageKey()` method: returns `cs-theme-{userName}` when a user is logged in, falls back to the legacy `cs-theme` key for the anonymous (login page) state.
+  - Added `loadTheme()` method: reads the scoped key, falling back to `prefers-color-scheme` when no stored preference exists. Includes a one-time migration from the old unscoped `cs-theme` key to the new scoped key on first access per user.
+  - Added an `effect` that watches `AuthService.currentUser()` and reloads the theme when the user changes (login/logout/switch), ensuring each account gets its own saved preference immediately.
+  - The OS `prefers-color-scheme` change listener now checks the scoped key instead of the unscoped one.
+- **What stays the same:** The `data-theme="dark"` attribute on `<html>`, CSS variable approach in `styles.scss`, the `toggle()`/`setTheme()` API, chart theme effects in `dashboard.component.ts` — all untouched.
+- **Result:** Admin can set dark mode, switch to agent account (light mode), and each user's preference is independently persisted and restored. Build 0 errors.
+
 ## [Phase 25b — Log Card Textarea: Sizing, Outline Padding, Bottom Alignment with Add Button] (2026-07-26)
 **Status:** ✅ COMPLETE (build verified, 0 errors)
 **What changed:**

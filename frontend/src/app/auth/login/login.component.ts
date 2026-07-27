@@ -9,6 +9,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatIconModule } from '@angular/material/icon';
 import { CsIconComponent } from '../../shared/cs-icon.component';
+import { ThemeToggleComponent } from '../../shared/theme-toggle.component';
 import { AuthService } from '../auth.service';
 
 /**
@@ -29,6 +30,7 @@ import { AuthService } from '../auth.service';
     MatProgressSpinnerModule,
     MatIconModule,
     CsIconComponent,
+    ThemeToggleComponent,
   ],
   templateUrl: './login.component.html',
   styleUrl: './login.component.scss',

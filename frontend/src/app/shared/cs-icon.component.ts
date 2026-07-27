@@ -46,6 +46,8 @@ import {
   ArrowUp,
   ArrowDown,
   ChevronDown,
+  Sun,
+  Moon,
 } from 'lucide-angular/src/icons';
 
 /**
@@ -94,6 +96,8 @@ const ICON_MAP: Record<string, LucideIconData> = {
   arrow_upward: ArrowUp,
   arrow_downward: ArrowDown,
   chevron_down: ChevronDown,
+  sun: Sun,
+  moon: Moon,
 };
 
 @Component({
