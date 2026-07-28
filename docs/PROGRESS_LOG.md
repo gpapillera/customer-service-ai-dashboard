@@ -2,6 +2,33 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 25q — Search Bar Responsive: Fill Available Space at All Viewport Widths] (2026-07-28)
+**Status:** ✅ COMPLETE (build verified)
+
+### Changes made
+
+**`search-filter-toolbar.component.scss`** — 4 edits to make the search bar truly responsive at any viewport width (not just at specific breakpoints):
+
+1. **`.f-search`** — Changed `flex: 3 1 320px; min-width: 200px` → `flex: 1 1 200px; min-width: 180px`. The search bar now **grows** to fill whatever space remains after the filter buttons take their natural width, instead of being capped at a fraction.
+
+2. **`.filters`** — Changed `flex: 1 1 auto; min-width: 0` → `flex: 0 0 auto; min-width: fit-content`. The filter buttons now occupy only their natural width — they no longer compete with the search bar for flex space.
+
+3. **Removed `@media (max-width: 1199px)` breakpoint** — This media query was the root cause of the gap at wide viewports (>1199px). The previous fix only worked inside VS Code's narrow panel. With the new `flex` values, no breakpoint is needed — the layout works correctly at every width.
+
+4. **Updated `@media (max-width: 800px)` block** — Added `min-width: 0` to both `.f-search` and `.filters` so they collapse properly in narrow viewports.
+
+### Before vs After
+| Viewport | Before | After |
+|----------|--------|-------|
+| VS Code narrow panel (<1199px) | Search fills ok (media query) | Search fills correctly |
+| Full browser window (>1199px) | Gap after search bar | Search fills remaining space |
+| Very narrow (<800px) | Full-width stack | Full-width stack (unchanged) |
+
+### Root cause
+The previous fix used `@media (max-width: 1199px) { .tb-toggle { flex: 1 1 auto; } }` — at screens wider than 1199px (any normal browser window), the media query didn't apply, buttons stayed compact, and the gap reappeared. The new approach uses `flex: 1 1 200px` (grow) on the search bar and `flex: 0 0 auto` (shrink-wrap) on the filters, which works at **every** viewport without any breakpoint.
+
+---
+
 ## [Phase 25p — Sidenav/Rail Auto-Open on Widen + Bottom Nav Settings Label Size] (2026-07-28)
 **Status:** ✅ COMPLETE (build verified, browser-tested)
 
