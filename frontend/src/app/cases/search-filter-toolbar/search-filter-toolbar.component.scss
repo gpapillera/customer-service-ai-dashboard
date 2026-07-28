@@ -25,38 +25,26 @@ $placeholder-text: var(--cs-text-muted, #64748b);
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
-// Wide screens: the search bar takes 40% of the row and the filter group the
-// remaining 60%. The 12px gap between them is subtracted from each basis so
-// the split stays exact and they don't wrap prematurely.
+// Search bar takes roughly half the row; toggle buttons fill the rest.
 .toolbar .f-search {
-  flex: 0 0 calc(40% - 6px);
+  flex: 0 0 calc(45% - 6px);
   min-width: 200px;
   max-width: 100%;
 }
 .toolbar .filters {
-  flex: 1 1 calc(60% - 6px);
+  flex: 1 1 calc(55% - 6px);
   min-width: 0;
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
 }
-.toolbar .f-select {
-  flex: 1 1 0;
-  min-width: 140px;
-  max-width: 100%;
-}
 
-// Below this width the search bar takes the full first row and the three
-// filters drop to a second row, filling it equally (3-up).
 @media (max-width: 900px) {
   .toolbar .f-search {
     flex: 1 1 100%;
   }
   .toolbar .filters {
     flex: 1 1 100%;
-  }
-  .toolbar .f-select {
-    flex: 1 1 calc(33.333% - 12px);
   }
 }
 

@@ -1,4 +1,4 @@
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -62,17 +62,12 @@ export class CaseListComponent implements OnInit {
   /** True while the list is loading OR a route navigation is in progress. */
   readonly loading = computed(() => this.dataLoading() || this.routeLoading.loading());
   readonly categories = CATEGORIES;
-  /** Status / priority option lists for the search-filter toolbar. */
-  readonly statuses = ['Open', 'New', 'InProgress', 'Escalated', 'Resolved', 'Closed'];
+  /** Status / priority option lists for the table header filter dropdowns. */
+  readonly statuses = ['New', 'InProgress', 'Escalated', 'Resolved', 'Closed'];
   readonly priorities = ['Low', 'Medium', 'High'];
-  /** Category names passed to the toolbar (kept in sync with CATEGORIES). */
-  readonly categoryNames = CATEGORIES.map((c) => c.name);
 
-  /** Initial toolbar values (for query-param pre-fill). Empty = "All …". */
+  /** Initial search value (for query-param pre-fill). */
   toolbarSearch = '';
-  toolbarStatus = '';
-  toolbarPriority = '';
-  toolbarCategory = '';
 
   readonly filters = signal({
     status: '' as string,
@@ -84,8 +79,11 @@ export class CaseListComponent implements OnInit {
     assignedToMe: false,
   });
 
-  /** True when the "Open" pseudo-filter (everything except Closed) is active. */
+  /** True when the "Open" pseudo-filter (only New / InProgress / Escalated) is active. */
   readonly isOpenFilter = signal(false);
+
+  /** Track which table-header filter dropdown is open, or null. */
+  readonly openHeaderFilter = signal<string | null>(null);
 
   /** Active filters rendered as removable chips in the filter row. */
   readonly activeChips = computed<{ key: string; label: string }[]>(() => {
@@ -110,12 +108,23 @@ export class CaseListComponent implements OnInit {
     const list = this.cases();
     const col = this.sortColumn();
     const desc = this.sortDesc();
+    const priorityWeight: Record<string, number> = { Low: 0, Medium: 1, High: 2 };
+    const statusWeight: Record<string, number> = {
+      New: 0, InProgress: 1, Escalated: 2, Resolved: 3, Closed: 4,
+    };
     const sorted = [...list].sort((a, b) => {
-      const aVal = a[col] ?? '';
-      const bVal = b[col] ?? '';
-      const cmp = typeof aVal === 'string'
-        ? aVal.localeCompare(String(bVal))
-        : Number(aVal) - Number(bVal);
+      let cmp = 0;
+      if (col === 'priority') {
+        cmp = (priorityWeight[a.priority] ?? 0) - (priorityWeight[b.priority] ?? 0);
+      } else if (col === 'status') {
+        cmp = (statusWeight[a.status] ?? 0) - (statusWeight[b.status] ?? 0);
+      } else {
+        const aVal = a[col] ?? '';
+        const bVal = b[col] ?? '';
+        cmp = typeof aVal === 'string'
+          ? aVal.localeCompare(String(bVal))
+          : Number(aVal) - Number(bVal);
+      }
       return desc ? -cmp : cmp;
     });
     return sorted;
@@ -153,22 +162,18 @@ export class CaseListComponent implements OnInit {
     const overdue = qp.get('overdue') === 'true';
     const assignedToMe = qp.get('assignedToMe') === 'true';
     if (status) {
-      // "Open" is a pseudo-status (everything except Closed) handled client-side.
+      // "Open" is a pseudo-status (only New / InProgress / Escalated) handled client-side.
       if (status === 'Open') {
         this.isOpenFilter.set(true);
       } else {
         this.filters.update((f) => ({ ...f, status }));
       }
-      this.toolbarStatus = status;
     }
     if (priority) {
       this.filters.update((f) => ({ ...f, priority }));
-      this.toolbarPriority = priority;
     }
     if (categoryId) {
       this.filters.update((f) => ({ ...f, categoryId: Number(categoryId) }));
-      const cat = this.categories.find((c) => c.id === Number(categoryId));
-      this.toolbarCategory = cat?.name ?? '';
     }
     if (aiOnly) this.filters.update((f) => ({ ...f, aiOnly: true }));
     if (overdue) this.filters.update((f) => ({ ...f, overdue: true }));
@@ -202,8 +207,8 @@ export class CaseListComponent implements OnInit {
   load(): void {
     this.dataLoading.set(true);
     const f = this.filters();
-    // "Open" is a pseudo-status (everything except Closed) — fetch all and
-    // filter client-side so the count matches the dashboard KPI exactly.
+    // "Open" is a pseudo-status (only New / InProgress / Escalated) — fetch all and
+    // filter client-side; aligns with the dashboard OpenCases definition.
     const serverStatus = this.isOpenFilter() ? undefined : f.status || undefined;
     this.service
       .list({
@@ -217,7 +222,7 @@ export class CaseListComponent implements OnInit {
         next: (list) => {
           let filtered = list;
           if (this.isOpenFilter()) {
-            filtered = filtered.filter((c) => c.status !== 'Closed');
+            filtered = filtered.filter((c) => c.status !== 'Resolved' && c.status !== 'Closed');
           }
           if (f.aiOnly) {
             filtered = filtered.filter((c) => c.priorityAutoSuggested);
@@ -241,7 +246,7 @@ export class CaseListComponent implements OnInit {
   /** Updates a single filter field and reloads. */
   updateFilter(key: keyof ReturnType<typeof this.filters>, value: string | number | null): void {
     if (key === 'status') {
-      // "Open" is a pseudo-status handled client-side.
+      // "Open" is a pseudo-status (only New/InProgress/Escalated) handled client-side.
       this.isOpenFilter.set(value === 'Open');
       if (value !== 'Open') {
         this.filters.update((f) => ({ ...f, status: value as string }));
@@ -264,31 +269,40 @@ export class CaseListComponent implements OnInit {
     this.load();
   }
 
-  /** Toolbar (Row A) handlers — feed values into the existing filter state. */
+  /** Toolbar (Row A) handler — feeds search value into filter state. */
   onSearchChanged(value: string): void {
     this.toolbarSearch = value;
     this.filters.update((f) => ({ ...f, search: value }));
     this.load();
   }
-  onStatusChanged(value: string): void {
-    // "Open" is a pseudo-status handled client-side.
-    this.isOpenFilter.set(value === 'Open');
-    this.toolbarStatus = value;
-    if (value !== 'Open') {
-      this.filters.update((f) => ({ ...f, status: value }));
+
+  /** Toggle a header filter dropdown open/closed. */
+  toggleHeaderFilter(col: string): void {
+    this.openHeaderFilter.update((current) => (current === col ? null : col));
+  }
+
+  /** Set a filter value from a header dropdown and close it. */
+  setHeaderFilter(col: string, value: string | number | null): void {
+    this.openHeaderFilter.set(null);
+    if (col === 'status') {
+      this.isOpenFilter.set(value === 'Open');
+      if (value !== 'Open') {
+        this.filters.update((f) => ({ ...f, status: (value as string) ?? '' }));
+      } else {
+        this.filters.update((f) => ({ ...f, status: '' }));
+      }
+    } else if (col === 'priority') {
+      this.filters.update((f) => ({ ...f, priority: (value as string) ?? '' }));
+    } else if (col === 'category') {
+      this.filters.update((f) => ({ ...f, categoryId: value as number | null }));
     }
     this.load();
   }
-  onPriorityChanged(value: string): void {
-    this.toolbarPriority = value;
-    this.filters.update((f) => ({ ...f, priority: value }));
-    this.load();
-  }
-  onCategoryChanged(value: string): void {
-    this.toolbarCategory = value;
-    const cat = this.categories.find((c) => c.name === value);
-    this.filters.update((f) => ({ ...f, categoryId: cat ? cat.id : null }));
-    this.load();
+
+  /** Close the header filter dropdown when clicking outside. */
+  @HostListener('document:click')
+  closeHeaderFilter(): void {
+    this.openHeaderFilter.set(null);
   }
 
   /** Clears a single active filter chip and reloads. */
@@ -296,15 +310,12 @@ export class CaseListComponent implements OnInit {
     if (chip.key === 'status') {
       this.isOpenFilter.set(false);
       this.filters.update((f) => ({ ...f, status: '' }));
-      this.toolbarStatus = '';
     } else if (chip.key === 'aiOnly') {
       this.filters.update((f) => ({ ...f, aiOnly: false }));
     } else if (chip.key === 'priority') {
       this.filters.update((f) => ({ ...f, priority: '' }));
-      this.toolbarPriority = '';
     } else if (chip.key === 'categoryId') {
       this.filters.update((f) => ({ ...f, categoryId: null }));
-      this.toolbarCategory = '';
     }
     this.load();
   }

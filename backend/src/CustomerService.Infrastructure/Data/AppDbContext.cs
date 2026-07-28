@@ -92,6 +92,7 @@ public class AppDbContext : DbContext
         {
             e.HasKey(c => c.Id);
             e.Property(c => c.Subject).IsRequired().HasMaxLength(300);
+            e.Property(c => c.CaseDisplayId).HasMaxLength(20);
             e.Property(c => c.ResolvedAtUtc);
             e.HasOne(c => c.Category!).WithMany(c => c.Cases)
                 .HasForeignKey(c => c.CategoryId).OnDelete(DeleteBehavior.Restrict);

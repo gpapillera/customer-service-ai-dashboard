@@ -55,7 +55,7 @@ export class DashboardSettingsService {
     effect(() => {
       this.auth.currentUser(); // subscribe to user changes
       this.loadSettings();
-    });
+    }, { allowSignalWrites: true });
   }
 
   /** Build a user-scoped localStorage key. Falls back to the legacy

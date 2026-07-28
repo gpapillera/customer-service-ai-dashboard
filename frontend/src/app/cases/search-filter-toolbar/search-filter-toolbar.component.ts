@@ -2,16 +2,13 @@ import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatSelectModule } from '@angular/material/select';
 import { MatInputModule } from '@angular/material/input';
 import { CsIconComponent } from '../../shared/cs-icon.component';
 
 /**
- * Reusable Material 3 search + filter toolbar (Row A of the Cases page).
- * See docs/DIY.md §6 for how this toolbar drives case-list filtering.
- * Emits each field's value as the user changes it; the parent owns the
- * actual filtering logic. Query-param pre-fill is supported via the
- * `search` / `status` / `priority` / `category` inputs (patched into the form).
+ * Search toolbar (Row A of the Cases page) — search bar + toggle buttons.
+ * Filtering for status/priority/category is done via inline dropdowns in
+ * the table headers.
  */
 @Component({
   selector: 'app-search-filter-toolbar',
@@ -20,7 +17,6 @@ import { CsIconComponent } from '../../shared/cs-icon.component';
     CommonModule,
     ReactiveFormsModule,
     MatFormFieldModule,
-    MatSelectModule,
     MatInputModule,
     CsIconComponent,
   ],
@@ -28,25 +24,14 @@ import { CsIconComponent } from '../../shared/cs-icon.component';
   styleUrl: './search-filter-toolbar.component.scss',
 })
 export class SearchFilterToolbarComponent implements OnChanges {
-  /** Option lists supplied by the parent. */
-  @Input() statuses: string[] = [];
-  @Input() priorities: string[] = [];
-  @Input() categories: string[] = [];
-
-  /** Current values (used for query-param pre-fill). Empty string = "All …". */
+  /** Current search value (used for query-param pre-fill). */
   @Input() search = '';
-  @Input() status = '';
-  @Input() priority = '';
-  @Input() category = '';
 
   /** Toggle states. */
   @Input() aiActive = false;
   @Input() overdueActive = false;
 
   @Output() searchChanged = new EventEmitter<string>();
-  @Output() statusChanged = new EventEmitter<string>();
-  @Output() priorityChanged = new EventEmitter<string>();
-  @Output() categoryChanged = new EventEmitter<string>();
   @Output() aiToggled = new EventEmitter<void>();
   @Output() overdueToggled = new EventEmitter<void>();
 
@@ -55,26 +40,15 @@ export class SearchFilterToolbarComponent implements OnChanges {
   constructor(private readonly fb: FormBuilder) {
     this.form = this.fb.group({
       search: [''],
-      status: [''],
-      priority: [''],
-      category: [''],
     });
 
     this.form.get('search')?.valueChanges.subscribe((v: string) => this.searchChanged.emit(v ?? ''));
-    this.form.get('status')?.valueChanges.subscribe((v: string) => this.statusChanged.emit(v ?? ''));
-    this.form.get('priority')?.valueChanges.subscribe((v: string) => this.priorityChanged.emit(v ?? ''));
-    this.form.get('category')?.valueChanges.subscribe((v: string) => this.categoryChanged.emit(v ?? ''));
   }
 
-  /** Patch incoming input values (e.g. from query params) into the form. */
+  /** Patch incoming input value (e.g. from query params) into the form. */
   ngOnChanges(changes: SimpleChanges): void {
-    const patch: Record<string, unknown> = {};
-    if (changes['search']) patch['search'] = this.search ?? '';
-    if (changes['status']) patch['status'] = this.status ?? '';
-    if (changes['priority']) patch['priority'] = this.priority ?? '';
-    if (changes['category']) patch['category'] = this.category ?? '';
-    if (Object.keys(patch).length) {
-      this.form.patchValue(patch, { emitEvent: false });
+    if (changes['search']) {
+      this.form.patchValue({ search: this.search ?? '' }, { emitEvent: false });
     }
   }
 }

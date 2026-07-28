@@ -26,7 +26,7 @@ export class ThemeService {
     effect(() => {
       this.auth.currentUser(); // subscribe to user changes
       this.loadTheme();
-    });
+    }, { allowSignalWrites: true });
 
     // 3. Apply the theme attribute and persist whenever the signal changes.
     effect(() => {

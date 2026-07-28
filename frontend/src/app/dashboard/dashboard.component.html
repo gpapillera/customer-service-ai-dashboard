@@ -124,7 +124,7 @@
                 <mat-card-content>
                   <div class="recent-head">
                     <h2 class="chart-title overdue-title"><cs-icon name="schedule" class="overdue-icon"></cs-icon> Overdue Follow-ups</h2>
-                    <a class="view-all" routerLink="/cases">View all cases &rarr;</a>
+                    <a class="view-all" [routerLink]="['/cases']" [queryParams]="{overdue: true}">View all cases &rarr;</a>
                   </div>
                   <div class="recent-list" appKbdNav kbdNavItem="a.recent-item" [kbdNavWrap]="true">
                     @for (o of d.overdueFollowUpsList.slice(0, 5); track o.caseId) {

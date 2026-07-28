@@ -64,6 +64,7 @@ export interface RegisterCustomer {
 /** A support case (matches CaseDto). */
 export interface Case {
   id: number;
+  caseDisplayId: string | null;
   subject: string;
   description: string;
   status: 'New' | 'InProgress' | 'Escalated' | 'Resolved' | 'Closed';
@@ -164,6 +165,7 @@ export interface DateCount {
 /** Customer-facing case list item. */
 export interface CustomerCaseSummary {
   id: number;
+  caseDisplayId: string | null;
   subject: string;
   status: 'New' | 'InProgress' | 'Escalated' | 'Resolved' | 'Closed';
   createdAtUtc: string;
@@ -174,6 +176,7 @@ export interface CustomerCaseSummary {
 /** Customer-facing case detail. */
 export interface CustomerCaseDetail {
   id: number;
+  caseDisplayId: string | null;
   subject: string;
   description: string;
   status: 'New' | 'InProgress' | 'Escalated' | 'Resolved' | 'Closed';
@@ -193,6 +196,7 @@ export interface CustomerCaseComment {
 
 /** A single entry in an agent's Messages (conversations) list. */
 export interface Conversation {
+  caseDisplayId: string | null;
   caseId: number;
   subject: string;
   customerName: string;

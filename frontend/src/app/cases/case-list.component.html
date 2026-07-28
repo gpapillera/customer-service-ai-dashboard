@@ -14,19 +14,10 @@
 </div>
 
 <app-search-filter-toolbar
-  [statuses]="statuses"
-  [priorities]="priorities"
-  [categories]="categoryNames"
   [search]="toolbarSearch"
-  [status]="toolbarStatus"
-  [priority]="toolbarPriority"
-  [category]="toolbarCategory"
   [aiActive]="filters().aiOnly"
   [overdueActive]="filters().overdue"
   (searchChanged)="onSearchChanged($event)"
-  (statusChanged)="onStatusChanged($event)"
-  (priorityChanged)="onPriorityChanged($event)"
-  (categoryChanged)="onCategoryChanged($event)"
   (aiToggled)="toggleAiOnly()"
   (overdueToggled)="toggleOverdue()"
 ></app-search-filter-toolbar>
@@ -53,22 +44,90 @@
       <thead>
         <tr>
           <th class="sortable" (click)="toggleSort('subject')">
-            Case @if (sortColumn() === 'subject') { <span class="sort-arrow">{{ sortDesc() ? '↓' : '↑' }}</span> }
+            <span class="th-content">
+              <span class="th-label">Case</span>
+              @if (sortColumn() === 'subject') { <span class="sort-arrow">{{ sortDesc() ? '↓' : '↑' }}</span> }
+            </span>
           </th>
           <th class="sortable" (click)="toggleSort('customerName')">
-            Customer @if (sortColumn() === 'customerName') { <span class="sort-arrow">{{ sortDesc() ? '↓' : '↑' }}</span> }
+            <span class="th-content">
+              <span class="th-label">Customer</span>
+              @if (sortColumn() === 'customerName') { <span class="sort-arrow">{{ sortDesc() ? '↓' : '↑' }}</span> }
+            </span>
           </th>
           <th class="sortable" (click)="toggleSort('categoryName')">
-            Category @if (sortColumn() === 'categoryName') { <span class="sort-arrow">{{ sortDesc() ? '↓' : '↑' }}</span> }
+            <span class="th-content">
+              <span class="th-label">Category</span>
+              @if (sortColumn() === 'categoryName') { <span class="sort-arrow">{{ sortDesc() ? '↓' : '↑' }}</span> }
+              <button type="button" class="header-filter-btn"
+                [class.filter-active]="filters().categoryId != null"
+                (click)="$event.stopPropagation(); toggleHeaderFilter('category')"
+                aria-label="Filter by category">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z"/></svg>
+              </button>
+              @if (openHeaderFilter() === 'category') {
+                <div class="header-filter-dropdown" (click)="$event.stopPropagation()">
+                  <button type="button" class="hfd-option" [class.active]="filters().categoryId == null"
+                    (click)="setHeaderFilter('category', null)">All</button>
+                  @for (c of categories; track c.id) {
+                    <button type="button" class="hfd-option" [class.active]="filters().categoryId === c.id"
+                      (click)="setHeaderFilter('category', c.id)">{{ c.name }}</button>
+                  }
+                </div>
+              }
+            </span>
           </th>
           <th class="sortable" (click)="toggleSort('priority')">
-            Priority @if (sortColumn() === 'priority') { <span class="sort-arrow">{{ sortDesc() ? '↓' : '↑' }}</span> }
+            <span class="th-content">
+              <span class="th-label">Priority</span>
+              @if (sortColumn() === 'priority') { <span class="sort-arrow">{{ sortDesc() ? '↓' : '↑' }}</span> }
+              <button type="button" class="header-filter-btn"
+                [class.filter-active]="filters().priority"
+                (click)="$event.stopPropagation(); toggleHeaderFilter('priority')"
+                aria-label="Filter by priority">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z"/></svg>
+              </button>
+              @if (openHeaderFilter() === 'priority') {
+                <div class="header-filter-dropdown" (click)="$event.stopPropagation()">
+                  <button type="button" class="hfd-option" [class.active]="!filters().priority"
+                    (click)="setHeaderFilter('priority', '')">All</button>
+                  @for (p of priorities; track p) {
+                    <button type="button" class="hfd-option" [class.active]="filters().priority === p"
+                      (click)="setHeaderFilter('priority', p)">{{ p }}</button>
+                  }
+                </div>
+              }
+            </span>
           </th>
           <th class="sortable" (click)="toggleSort('status')">
-            Status @if (sortColumn() === 'status') { <span class="sort-arrow">{{ sortDesc() ? '↓' : '↑' }}</span> }
+            <span class="th-content">
+              <span class="th-label">Status</span>
+              @if (sortColumn() === 'status') { <span class="sort-arrow">{{ sortDesc() ? '↓' : '↑' }}</span> }
+              <button type="button" class="header-filter-btn"
+                [class.filter-active]="filters().status || isOpenFilter()"
+                (click)="$event.stopPropagation(); toggleHeaderFilter('status')"
+                aria-label="Filter by status">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z"/></svg>
+              </button>
+              @if (openHeaderFilter() === 'status') {
+                <div class="header-filter-dropdown" (click)="$event.stopPropagation()">
+                  <button type="button" class="hfd-option" [class.active]="!filters().status && !isOpenFilter()"
+                    (click)="setHeaderFilter('status', '')">All</button>
+                  <button type="button" class="hfd-option" [class.active]="isOpenFilter()"
+                    (click)="setHeaderFilter('status', 'Open')">Open</button>
+                  @for (s of statuses; track s) {
+                    <button type="button" class="hfd-option" [class.active]="filters().status === s"
+                      (click)="setHeaderFilter('status', s)">{{ s }}</button>
+                  }
+                </div>
+              }
+            </span>
           </th>
           <th class="sortable" (click)="toggleSort('createdAtUtc')">
-            Created @if (sortColumn() === 'createdAtUtc') { <span class="sort-arrow">{{ sortDesc() ? '↓' : '↑' }}</span> }
+            <span class="th-content">
+              <span class="th-label">Created</span>
+              @if (sortColumn() === 'createdAtUtc') { <span class="sort-arrow">{{ sortDesc() ? '↓' : '↑' }}</span> }
+            </span>
           </th>
         </tr>
       </thead>
@@ -83,7 +142,7 @@
             <td>
               <div class="cell-title">
                 @if (c.priorityAutoSuggested) { <cs-icon name="auto_awesome" class="ai-spark"></cs-icon> }
-                <span class="case-id">#{{ c.id }}</span>
+                <span class="case-id">{{ c.caseDisplayId || '#' + c.id }}</span>
                 {{ c.subject }}
               </div>
             </td>

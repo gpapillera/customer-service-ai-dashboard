@@ -13,6 +13,9 @@ public class CustomerCaseSummaryDto
     /// <summary>Case primary key.</summary>
     public int Id { get; set; }
 
+    /// <summary>Human-readable display ID (e.g. "CAS-00042").</summary>
+    public string? CaseDisplayId { get; set; }
+
     /// <summary>Subject.</summary>
     public string Subject { get; set; } = string.Empty;
 
@@ -39,6 +42,9 @@ public class CustomerCaseDetailDto
 {
     /// <summary>Case primary key.</summary>
     public int Id { get; set; }
+
+    /// <summary>Human-readable display ID (e.g. "CAS-00042").</summary>
+    public string? CaseDisplayId { get; set; }
 
     /// <summary>Subject.</summary>
     public string Subject { get; set; } = string.Empty;

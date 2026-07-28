@@ -32,6 +32,7 @@
             </div>
 
             <dl class="facts">
+              <div><dt>Case ID</dt><dd>{{ c.caseDisplayId || '#' + c.id }}</dd></div>
               <div><dt>Customer</dt><dd><a class="customer-link" [routerLink]="['/customers', c.customerId]">{{ c.customerName }}</a></dd></div>
               <div><dt>Category</dt><dd>{{ c.categoryName }}</dd></div>
               <div><dt>Assignee</dt><dd>{{ c.assignedToUserName || 'Unassigned' }}</dd></div>

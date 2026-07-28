@@ -2,6 +2,67 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 25j — Move Status/Priority/Category Filters from Toolbar to Table Headers] (2026-07-28)
+**Status:** ✅ COMPLETE (build verified, browser-tested)
+**What changed:**
+- **UX refactoring:** Moved Status, Priority, and Category filter dropdowns from the search toolbar (above the table) into the corresponding table column headers, placing the filter function right beside each column label.
+- **Frontend — `search-filter-toolbar.component.html`:** Removed the 3 `mat-form-field`/`mat-select` blocks for status, priority, and category. The toolbar now only has the search input + AI Predicted toggle + Overdue toggle.
+- **Frontend — `search-filter-toolbar.component.ts`:** Removed corresponding inputs (`statuses`, `priorities`, `categories`), outputs (`statusChanged`, `priorityChanged`, `categoryChanged`), form controls, and `MatSelectModule` import. Simplified `ngOnChanges` to only handle `search`.
+- **Frontend — `search-filter-toolbar.component.scss`:** Removed `.f-select` rules and 3-up layout media queries.
+- **Frontend — `case-list.component.html`:** Each sortable header (Category, Priority, Status) now wraps its label in a `.th-content` container with a filter icon button that toggles a `.header-filter-dropdown` containing clickable options. Category dropdown shows all `CATEGORIES` names; Priority shows Low/Medium/High; Status shows Open (pseudo-filter) + New/InProgress/Escalated/Resolved/Closed.
+- **Frontend — `case-list.component.ts`:** 
+  - Added `openHeaderFilter` signal to track which dropdown is open.
+  - Added `toggleHeaderFilter(col)`, `setHeaderFilter(col, value)`, and `closeHeaderFilter()` (via `@HostListener('document:click')`) methods.
+  - Removed old `onStatusChanged`, `onPriorityChanged`, `onCategoryChanged` toolbar handlers.
+  - Removed unused `toolbarStatus`, `toolbarPriority`, `toolbarCategory` fields and `categoryNames` computed.
+  - Fixed duplicate "Open" in `statuses` array (Open is handled separately as a pseudo-filter).
+- **Frontend — `case-list.component.scss`:** Added styles for `.th-content`, `.header-filter-btn`, `.header-filter-dropdown`, `.hfd-option`, and dark-theme shadow variant.
+- **Sort function preserved:** Clicking column headers still toggles ascending/descending sort. Filter icon buttons use `$event.stopPropagation()` to prevent sort toggle when filtering.
+- **Result:** Both builds pass with 0 errors. All three header filter dropdowns tested in browser — filtering by priority, status, and category all correctly update the case list. Filter chips appear above the table and can be dismissed.
+
+## [Phase 25k — Fix: Filter Icons Not Visible + Priority Sort Order] (2026-07-28)
+**Status:** ✅ COMPLETE (build verified, browser-tested)
+**What changed:**
+- **Bugfix — invisible filter icons:** The `<cs-icon name="filter_list">` icon was not in the `ICON_MAP` in `cs-icon.component.ts` so it rendered an empty `<span>` — invisible to users. Replaced all 3 occurrences (Category, Priority, Status header filter buttons) with an inline Lucide funnel SVG, making the filter icons properly visible at all times.
+- **Bugfix — priority sort order:** Priority column sort was using `localeCompare`, producing alphabetical order (High → Low → Medium). Fixed by adding a `priorityWeight` mapping (`Low: 0, Medium: 1, High: 2`) in the `sortedCases` computed. Now sorts as Low → Medium → High (ascending) and High → Medium → Low (descending).
+- **Bonus — status sort order:** Applied the same treatment to Status sorting using `statusWeight` (`New: 0, InProgress: 1, Escalated: 2, Resolved: 3, Closed: 4`) for proper logical ordering instead of alphabetical.
+- **Files changed:**
+  - `case-list.component.ts` — Replaced simple `localeCompare` sort with weighted sort for `priority` and `status` columns.
+  - `case-list.component.html` — Replaced 3 `<cs-icon name="filter_list">` tags with inline funnel SVGs.
+- **Result:** Build passes. Filter funnel icons now visible next to Category, Priority, and Status headers. Priority sort follows Low→Medium→High order.
+
+## [Phase 25i — Case Display ID (CAS-XXXXX)] (2026-07-28)
+**Status:** ✅ COMPLETE (build verified, 0 errors)
+**What changed:**
+- **Feature:** Cases now have a human-readable display ID (`CAS-00001`, `CAS-00002`, etc.) shown throughout the UI instead of raw numeric IDs.
+- **Backend — `Case.cs` entity:** Added `public string? CaseDisplayId { get; set; }` property.
+- **Backend — `AppDbContext.cs`:** Added `.Property(c => c.CaseDisplayId).HasMaxLength(20)` in the Case entity config.
+- **Backend — `CaseService.CreateAsync`:** After first `SaveChangesAsync`, generates `CaseDisplayId = $"CAS-{caseEntity.Id:D5}"`, then updates+resaves (same customer-display-id pattern).
+- **Backend — `CaseService.ToDto`:** Maps `CaseDisplayId` to `CaseDto`.
+- **Backend — `CaseService` conversation methods:** Both `GetMyConversationsAsync` and `GetAllConversationsAsync` now map `CaseDisplayId` in their inline `ConversationSummaryDto` construction.
+- **Backend — DTOs:** Added `CaseDisplayId` to `CaseDto`, `ConversationSummaryDto`, `CustomerCaseSummaryDto`, and `CustomerCaseDetailDto`.
+- **Backend — `CustomerPortalController.cs`:** Maps `CaseDisplayId` in all 3 inline DTO projections (GetCustomerCases, CreateCustomerCase, GetCustomerCaseDetail).
+- **Backend — `SeedData.cs`:** All 21 seed cases now have `CaseDisplayId` from `"CAS-00001"` through `"CAS-00021"`.
+- **Frontend — `models.ts`:** Added `caseDisplayId: string | null` to `Case`, `Conversation`, `CustomerCaseSummary`, and `CustomerCaseDetail` interfaces.
+- **Frontend — `case-list.component.html`:** Replaced `#{{ c.id }}` with `{{ c.caseDisplayId || '#' + c.id }}`.
+- **Frontend — `case-detail.component.html`:** Added "Case ID" row at the top of the facts `<dl>` showing the display ID with fallback.
+- **Result:** Both builds pass with 0 errors. The display ID appears on list rows and detail view, with graceful fallback to `#<id>` for any case without a display ID set.
+
+## [Phase 25h — Fix: Cases Page "Open" Filter Includes Resolved Cases] (2026-07-28)
+**Status:** ✅ COMPLETE
+**What changed:**
+- **Problem:** The "Open" filter on the cases page only excluded `Closed` status (`c.status !== 'Closed'`), so `Resolved` cases leaked through. This was inconsistent with Phase 25g's dashboard fix where "Open" = `New | InProgress | Escalated`.
+- **Frontend — `case-list.component.ts`:** Updated the "Open" pseudo-filter in `load()` to also exclude `Resolved` (`c.status !== 'Resolved' && c.status !== 'Closed'`). Updated all related comments (in `isOpenFilter` declaration, `ngOnInit`, `load()`, `updateFilter()`, and `onStatusChanged()`) to say "only New / InProgress / Escalated" instead of "everything except Closed".
+- **Verification of other filters:** Reviewed all filter paths — server-side filters (status, priority, category, overdue, assignedToMe) are all correct; client-side filters (AI-only, search text) are correct. The "Open" was the only broken filter.
+- **Result:** The cases page "Open" filter now shows only `New`, `InProgress`, and `Escalated` — matching the dashboard's `OpenCases` definition exactly. Build verified, 0 errors.
+
+## [Phase 25g — Fix: Align OpenCases Count to Exclude Resolved for Both Roles] (2026-07-27)
+**Status:** ✅ COMPLETE
+**What changed:**
+- **Problem:** The admin `OpenCases` KPI used the formula `total - closed`, which counted `Resolved` cases as "open". Agent `MyOpen` correctly excluded `Resolved` (`c.Status != CaseStatus.Resolved && c.Status != CaseStatus.Closed`). This inconsistency meant admin saw inflated Open Cases numbers whenever cases were resolved but not yet closed.
+- **Backend — `DashboardRepository.cs`:** Changed `var open = total - closed` to `var open = total - closed - resolved` (using the already-computed `resolved` count). Now both admin Open Cases and agent My Open use the same definition — only `New`, `InProgress`, and `Escalated` count as open.
+- **Result:** Both roles now have a consistent "Open Cases" count. Resolved cases are excluded on both sides. Build verified, 0 errors.
+
 ## [Phase 25f — Fix: Overdue Follow-ups Card Hidden Despite Toggle Being ON] (2026-07-27)
 **Status:** ✅ COMPLETE (build verified, 0 errors)
 **What changed:**

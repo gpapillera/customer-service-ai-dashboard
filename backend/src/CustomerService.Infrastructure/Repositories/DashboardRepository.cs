@@ -34,7 +34,7 @@ public class DashboardRepository : IDashboardRepository
         var resolved = await cases.CountAsync(c => c.Status == CaseStatus.Resolved);
         var high = await cases.CountAsync(c => c.Priority == Priority.High);
         var aiPredicted = await cases.CountAsync(c => c.PriorityAutoSuggested);
-        var open = total - closed;
+        var open = total - closed - resolved;
 
         // Build the status/priority dictionaries defensively: a single
         // malformed row (e.g. a status stored as text instead of the enum's

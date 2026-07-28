@@ -204,6 +204,7 @@ public class Program
         EnsureCaseFollowUpDueUtcColumn(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
         EnsureConversationReadStatesTable(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
         EnsureUserResetTokenColumns(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
+        EnsureCaseDisplayIdColumn(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
         SeedDataInitializer.Initialize(ctx);
     }
 
@@ -630,6 +631,49 @@ public class Program
         catch (Exception ex)
         {
             Console.WriteLine($"WARN: could not ensure Users reset-token columns: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Adds the <c>Cases.CaseDisplayId</c> column if it is missing. Needed because
+    /// <c>EnsureCreated()</c> does not alter existing tables when the model gains
+    /// a column (e.g. when <c>Case.CaseDisplayId</c> was added).
+    /// Idempotent + provider-aware. Swap for EF migrations in production.
+    /// </summary>
+    private static async Task EnsureCaseDisplayIdColumn(AppDbContext ctx, string? provider)
+    {
+        const string table = "Cases";
+        const string column = "CaseDisplayId";
+        try
+        {
+            if (provider != null && provider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase))
+            {
+                var conn = ctx.Database.GetDbConnection();
+                if (conn.State != System.Data.ConnectionState.Open)
+                {
+                    await conn.OpenAsync();
+                }
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = $"SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name='{column}';";
+                var count = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+                if (count == 0)
+                {
+                    using var alter = conn.CreateCommand();
+                    alter.CommandText = $"ALTER TABLE {table} ADD COLUMN {column} TEXT NULL;";
+                    await alter.ExecuteNonQueryAsync();
+                }
+            }
+            else
+            {
+                var exists = ctx.Database.ExecuteSqlRaw(
+                    $"IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='{table}' AND COLUMN_NAME='{column}') " +
+                    $"ALTER TABLE {table} ADD [{column}] nvarchar(20) NULL;");
+                _ = exists;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"WARN: could not ensure {table}.{column} column: {ex.Message}");
         }
     }
 

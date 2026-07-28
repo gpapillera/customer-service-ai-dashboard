@@ -54,6 +54,7 @@ public class CustomerPortalController : ControllerBase
             .Select(c => new CustomerCaseSummaryDto
             {
                 Id = c.Id,
+                CaseDisplayId = c.CaseDisplayId,
                 Subject = c.Subject,
                 Status = c.Status,
                 CreatedAtUtc = c.CreatedAtUtc,
@@ -104,6 +105,7 @@ public class CustomerPortalController : ControllerBase
             var summary = new CustomerCaseSummaryDto
             {
                 Id = created.Id,
+                CaseDisplayId = created.CaseDisplayId,
                 Subject = created.Subject,
                 Status = created.Status,
                 CreatedAtUtc = created.CreatedAtUtc,
@@ -146,6 +148,7 @@ public class CustomerPortalController : ControllerBase
         return Ok(new CustomerCaseDetailDto
         {
             Id = c.Id,
+            CaseDisplayId = c.CaseDisplayId,
             Subject = c.Subject,
             Description = c.Description,
             Status = c.Status,

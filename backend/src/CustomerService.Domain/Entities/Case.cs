@@ -82,6 +82,9 @@ public class Case
     /// <summary>Plain-English reason for the ML-suggested priority (when auto-suggested).</summary>
     public string? PriorityReason { get; set; }
 
+    /// <summary>Human-readable display ID (e.g. "CAS-00042"), auto-generated after creation.</summary>
+    public string? CaseDisplayId { get; set; }
+
     /// <summary>UTC timestamp when the case was created.</summary>
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 

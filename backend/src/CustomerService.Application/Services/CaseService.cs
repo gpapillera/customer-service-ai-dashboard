@@ -175,6 +175,12 @@ public class CaseService : ICaseService
         };
         await _cases.AddAsync(caseEntity);
         await _cases.SaveChangesAsync();
+
+        // Generate a human-readable display ID after the entity is saved (Id is now set).
+        caseEntity.CaseDisplayId = $"CAS-{caseEntity.Id:D5}";
+        _cases.Update(caseEntity);
+        await _cases.SaveChangesAsync();
+
         return ToDto(caseEntity);
     }
 
@@ -383,6 +389,7 @@ public class CaseService : ICaseService
             result.Add(new ConversationSummaryDto
             {
                 CaseId = comment.CaseId,
+                CaseDisplayId = caseEntity.CaseDisplayId,
                 Subject = caseEntity.Subject,
                 CustomerName = caseEntity.Customer?.Name ?? string.Empty,
                 LastCommentId = comment.Id,
@@ -500,6 +507,7 @@ public class CaseService : ICaseService
             result.Add(new ConversationSummaryDto
             {
                 CaseId = comment.CaseId,
+                CaseDisplayId = caseEntity.CaseDisplayId,
                 Subject = caseEntity.Subject,
                 CustomerName = caseEntity.Customer?.Name ?? string.Empty,
                 AssignedAgentName = caseEntity.AssignedToUser?.FullName,
@@ -523,6 +531,7 @@ public class CaseService : ICaseService
     internal static CaseDto ToDto(Case c) => new()
     {
         Id = c.Id,
+        CaseDisplayId = c.CaseDisplayId,
         Subject = c.Subject,
         Description = c.Description,
         Status = c.Status,
