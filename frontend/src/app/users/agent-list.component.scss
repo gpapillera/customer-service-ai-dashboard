@@ -151,6 +151,18 @@
   flex-shrink: 0;
 }
 
+/* Letter avatar (first-letter initial in a coloured circle). */
+.letter-avatar {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1;
+  color: #fff;
+  user-select: none;
+}
+.overlay-title .letter-avatar {
+  font-size: 15px;
+}
+
 .agent-name {
   font-weight: 600;
   font-size: 15px;

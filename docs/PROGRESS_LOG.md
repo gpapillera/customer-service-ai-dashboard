@@ -2,6 +2,30 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 25r — Agent Cards: Letter Avatars + Search by Agent ID] (2026-07-28)
+**Status:** ✅ COMPLETE (build verified, browser-tested)
+
+### Changes made
+
+**`agent-list.component.ts`** — 2 changes:
+1. **Search by agent ID** — Added `a.agentDisplayId?.toLowerCase().includes(term)` to the `filteredAgents` computed, so agents can be found by their display ID (e.g. "AGT-001") in addition to name/email.
+2. **`avatarColor()` method** — New helper that returns a deterministic colour from an 8-colour palette based on a hash of the agent's name. Each name always gets the same colour.
+
+**`agent-list.component.html`** — 3 changes:
+1. **Search placeholder** — Updated to `"Search by name, email, or ID…"`.
+2. **Card avatar** — Replaced the `@if profilePictureUrl / @else person-icon` with a `<div class="avatar letter-avatar">` showing the agent's first initial in a deterministically coloured circle.
+3. **Overlay avatar** — Same replacement in the detail slide-in panel header.
+
+**`agent-list.component.scss`** — 1 change:
+1. **`.letter-avatar` class** — White text, 18px (card) / 15px (overlay), bold weight, no select.
+
+### Why
+- Profile pictures aren't stored yet, so the old `person` icon was generic.
+- A letter avatar is cleaner, more personal, and follows the Apple-like design system.
+- Searching by agent ID is practical for real workflows.
+
+---
+
 ## [Phase 25q — Search Bar Responsive: Fill Available Space at All Viewport Widths] (2026-07-28)
 **Status:** ✅ COMPLETE (build verified)
 

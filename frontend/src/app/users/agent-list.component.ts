@@ -56,7 +56,8 @@ export class AgentListComponent implements OnInit {
     return this.agents().filter(
       (a) =>
         a.fullName.toLowerCase().includes(term) ||
-        a.email.toLowerCase().includes(term)
+        a.email.toLowerCase().includes(term) ||
+        (a.agentDisplayId?.toLowerCase().includes(term) ?? false)
     );
   });
 
@@ -80,6 +81,19 @@ export class AgentListComponent implements OnInit {
       },
       error: () => this.loading.set(false),
     });
+  }
+
+  /** Deterministic background colour for a letter avatar based on the name. */
+  avatarColor(name: string): string {
+    const palette = [
+      '#6366f1', '#3b82f6', '#10b981', '#f59e0b',
+      '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6',
+    ];
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return palette[Math.abs(hash) % palette.length];
   }
 
   /** Opens the detail overlay for the clicked agent. */

@@ -17,7 +17,7 @@
         <cs-icon name="search" matPrefix class="prefix-icon"></cs-icon>
         <input
           matInput
-          placeholder="Search by name or email…"
+          placeholder="Search by name, email, or ID…"
           [ngModel]="searchTerm()"
           (ngModelChange)="searchTerm.set($event)"
         />
@@ -38,11 +38,7 @@
         <mat-card class="cs-lift agent-card reveal" appReveal (click)="openAgent(agent)" style="cursor:pointer">
           <mat-card-content>
             <div class="agent-top">
-              @if (agent.profilePictureUrl) {
-                <img class="avatar-img" [src]="agent.profilePictureUrl" alt="" loading="lazy" />
-              } @else {
-                <div class="avatar"><cs-icon name="person"></cs-icon></div>
-              }
+              <div class="avatar letter-avatar" [style.background]="avatarColor(agent.fullName)">{{ agent.fullName[0].toUpperCase() }}</div>
               <div class="agent-id">
                 <div class="agent-name">{{ agent.fullName }}</div>
                 <div class="agent-email">{{ agent.email }}</div>
@@ -73,11 +69,7 @@
   <aside class="overlay-panel cs-lift" role="dialog" aria-label="Agent details">
     <header class="overlay-head">
       <div class="overlay-title">
-        @if (agent.profilePictureUrl) {
-          <img class="avatar-img overlay-avatar" [src]="agent.profilePictureUrl" alt="" loading="lazy" />
-        } @else {
-          <div class="avatar"><cs-icon name="person"></cs-icon></div>
-        }
+        <div class="avatar letter-avatar" [style.background]="avatarColor(agent.fullName)">{{ agent.fullName[0].toUpperCase() }}</div>
         <div>
           <div class="agent-name">{{ agent.fullName }}</div>
           <div class="agent-role"><span class="cs-pill status-resolved">Agent</span></div>
