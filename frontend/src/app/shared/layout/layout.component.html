@@ -24,7 +24,7 @@
             [routerLink]="link.path"
             routerLinkActive="active"
             tabindex="-1"
-            (click)="isHandset() && toggleSidenav()"
+            (click)="closeMobileOverlay()"
           >
             <cs-icon [name]="link.icon" class="nav-icon"></cs-icon>
             <span class="nav-label">{{ link.label }}</span>

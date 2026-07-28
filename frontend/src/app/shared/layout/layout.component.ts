@@ -67,6 +67,11 @@ export class LayoutComponent {
       page brand logo animates (enlarge/shrink) ONLY on an explicit toggle and
       never on plain route changes. */
   readonly brandAnimate = signal(false);
+  /** False until the user clicks the toggle button (or presses Ctrl+B).
+      Once they do, the sidenav stops auto-opening on widen — the user's
+      manual preference takes precedence for the rest of the session.
+      Auto-close on shrink always works regardless. */
+  private userHasToggled = false;
 
   readonly navLinks = [
     { path: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
@@ -99,11 +104,12 @@ export class LayoutComponent {
       .pipe(takeUntilDestroyed())
       .subscribe((state) => {
         this.isHandset.set(state.matches);
-        // Shrinking to a small screen auto-hides the sidenav (rail shows).
-        // Widening back to desktop must NOT force it open — respect the
-        // user's manual toggle so a hidden sidenav stays hidden.
         if (state.matches) {
+          // Shrinking: always auto-hide the sidenav (rail shows).
           this.opened.set(false);
+        } else if (!this.userHasToggled) {
+          // Widening: auto-restore ONLY if the user never manually toggled.
+          this.opened.set(true);
         }
       });
 
@@ -123,9 +129,21 @@ export class LayoutComponent {
     });
   }
 
-  /** Collapse/expand the sidenav (works in both side and overlay modes). */
+  /** Collapse/expand the sidenav (works in both side and overlay modes).
+      - Closing the sidenav (→ rail) marks userHasToggled so auto-open on
+        widen is disabled — the rail stays.
+      - Re-opening the sidenav (→ full) resets userHasToggled so auto-open
+        on widen works again. */
   toggleSidenav(): void {
-    this.opened.update((v) => !v);
+    const wasOpen = this.opened();
+    if (wasOpen) {
+      // User is closing the sidenav → remember their choice.
+      this.userHasToggled = true;
+    } else {
+      // User is re-opening the sidenav → resume auto-behavior.
+      this.userHasToggled = false;
+    }
+    this.opened.set(!wasOpen);
     // Flag the brand-logo animation for the duration of the transition so it
     // only plays on an explicit toggle, not on route changes.
     this.brandAnimate.set(true);
@@ -150,9 +168,19 @@ export class LayoutComponent {
 
   /** Sync the open state when the sidenav is closed via its backdrop (overlay
       mode on small screens). Without this, a backdrop click closes the panel
-      visually while `opened` stays true, hiding both the sidenav and the rail. */
+      visually while `opened` stays true, hiding both the sidenav and the rail.
+      Does NOT touch userHasToggled — only toggleSidenav() marks manual action. */
   onSidenavOpenedChange(open: boolean): void {
     this.opened.set(open);
+  }
+
+  /** Close the overlay sidenav on mobile without cancelling auto-open.
+      Used when navigating to a page via a nav link — the sidenav closes but
+      the autoClosed state is preserved so it can re-open on widen. */
+  closeMobileOverlay(): void {
+    if (this.isHandset() && this.opened()) {
+      this.opened.set(false);
+    }
   }
 
   /** The currently signed-in user (or null). */

@@ -774,9 +774,8 @@
   color: var(--cs-accent-strong);
 }
 
-.bottom-nav-settings {
-  font: inherit;
-}
+/* No font override — inherits the .bottom-nav-item font (0.62rem) so the
+   Settings label matches the size of all other nav labels. */
 
 .bottom-nav-label {
   line-height: 1;

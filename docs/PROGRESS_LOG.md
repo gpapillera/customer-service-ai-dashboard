@@ -2,6 +2,48 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 25p — Sidenav/Rail Auto-Open on Widen + Bottom Nav Settings Label Size] (2026-07-28)
+**Status:** ✅ COMPLETE (build verified, browser-tested)
+
+### Changes made
+
+**1. Bottom nav Settings label too big (`layout.component.scss`)**
+- **Root cause:** `.bottom-nav-settings { font: inherit; }` overrode the `.bottom-nav-item` font-size of `0.62rem`, making the Settings label render at ~16px — noticeably bigger than all other bottom nav labels.
+- **Fix:** Removed the `font: inherit` override.
+
+**2. Sidenav doesn't auto-open when screen widens (`layout.component.ts`)**
+- **Root cause:** The `BreakpointObserver` only auto-closed on shrink but never auto-opened on widen — the rail persisted forever once triggered by resize.
+- **Fix:** Added `private userHasToggled` flag with **directional logic** in `toggleSidenav()`:
+  - Closing the sidenav (→ rail) sets `userHasToggled = true` — disables auto-open on widen
+  - Re-opening the sidenav (→ full) resets `userHasToggled = false` — resumes auto-open
+  - Backdrop close or mobile nav link tap do NOT affect the flag
+- Updated breakpoint observer: auto-close always on shrink; auto-open on widen only if `!userHasToggled`
+
+**3. Cleaner mobile nav click handler (`layout.component.html`)**
+- Replaced `(click)="isHandset() && toggleSidenav()"` with `(click)="closeMobileOverlay()"` — closes overlay without resetting auto-behavior.
+
+### Behavior summary
+| Action | What happens |
+|--------|-------------|
+| Shrink browser <768px | Sidenav auto-closes → rail shows |
+| Widen browser >768px | Sidenav auto-opens (unless user clicked toggle to close) |
+| Click toggle to close, then resize | Stays as rail (user wanted it closed) |
+| Click toggle to close, click again to open, then resize | Auto-behavior resumes — opens on widen |
+| Mobile nav link tap | Closes overlay, auto-open still works on widen |
+
+## [Phase 25o — Fix Media Query Source Order: Toggle Buttons Now Fill Empty Space] (2026-07-28)
+**Status:** ✅ COMPLETE (build verified, browser-tested)
+**What changed:**
+- **Root cause:** `@media (max-width: 1199px) { .tb-toggle { flex: 1 1 auto; } }` was positioned **before** the base `.tb-toggle { flex: 0 0 auto }` rule in the SCSS file. CSS source order means the later rule always wins — so the media query was silently dead code, and the toggle buttons never grew to fill the available width inside `.filters`.
+- **Fix:** Moved both the `1199px` and `640px` media query blocks **after** the base `.tb-toggle` rules so they properly override when their conditions match.
+- **Measured at 1146px viewport (sidebar open, ≤1199px):**
+  - Before: buttons 133px + 107px = **53px unused** to the right of Overdue
+  - After: buttons **158px + 132px** = 302/305px filled (3px sub-pixel rounding)
+- **Measured at 1146px viewport (sidebar collapsed):**
+  - After: buttons **184px + 158px** = 354/357px filled (3px rounding)
+- **Files changed:** `frontend/src/app/cases/search-filter-toolbar/search-filter-toolbar.component.scss`.
+- **Result:** Build passes (0 errors). The AI Predicted and Overdue buttons now stretch to consume all remaining width in the `.filters` container at viewports ≤1199px. Committed and pushed as `22bf8be`.
+
 ## [Phase 25l — Full-Width Toolbar Layout + Distinguishable Button Borders] (2026-07-28)
 **Status:** ✅ COMPLETE (build verified)
 **What changed:**
