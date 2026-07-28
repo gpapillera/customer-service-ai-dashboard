@@ -2,6 +2,19 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 25l — Full-Width Toolbar Layout + Distinguishable Button Borders] (2026-07-28)
+**Status:** ✅ COMPLETE (build verified)
+**What changed:**
+- **CSS variable added:** `--cs-border-strong` in both themes — `rgba(0,0,0,0.12)` in light, `rgba(255,255,255,0.18)` in dark — for visible but subtle outlines that work in both modes.
+- **Full-width toolbar:** Search bar now uses `flex: 3 1 320px` (~75% width); the AI Predicted + Overdue toggle buttons fill the remaining space via `flex: 1 1 auto`.
+- **New 1199px breakpoint:** Toggle buttons switch to `flex: 1 1 auto` on narrower viewports so they grow rather than staying compact.
+- **Stacking breakpoint lowered:** From 900px → 800px — the search and filters stack vertically later than before.
+- **640px mobile breakpoint cleaned:** Removed legacy `.f-select` references; `.tb-toggle` now inherits `flex: 1 1 auto` from the same selector as `.f-search`.
+- **Stronger button borders:** `.tb-toggle` border changed from `var(--cs-border)` to `var(--cs-border-strong)`.
+- **Accessibility:** Added `:focus-visible` outline (2px accent) on toggle buttons.
+- **Files changed:** `frontend/src/styles.scss`, `frontend/src/app/cases/search-filter-toolbar/search-filter-toolbar.component.scss`.
+- **Result:** Build passes (0 errors). Toolbar components consume full width responsively. Toggle button borders are distinguishable in both light and dark themes. Committed and pushed as `a7b3fe9`.
+
 ## [Phase 25j — Move Status/Priority/Category Filters from Toolbar to Table Headers] (2026-07-28)
 **Status:** ✅ COMPLETE (build verified, browser-tested)
 **What changed:**
