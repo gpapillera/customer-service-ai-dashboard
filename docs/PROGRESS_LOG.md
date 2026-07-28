@@ -2,6 +2,16 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 25t — Agent Card: Breathing Room Above Divider Line] (2026-07-28)
+**Status:** ✅ COMPLETE (build verified, browser-tested)
+
+### Changes made
+
+**`agent-list.component.scss`**
+- Added `margin-bottom: 10px` to `.agent-top` — the avatar + name/email/ID section now has breathing room before the divider line and "X open cases" row below.
+
+---
+
 ## [Phase 25s — Agent Card/Panel: Pill Next to Name + Tighter Pill Padding + Overlay Line Spacing] (2026-07-28)
 **Status:** ✅ COMPLETE (build verified, browser-tested)
 
