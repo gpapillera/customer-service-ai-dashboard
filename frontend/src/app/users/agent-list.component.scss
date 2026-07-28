@@ -166,6 +166,17 @@
 .agent-name {
   font-weight: 600;
   font-size: 15px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.agent-pill {
+  font-size: 0.68rem !important;
+  line-height: 1.2 !important;
+  padding-top: 0.1rem !important;
+  padding-bottom: 0.1rem !important;
 }
 
 .agent-email {
@@ -187,10 +198,6 @@
 }
 [data-theme="dark"] .agent-display-id {
   background: var(--cs-bg-raised, #1e293b);
-}
-
-.agent-meta {
-  margin: 12px 0;
 }
 
 .open-count {
@@ -269,8 +276,14 @@
   .avatar { width: 36px; height: 36px; }
   .overlay-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
   .agent-name { font-weight: 600; font-size: 1rem; margin: 0; }
-  .agent-role { margin-top: 2px; }
   .overlay-did { margin-top: 4px; }
+}
+
+/* Overlay info block — adds breathing room between name and display ID. */
+.overlay-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .close-btn {

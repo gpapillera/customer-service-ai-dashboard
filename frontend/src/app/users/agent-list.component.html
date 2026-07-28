@@ -40,15 +40,12 @@
             <div class="agent-top">
               <div class="avatar letter-avatar" [style.background]="avatarColor(agent.fullName)">{{ agent.fullName[0].toUpperCase() }}</div>
               <div class="agent-id">
-                <div class="agent-name">{{ agent.fullName }}</div>
+                <div class="agent-name">{{ agent.fullName }} <span class="cs-pill status-resolved agent-pill">Agent</span></div>
                 <div class="agent-email">{{ agent.email }}</div>
                 @if (agent.agentDisplayId) {
                   <div class="agent-display-id">{{ agent.agentDisplayId }}</div>
                 }
               </div>
-            </div>
-            <div class="agent-meta">
-              <span class="cs-pill status-resolved">Agent</span>
             </div>
             <div class="open-count">
               <span class="count">{{ agent.openCaseCount }}</span>
@@ -70,9 +67,8 @@
     <header class="overlay-head">
       <div class="overlay-title">
         <div class="avatar letter-avatar" [style.background]="avatarColor(agent.fullName)">{{ agent.fullName[0].toUpperCase() }}</div>
-        <div>
-          <div class="agent-name">{{ agent.fullName }}</div>
-          <div class="agent-role"><span class="cs-pill status-resolved">Agent</span></div>
+        <div class="overlay-info">
+          <div class="agent-name">{{ agent.fullName }} <span class="cs-pill status-resolved agent-pill">Agent</span></div>
           @if (agent.agentDisplayId) {
             <div class="agent-display-id overlay-did">{{ agent.agentDisplayId }}</div>
           }

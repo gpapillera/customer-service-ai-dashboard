@@ -2,6 +2,34 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 25s — Agent Card/Panel: Pill Next to Name + Tighter Pill Padding + Overlay Line Spacing] (2026-07-28)
+**Status:** ✅ COMPLETE (build verified, browser-tested)
+
+### Changes made
+
+**`agent-list.component.html`** — 3 changes:
+1. **Card: pill moved next to name** — The `Agent` pill was in its own `.agent-meta` row below the avatar area. It now sits inline after `{{ agent.fullName }}` (e.g. "Grace Agent [Agent]").
+2. **Overlay: pill moved next to name** — Same treatment: removed the separate `.agent-role` div and placed the pill inline after the name. Wrapped in `.overlay-info` for proper gap spacing.
+3. **Removed `.agent-meta` / `.agent-role` containers** — Unused wrappers eliminated.
+
+**`agent-list.component.scss`** — 4 changes:
+1. **`.agent-name`** — Changed to `display: flex; align-items: center; flex-wrap: wrap; gap: 6px` so the pill sits beside the name on the same line and wraps gracefully if the name is long.
+2. **`.agent-pill`** — New class with smaller font (`0.68rem`), tighter line-height (`1.2`), and reduced vertical padding (`0.1rem`). Applied to the `Agent` pill only (overrides the global `.cs-pill` padding).
+3. **`.overlay-title`** — Removed `.agent-role` rule.
+4. **`.overlay-info`** — New flex-column container with `gap: 6px` to add breathing room between the name row and the display ID below.
+
+**`styles.scss`** — 1 change:
+1. **`.cs-pill` padding** — Reduced from `0.25rem 0.7rem` to `0.2rem 0.45rem`, making the pill outline less bulky globally.
+
+### Before vs After
+| Aspect | Before | After |
+|--------|--------|-------|
+| Pill position | Below name in its own row | Inline next to name |
+| Pill padding | `0.25rem 0.7rem` (bulky) | `0.2rem 0.45rem` (tighter) |
+| Overlay name→ID spacing | Tight, no gap | `gap: 6px` via `.overlay-info` |
+
+---
+
 ## [Phase 25r — Agent Cards: Letter Avatars + Search by Agent ID] (2026-07-28)
 **Status:** ✅ COMPLETE (build verified, browser-tested)
 
