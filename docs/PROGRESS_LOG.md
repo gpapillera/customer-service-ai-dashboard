@@ -2,6 +2,19 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 25m — Fix Toolbar Host Containment + Tighten Padding] (2026-07-28)
+**Status:** ✅ COMPLETE (build verified, browser-tested)
+**What changed:**
+- **Root cause identified:** Angular component host elements default to `display: inline` with 0px computed width. The `.toolbar` child had `width: 100%` but it referenced the wrong containing block (skipping the inline host), causing under-fill gaps at certain viewport sizes — especially during sidebar state transitions.
+- **Fix — host containment:** Added `:host { display: block; width: 100%; }` in `search-filter-toolbar.component.scss` so the toolbar's `width: 100%` resolves against the host as its containing block.
+- **Tightened padding:** Reduced toolbar horizontal padding from `20px` to `16px` (and mobile padding from `16px` to `12px`) to shrink the visible gap between the toolbar border and the inner components.
+- **Verified at all sidebar states:**
+  - Sidebar open: host width 822px = content inner 822px ✓
+  - Sidebar collapsed (rail): host width 1030px = content inner 1030px ✓
+  - Toolbar inner space fully consumed by f-search + filters + 12px gap at both states.
+- **Files changed:** `frontend/src/app/cases/search-filter-toolbar/search-filter-toolbar.component.scss`.
+- **Result:** Build passes (0 errors). Toolbar now properly fills its parent container at every breakpoint. Committed and pushed as `872ffa2`.
+
 ## [Phase 25l — Full-Width Toolbar Layout + Distinguishable Button Borders] (2026-07-28)
 **Status:** ✅ COMPLETE (build verified)
 **What changed:**
