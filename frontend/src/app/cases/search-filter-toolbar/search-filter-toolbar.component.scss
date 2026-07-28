@@ -48,13 +48,6 @@ $placeholder-text: var(--cs-text-muted, #64748b);
   gap: 12px;
 }
 
-// At narrower viewports the toggle buttons stretch to fill space.
-@media (max-width: 1199px) {
-  .tb-toggle {
-    flex: 1 1 auto;
-  }
-}
-
 @media (max-width: 800px) {
   .toolbar .f-search {
     flex: 1 1 100%;
@@ -150,8 +143,7 @@ $placeholder-text: var(--cs-text-muted, #64748b);
     gap: 12px;
     padding: 12px;
   }
-  .f-search,
-  .tb-toggle {
+  .f-search {
     flex: 1 1 auto;
     width: 100%;
   }
@@ -212,6 +204,20 @@ $placeholder-text: var(--cs-text-muted, #64748b);
 }
 .tb-toggle.overdue-toggle.active cs-icon {
   color: var(--cs-warning-strong);
+}
+
+// At narrower viewports the toggle buttons stretch to fill available space.
+@media (max-width: 1199px) {
+  .tb-toggle {
+    flex: 1 1 auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .tb-toggle {
+    flex: 1 1 auto;
+    width: 100%;
+  }
 }
 .tb-toggle.overdue-toggle.active:hover {
   border-color: var(--cs-warning-strong);
