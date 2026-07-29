@@ -2,6 +2,96 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 25v — Date Popup Auto-Hide + Theme-Aware X Icon] (2026-07-29)
+**Status:** ✅ COMPLETE (build verified)
+
+### Changes made
+
+**`conversations-list.component.ts`** (Agent Messages)
+- Added `showDatePopup` computed signal — returns `true` when the selected preset needs date input that hasn't been filled yet, `false` once the required dates are provided.
+- `custom` preset: popup visible until both From **and** To are set.
+- `beforeCustomDate` / `afterCustomDate`: popup visible until the single date is set.
+- All other presets (`all`, `today`, `7days`, `30days`): popup always hidden.
+
+**`admin-conversations.component.ts`** (Admin Conversations)
+- Same `showDatePopup` computed signal with identical logic.
+
+**`conversations-list.component.html`** (Agent Messages)
+- Replaced `@if (dateFilterPreset() === 'custom' || ...)` with `@if (showDatePopup())`.
+- X button icon changed from `name="x"` → `name="close"` to match `ICON_MAP` (Lucide X icon).
+
+**`admin-conversations.component.html`** (Admin Conversations)
+- Same `@if (showDatePopup())` replacement.
+- Same X icon fix (`name="close"`).
+
+**`conversations-list.component.scss`** (Agent Messages)
+- `.clear-filter-btn` updated to use theme-aware `--cs-*` CSS variables for both light/dark modes.
+
+**`admin-conversations.component.scss`** (Admin Conversations)
+- Same theme-aware CSS variables for `.clear-filter-btn`.
+
+### Key behaviors
+- **Auto-hide popup:** After selecting a preset that requires dates (`custom`, `before date`, `after date`), the date popup automatically closes once the user fills in the required input fields.
+- **Preset switch:** Switching to a non-date preset (`All time`, `Today`, etc.) immediately hides the popup.
+- **X button visible:** The close icon now renders correctly (was silently empty due to wrong name).
+- **Theme-aware:** The X button adapts to light/dark themes via CSS variables.
+
+---
+
+## [Phase 25u — Conversation Filters: Date Preset Dropdown + Agent Filter + Per-Filter Clear Buttons] (2026-07-28)
+**Status:** ✅ COMPLETE (build verified)
+
+### Changes made
+
+**`conversations-list.component.ts`** (Agent Messages)
+- Replaced dual From/To date inputs with a single `dateFilterPreset` signal (`signal<DateFilterPreset>('all')`).
+- 7 preset options: `all`, `today`, `7days`, `30days`, `custom`, `beforeCustomDate`, `afterCustomDate`.
+- Added `customFrom`, `customTo`, `beforeDate`, `afterDate` signals for the custom/before/after input fields.
+- Added `hasActiveFilter` computed — true when any filter is non-default.
+- Updated `filteredConversations` computed to handle all 7 presets with date comparisons.
+- Added `formatDatePreset()` helper for the dropdown display label.
+- Added `resetDateFilter()` and `resetAgentFilter()` helpers.
+- Added `MatSelectModule` to component imports.
+
+**`admin-conversations.component.ts`** (Admin Conversations)
+- Same `dateFilterPreset` signal and 7 preset options as the agent version.
+- Added `hasActiveFilter` computed (combines date + agent filters).
+- Same `formatDatePreset()`, `resetDateFilter()`, `resetAgentFilter()` helpers.
+- Updated `filteredConversations` for all 7 presets.
+
+**`conversations-list.component.html`** (Agent Messages)
+- Wrapped the date select in `<div class="filter-wrapper" [class.active]="...">` with a clear X button that shows when non-default.
+- `<mat-select>` with 7 `<mat-option>` elements.
+- Custom range, before-date, and after-date sections appear conditionally based on the selected preset.
+
+**`admin-conversations.component.html`** (Admin Conversations)
+- Same date filter in its own `.filter-wrapper` with clear X.
+- Agent filter in a separate `.filter-wrapper` with its own clear X button.
+
+**`conversations-list.component.scss`** (Agent Messages)
+- `.filter-group` flex container with `flex-wrap` and `gap: 0.75rem`.
+- `.filter-wrapper` with `display: flex; align-items: center; gap: 6px; border-radius: var(--cs-radius); transition: box-shadow var(--cs-ease);`.
+- `.filter-wrapper.active` — `box-shadow: 0 0 0 1.5px var(--cs-accent)` outline indicator.
+- `.clear-filter-btn` — ghost button with `font-size: 1.1rem`, accent color on hover.
+- `.date-preset-field` at `min-width: 170px; max-width: 220px`.
+- `.custom-range` section with `display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap`.
+- Responsive `@media (max-width: 768px)` — date field becomes `max-width: 100%`.
+
+**`admin-conversations.component.scss`** (Admin Conversations)
+- Same `.filter-wrapper`, `.filter-wrapper.active`, `.clear-filter-btn`, `.date-preset-field` styles.
+- Additional `.agent-field` at `min-width: 170px; max-width: 220px`.
+- `.prefix-icon` with reduced margin (`0 0.5rem 0 0`).
+- `::ng-deep` overrides for all field types (`.date-preset-field`, `.date-field`, `.agent-field`).
+- Responsive `@media (max-width: 768px)` — fields stack full-width.
+
+### Key behaviors
+- **Per-filter clear**: Each `.filter-wrapper` has its own X button — clicking it resets only that filter.
+- **Active outline**: A filter wrapper shows an accent-colored `box-shadow` ring when its filter is non-default.
+- **Preset dropdown**: Single `<mat-select>` replaces the broken dual date inputs. Options include `custom` (From/To), `beforeCustomDate` (Before date), and `afterCustomDate` (After date) with inline inputs.
+- **Responsive**: At ≤768px, filter fields stack full-width.
+
+---
+
 ## [Phase 25t — Agent Card: Breathing Room Above Divider Line] (2026-07-28)
 **Status:** ✅ COMPLETE (build verified, browser-tested)
 

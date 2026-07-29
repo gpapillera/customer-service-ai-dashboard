@@ -181,13 +181,15 @@
   --mat-form-field-container-text-size: 16px;
 }
 
-.date-filters {
+.filter-group {
   display: flex;
+  align-items: center;
   gap: 12px;
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
 }
 
-.date-field {
+.date-preset-field {
   width: 160px;
   height: 48px;
   margin: 0;
@@ -198,8 +200,8 @@
   --mat-form-field-container-text-size: 16px;
 }
 
-/* Responsive: stack date fields on narrow screens */
-@media (max-width: 640px) {
+/* Responsive: stack filters below search on narrow screens */
+@media (max-width: 768px) {
   .search-toolbar {
     flex-direction: column;
     align-items: stretch;
@@ -207,11 +209,11 @@
   .search-field {
     flex: 1 1 auto;
   }
-  .date-filters {
-    flex-direction: column;
+  .filter-group {
     width: 100%;
+    justify-content: flex-start;
   }
-  .date-field {
+  .date-preset-field {
     width: 100%;
   }
 }
@@ -258,40 +260,151 @@
   color: var(--cs-text-muted);
   width: 20px;
   height: 20px;
-  margin-left: 0.85rem;
-  margin-right: 0.75rem;
+  margin-left: 0.5rem;
+  margin-right: 0.5rem;
 }
 
-/* ── Date fields share search-field styling ── */
+/* ── Date preset field styling ── */
 
-.date-field ::ng-deep .mat-mdc-text-field-wrapper {
+.date-preset-field ::ng-deep .mat-mdc-text-field-wrapper {
   height: 48px;
   border: 1px solid #dce6ef !important;
   border-radius: 8px !important;
   overflow: hidden;
 }
-.date-field ::ng-deep .mat-mdc-form-field-flex {
+.date-preset-field ::ng-deep .mat-mdc-form-field-flex {
   height: 48px;
   align-items: center;
 }
-.date-field ::ng-deep .mdc-notched-outline {
+.date-preset-field ::ng-deep .mdc-notched-outline {
   display: none !important;
 }
-.date-field ::ng-deep .mat-mdc-form-field-infix {
-  padding: 0 0.75rem !important;
+.date-preset-field ::ng-deep .mat-mdc-form-field-infix {
+  padding: 0 0.5rem !important;
   display: flex;
   align-items: center;
   min-height: 0;
 }
-.date-field ::ng-deep input.mat-mdc-input-element {
+.date-preset-field ::ng-deep .mat-mdc-select-value-text {
   font-size: 16px !important;
-  font-weight: 400;
+  font-weight: 600;
+  color: var(--cs-text, #0f172a) !important;
+}
+.date-preset-field ::ng-deep .mat-mdc-select-placeholder {
   color: var(--cs-text-muted) !important;
 }
-.date-field ::ng-deep input.mat-mdc-input-element::placeholder {
-  color: var(--cs-text-muted) !important;
-  opacity: 1 !important;
-}
-.date-field ::ng-deep .mat-mdc-form-field-subscript-wrapper {
+.date-preset-field ::ng-deep .mat-mdc-form-field-subscript-wrapper {
   display: none;
+}
+
+/* ── Date popup (shown for custom/before/after presets) ── */
+
+.date-popup {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 50;
+  min-width: 240px;
+}
+
+.date-popup-arrow {
+  position: absolute;
+  top: -5px;
+  left: 20px;
+  width: 10px;
+  height: 10px;
+  background: var(--cs-surface);
+  border: 1px solid var(--cs-border);
+  border-right: none;
+  border-bottom: none;
+  transform: rotate(45deg);
+  z-index: 1;
+}
+
+.date-popup-body {
+  background: var(--cs-surface);
+  border: 1px solid var(--cs-border);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
+  z-index: 2;
+}
+
+.date-popup-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--cs-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.date-popup-input {
+  width: 100%;
+  height: 40px;
+  padding: 0 0.6rem;
+  border: 1px solid var(--cs-border);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--cs-text);
+  background: var(--cs-bg);
+  outline: none;
+  transition: border-color 0.18s ease;
+  box-sizing: border-box;
+  margin-bottom: 4px;
+}
+
+.date-popup-input:focus {
+  border-color: var(--cs-accent);
+}
+
+/* ── Filter wrapper (per-filter container with X button) ── */
+
+.filter-wrapper {
+  position: relative;
+  display: inline-flex;
+}
+
+.clear-filter-btn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--cs-border-strong);
+  background: var(--cs-surface);
+  color: var(--cs-text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  transition: transform 0.15s ease, background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+  padding: 0;
+}
+
+.clear-filter-btn:hover {
+  transform: scale(1.2);
+  background: var(--cs-danger-bg);
+  color: var(--cs-danger);
+  border-color: var(--cs-danger);
+  box-shadow: 0 3px 10px rgba(239, 68, 68, 0.15);
+}
+
+.clear-filter-btn cs-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Active filter outline — accent border on the text-field wrapper */
+.filter-wrapper.active ::ng-deep .mat-mdc-text-field-wrapper {
+  border-color: var(--cs-accent) !important;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
 }

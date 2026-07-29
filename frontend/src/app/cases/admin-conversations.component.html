@@ -22,42 +22,83 @@
           (ngModelChange)="searchTerm.set($event)"
         />
       </mat-form-field>
-      <div class="date-filters">
-        <mat-form-field appearance="outline" class="date-field">
-          <cs-icon name="calendar" matPrefix class="prefix-icon"></cs-icon>
-          <input
-            matInput
-            type="date"
-            placeholder="From"
-            aria-label="From date"
-            [ngModel]="dateFrom()"
-            (ngModelChange)="dateFrom.set($event)"
-          />
-        </mat-form-field>
-        <mat-form-field appearance="outline" class="date-field">
-          <cs-icon name="calendar" matPrefix class="prefix-icon"></cs-icon>
-          <input
-            matInput
-            type="date"
-            placeholder="To"
-            aria-label="To date"
-            [ngModel]="dateTo()"
-            (ngModelChange)="dateTo.set($event)"
-          />
-        </mat-form-field>
-        <mat-form-field appearance="outline" class="date-field agent-field">
-          <mat-select
-            [ngModel]="agentFilter()"
-            (ngModelChange)="agentFilter.set($event ?? '')"
-            placeholder="Agent"
-            aria-label="Filter by agent"
-          >
-            <mat-option value="">All Agents</mat-option>
-            @for (name of agentOptions(); track name) {
-              <mat-option [value]="name">{{ name }}</mat-option>
-            }
-          </mat-select>
-        </mat-form-field>
+      <div class="filter-group">
+        <div class="filter-wrapper" [class.active]="dateFilterPreset() !== 'all'">
+          <mat-form-field appearance="outline" class="date-preset-field">
+            <mat-select
+              [ngModel]="dateFilterPreset()"
+              (ngModelChange)="dateFilterPreset.set($event)"
+              placeholder="Date"
+            >
+              <mat-option value="all">All time</mat-option>
+              <mat-option value="today">Today</mat-option>
+              <mat-option value="7days">Last 7 days</mat-option>
+              <mat-option value="30days">Last 30 days</mat-option>
+              <mat-option value="custom">Custom range</mat-option>
+              <mat-option value="beforeCustomDate">Before date…</mat-option>
+              <mat-option value="afterCustomDate">After date…</mat-option>
+            </mat-select>
+          </mat-form-field>
+          @if (dateFilterPreset() !== 'all') {
+            <button type="button" class="clear-filter-btn" (click)="resetDateFilter()" aria-label="Clear date filter">
+              <cs-icon name="close" [size]="12"></cs-icon>
+            </button>
+          }
+          @if (showDatePopup()) {
+            <div class="date-popup">
+              <div class="date-popup-arrow"></div>
+              <div class="date-popup-body">
+                @if (dateFilterPreset() === 'custom') {
+                  <label class="date-popup-label">From</label>
+                  <input type="date" class="date-popup-input"
+                    [ngModel]="customDateFrom()"
+                    (ngModelChange)="customDateFrom.set($event)"
+                    aria-label="From date" />
+                  <label class="date-popup-label">To</label>
+                  <input type="date" class="date-popup-input"
+                    [ngModel]="customDateTo()"
+                    (ngModelChange)="customDateTo.set($event)"
+                    aria-label="To date" />
+                }
+                @if (dateFilterPreset() === 'beforeCustomDate') {
+                  <label class="date-popup-label">Before</label>
+                  <input type="date" class="date-popup-input"
+                    [ngModel]="customDateSingle()"
+                    (ngModelChange)="customDateSingle.set($event)"
+                    aria-label="Before date" />
+                }
+                @if (dateFilterPreset() === 'afterCustomDate') {
+                  <label class="date-popup-label">After</label>
+                  <input type="date" class="date-popup-input"
+                    [ngModel]="customDateSingle()"
+                    (ngModelChange)="customDateSingle.set($event)"
+                    aria-label="After date" />
+                }
+              </div>
+            </div>
+          }
+        </div>
+
+        <div class="filter-wrapper" [class.active]="agentFilter() !== ''">
+          <mat-form-field appearance="outline" class="date-field agent-field">
+            <mat-select
+              [ngModel]="agentFilter()"
+              (ngModelChange)="agentFilter.set($event ?? '')"
+              placeholder="Agent"
+              aria-label="Filter by agent"
+            >
+              <mat-option value="">All Agents</mat-option>
+              @for (name of agentOptions(); track name) {
+                <mat-option [value]="name">{{ name }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+          @if (agentFilter() !== '') {
+            <button type="button" class="clear-filter-btn" (click)="resetAgentFilter()" aria-label="Clear agent filter">
+              <cs-icon name="close" [size]="12"></cs-icon>
+            </button>
+          }
+        </div>
       </div>
     </div>
   </div>

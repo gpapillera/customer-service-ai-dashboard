@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
+import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
@@ -51,8 +52,12 @@ export class AdminConversationsComponent implements OnInit, OnDestroy {
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly searchTerm = signal('');
-  readonly dateFrom = signal('');
-  readonly dateTo = signal('');
+  readonly dateFilterPreset = signal<'all' | 'today' | '7days' | '30days' | 'custom' | 'beforeCustomDate' | 'afterCustomDate'>('all');
+  /** Custom date range inputs — only used when preset is 'custom'. */
+  readonly customDateFrom = signal('');
+  readonly customDateTo = signal('');
+  /** Single date input — only used when preset is 'beforeCustomDate' or 'afterCustomDate'. */
+  readonly customDateSingle = signal('');
 
   /** All unique agent names from the conversations list. */
   readonly agentOptions = computed(() => {
@@ -65,6 +70,24 @@ export class AdminConversationsComponent implements OnInit, OnDestroy {
 
   /** Selected agent filter (empty = all). */
   readonly agentFilter = signal('');
+
+  /** True when any non-default filter is active. */
+  readonly hasActiveFilter = computed(() => this.dateFilterPreset() !== 'all' || this.agentFilter() !== '');
+
+  /**
+   * Whether the date popup should be visible.
+   * Auto-hides once the required date inputs are filled.
+   */
+  readonly showDatePopup = computed(() => {
+    const preset = this.dateFilterPreset();
+    if (preset === 'custom') {
+      return !this.customDateFrom() || !this.customDateTo();
+    }
+    if (preset === 'beforeCustomDate' || preset === 'afterCustomDate') {
+      return !this.customDateSingle();
+    }
+    return false;
+  });
 
   /** Conversations filtered by subject, customer name, date range, and agent. */
   readonly filteredConversations = computed(() => {
@@ -81,18 +104,49 @@ export class AdminConversationsComponent implements OnInit, OnDestroy {
     if (agent) {
       list = list.filter((c) => c.assignedAgentName === agent);
     }
-    const from = this.dateFrom();
-    if (from) {
-      const fromMs = new Date(from).getTime();
-      if (!isNaN(fromMs)) {
-        list = list.filter((c) => new Date(c.lastCommentAtUtc).getTime() >= fromMs);
-      }
-    }
-    const to = this.dateTo();
-    if (to) {
-      const toMs = new Date(to).getTime();
-      if (!isNaN(toMs)) {
-        list = list.filter((c) => new Date(c.lastCommentAtUtc).getTime() <= toMs + 86_400_000);
+    const preset = this.dateFilterPreset();
+    if (preset !== 'all') {
+      const now = new Date();
+      if (preset === 'today') {
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        list = list.filter((c) => new Date(c.lastCommentAtUtc).getTime() >= todayStart);
+      } else if (preset === '7days') {
+        const cutoff = now.getTime() - 7 * 24 * 60 * 60 * 1000;
+        list = list.filter((c) => new Date(c.lastCommentAtUtc).getTime() >= cutoff);
+      } else if (preset === '30days') {
+        const cutoff = now.getTime() - 30 * 24 * 60 * 60 * 1000;
+        list = list.filter((c) => new Date(c.lastCommentAtUtc).getTime() >= cutoff);
+      } else if (preset === 'custom') {
+        const from = this.customDateFrom();
+        if (from) {
+          const fromMs = new Date(from).getTime();
+          if (!isNaN(fromMs)) {
+            list = list.filter((c) => new Date(c.lastCommentAtUtc).getTime() >= fromMs);
+          }
+        }
+        const to = this.customDateTo();
+        if (to) {
+          const toMs = new Date(to).getTime();
+          if (!isNaN(toMs)) {
+            list = list.filter((c) => new Date(c.lastCommentAtUtc).getTime() <= toMs + 86_400_000);
+          }
+        }
+      } else if (preset === 'beforeCustomDate') {
+        const single = this.customDateSingle();
+        if (single) {
+          const singleMs = new Date(single).getTime();
+          if (!isNaN(singleMs)) {
+            list = list.filter((c) => new Date(c.lastCommentAtUtc).getTime() < singleMs);
+          }
+        }
+      } else if (preset === 'afterCustomDate') {
+        const single = this.customDateSingle();
+        if (single) {
+          const singleMs = new Date(single).getTime();
+          if (!isNaN(singleMs)) {
+            list = list.filter((c) => new Date(c.lastCommentAtUtc).getTime() >= singleMs);
+          }
+        }
       }
     }
     return list;
@@ -139,6 +193,33 @@ export class AdminConversationsComponent implements OnInit, OnDestroy {
     this.router.navigate(['/cases', c.caseId], {
       queryParams: { from: 'conversations', scrollToComment: c.lastCommentId },
     });
+  }
+
+  /** Human-readable label for a date preset key. */
+  formatDatePreset(preset: string): string {
+    const labels: Record<string, string> = {
+      all: 'All time',
+      today: 'Today',
+      '7days': 'Last 7 days',
+      '30days': 'Last 30 days',
+      custom: 'Custom range',
+      beforeCustomDate: 'Before date…',
+      afterCustomDate: 'After date…',
+    };
+    return labels[preset] ?? preset;
+  }
+
+  /** Resets date filter to defaults. */
+  resetDateFilter(): void {
+    this.dateFilterPreset.set('all');
+    this.customDateFrom.set('');
+    this.customDateTo.set('');
+    this.customDateSingle.set('');
+  }
+
+  /** Resets agent filter to defaults. */
+  resetAgentFilter(): void {
+    this.agentFilter.set('');
   }
 
   formatDate(iso: string): string {
