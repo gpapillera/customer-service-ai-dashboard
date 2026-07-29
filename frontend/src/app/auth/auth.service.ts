@@ -80,7 +80,17 @@ export class AuthService {
 
   /** Updates the signed-in staff member's own name (email read-only). */
   updateProfile(dto: UpdateStaffProfile): Observable<void> {
-    return this.http.put<void>('/api/users/me', dto);
+    return this.http.put<void>('/api/users/me', dto).pipe(
+      tap(() => {
+        const current = this.currentUser();
+        if (current) {
+          const updated: LoginResponse = { ...current, fullName: dto.fullName };
+          sessionStorage.setItem(USER_KEY, JSON.stringify(updated));
+          this._currentUser.next(updated);
+          this.currentUser.set(updated);
+        }
+      }),
+    );
   }
 
   /** Requests a password-reset email (JWT-scoped). */

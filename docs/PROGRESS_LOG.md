@@ -2,6 +2,28 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 25w — Sidenav Username Auto-Update After Profile Edit] (2026-07-29)
+**Status:** ✅ COMPLETE (build verified)
+
+### Problem
+After a staff member edits their display name via the account slide-in panel, the username in the sidenav (top-left avatar/name area) stayed stale until a full page reload.
+
+### Root cause
+`AuthService.updateProfile()` only sent `PUT /api/users/me` — it never updated the local `currentUser` signal, the `_currentUser` BehaviorSubject, or `sessionStorage`. The sidenav reads `auth.currentUser()` reactively, so it never saw the new name.
+
+### Changes made
+
+**`auth.service.ts`**
+- `updateProfile()` now pipes the HTTP PUT with a `tap()` that merges the new `fullName` into the existing `currentUser` signal, the `_currentUser` BehaviorSubject, and `sessionStorage` (`cs_user` key).
+
+### Key behaviors
+- Editing name via the account panel → sidenav username updates instantly.
+- No page reload needed.
+- Works for both Admin and Agent roles.
+- All other consumers of `auth.currentUser()` also benefit automatically.
+
+---
+
 ## [Phase 25v — Date Popup Auto-Hide + Theme-Aware X Icon] (2026-07-29)
 **Status:** ✅ COMPLETE (build verified)
 
