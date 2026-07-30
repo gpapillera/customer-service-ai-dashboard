@@ -23,11 +23,13 @@
         />
       </mat-form-field>
       <div class="filter-group">
-        <div class="filter-wrapper" [class.active]="dateFilterPreset() !== 'all'">
+        <div class="filter-wrapper" [class.active]="dateFilterPreset() !== 'all'" (click)="onFilterWrapperClick()">
           <mat-form-field appearance="outline" class="date-preset-field">
             <mat-select
+              #dateSelectRef
               [ngModel]="dateFilterPreset()"
-              (ngModelChange)="dateFilterPreset.set($event)"
+              (ngModelChange)="onDatePresetChange($event)"
+              (openedChange)="onDateSelectOpenedChange($event)"
               placeholder="Date"
             >
               <mat-option value="all">All time</mat-option>
@@ -37,6 +39,8 @@
               <mat-option value="custom">Custom range</mat-option>
               <mat-option value="beforeCustomDate">Before date…</mat-option>
               <mat-option value="afterCustomDate">After date…</mat-option>
+              <mat-option value="onOrBeforeCustomDate">On or before…</mat-option>
+              <mat-option value="onOrAfterCustomDate">On or after…</mat-option>
             </mat-select>
           </mat-form-field>
           @if (dateFilterPreset() !== 'all') {
@@ -45,7 +49,7 @@
             </button>
           }
           @if (showDatePopup()) {
-            <div class="date-popup">
+            <div class="date-popup" [style.top]="datePopupTop()" [style.left]="datePopupLeft()" (click)="onDatePopupClick($event)">
               <div class="date-popup-arrow"></div>
               <div class="date-popup-body">
                 @if (dateFilterPreset() === 'custom') {
@@ -74,8 +78,40 @@
                     (ngModelChange)="customDateSingle.set($event)"
                     aria-label="After date" />
                 }
+                @if (dateFilterPreset() === 'onOrBeforeCustomDate') {
+                  <label class="date-popup-label">On or before</label>
+                  <input type="date" class="date-popup-input"
+                    [ngModel]="customDateSingle()"
+                    (ngModelChange)="customDateSingle.set($event)"
+                    aria-label="On or before date" />
+                }
+                @if (dateFilterPreset() === 'onOrAfterCustomDate') {
+                  <label class="date-popup-label">On or after</label>
+                  <input type="date" class="date-popup-input"
+                    [ngModel]="customDateSingle()"
+                    (ngModelChange)="customDateSingle.set($event)"
+                    aria-label="On or after date" />
+                }
               </div>
             </div>
+          }
+        </div>
+
+        <div class="filter-wrapper" [class.active]="unreadOnly()">
+          <button
+            type="button"
+            class="unread-filter-btn"
+            [class.active]="unreadOnly()"
+            (click)="toggleUnreadFilter()"
+            title="Show unread only"
+            aria-label="Filter unread conversations"
+          >
+            <cs-icon name="mail"></cs-icon>
+          </button>
+          @if (unreadOnly()) {
+            <button type="button" class="clear-filter-btn" (click)="resetUnreadFilter()" aria-label="Clear unread filter">
+              <cs-icon name="close" [size]="12"></cs-icon>
+            </button>
           }
         </div>
       </div>
@@ -122,6 +158,9 @@
               </span>
             </span>
             <span class="conv-chevron"><cs-icon name="chevron_right"></cs-icon></span>
+            @if (c.unreadCount > 0) {
+              <span class="conv-badge">{{ c.unreadCount > 9 ? '9+' : c.unreadCount }}</span>
+            }
           </button>
         </li>
       }

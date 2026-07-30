@@ -2,6 +2,229 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 25aa — Date popup interaction fix] (2026-07-30)
+**Status:** ✅ COMPLETE (build verified)
+
+### Changes made
+- Wired the fixed-position date popup to the computed top/left coordinates in both conversations UIs.
+- Kept the popup open when the user clicks into its date inputs by closing the active mat-select panel first.
+- Verified the frontend build still succeeds after the interaction fix.
+
+## [Phase 25z — Date Filter Presets: "On or before…" / "On or after…"] (2026-07-30)
+**Status:** ✅ COMPLETE (build + browser verified)
+
+### Changes made
+
+**`admin-conversations.component.ts`** and **`conversations-list.component.ts`** (both TS files)
+- Added `'onOrBeforeCustomDate' | 'onOrAfterCustomDate'` to the `dateFilterPreset` signal union type.
+- Added filtering logic in `filteredConversations` computed:
+  - `onOrBeforeCustomDate`: `lastCommentAtUtc <= singleMs + 86_400_000` (inclusive — end of that day)
+  - `onOrAfterCustomDate`: `lastCommentAtUtc >= singleMs` (inclusive — start of that day)
+- Added labels `"On or before…"` and `"On or after…"` to `formatDatePreset()`.
+- Updated `onDatePresetChange()` and `onFilterWrapperClick()` to show the popup for the new presets.
+
+**`admin-conversations.component.html`** and **`conversations-list.component.html`** (both HTML files)
+- Added two new `<mat-option>` elements in the date `<mat-select>`:
+  - `<mat-option value="onOrBeforeCustomDate">On or before…</mat-option>`
+  - `<mat-option value="onOrAfterCustomDate">On or after…</mat-option>`
+- Added popup template sections for each new preset with labels "On or before" / "On or after" and a `<input type="date">` bound to `customDateSingle`.
+
+### Key behaviors
+- Both new presets share the existing `customDateSingle` signal (no new signals needed).
+- "On or before…" uses `<=` inclusive comparison, complementing the existing "Before date…" which uses strict `<`.
+- "On or after…" uses `>=` inclusive comparison (same as existing "After date…").
+- Same popup UX as existing before/after presets: appears to the right of the mat-select, closes on outside click.
+
+### Verified
+- Build: `npm run build` ✅
+- Admin Conversations at 360px: dropdown shows all 9 options, popup appears with correct label for each new preset ✅
+- Agent Messages at 360px: same behavior ✅
+
+## [Phase 25z — Responsive Filter Toolbar Layout] (2026-07-30)
+**Status:** ✅ COMPLETE (build verified)
+
+### Changes made
+
+**`admin-conversations.component.scss`** and **`conversations-list.component.scss`**
+- Replaced the old `@media (max-width: 768px)` column-stacking block with three responsive breakpoints using natural `flex-wrap`:
+
+| Breakpoint | Behavior |
+|---|---|
+| `max-width: 920px` | Search field becomes `width: 100%` on its own row; wrapper wraps |
+| `max-width: 640px` | Date select shrinks to 150px; agent select (admin) shrinks to 140px |
+| `max-width: 430px` | Date select shrinks to 130px; agent select (admin) shrinks to 130px; unread filter button shrinks to 40px |
+
+- No `flex-direction: column` — layout uses `flex-wrap` so items naturally flow to the next row.
+- On the smallest screens the layout produces at most **3 rows**: (1) search, (2) unread + date + agent, (3) clear button.
+- `.agent-field` width steps: `180px` → `140px` → `130px` (admin only).
+
+### Key behaviors
+- Filter toolbar adapts gracefully from full desktop down to 320px viewports.
+- No horizontal scrolling or overflow.
+- Three rows maximum on smallest screens.
+- Search always gets its own row at 920px and below for maximum typing space.
+- Date and agent selectors shrink progressively rather than wrapping individually.
+
+## [Phase 25z — Responsive Filter Toolbar (Max 2 Rows)] (2026-07-30)
+**Status:** ✅ COMPLETE (build verified)
+
+### Changes made
+
+**`admin-conversations.component.scss`** and **`conversations-list.component.scss`**
+- Replaced the three separate breakpoints (920px/640px/430px) with a single `@media (max-width: 920px)` block.
+- `.filter-group` uses `flex-wrap: nowrap` — forces the 3 filters (unread, date, agent) to stay on one row at all widths.
+- Each `.filter-wrapper` uses `flex: 1 1 auto; min-width: 0` — lets them shrink proportionally.
+- The last `.filter-wrapper` (unread button) uses `flex: 0 0 auto` — stays at its natural 48px fixed size.
+- Form fields inside use `width: 100%` to fill their flexible wrapper.
+
+### Key behaviors
+| Screen width | Rows | Layout |
+|---|---|---|
+| >920px | 1 | Search + filters all inline (unchanged) |
+| ≤920px | 2 max | Row 1: search (full-width). Row 2: all 3 filters shrink to fit on one line. |
+| Any narrow width | 2 max | Filters compress proportionally — never wrap to a third row. |
+
+## [Phase 25z — Responsive Filter Toolbar: Fix filter-group overflow at narrow widths] (2026-07-30)
+**Status:** ✅ COMPLETE (build + browser verified)
+
+### Problem
+The single-row filter group (Date + Agent + Unread on admin, Date + Unread on agent) would overflow the toolbar at narrow viewport widths (≤360px). The `.filter-group` had `flex: 1 1 100%` but its default `min-width: auto` prevented it from shrinking below the combined content width of its children (~492px for admin). This caused the toolbar to overflow horizontally.
+
+### Root cause (flexbox)
+- `.filter-group` as a flex item had `min-width: auto` (default).
+- Despite `flex-shrink: 1` and `flex-basis: 100%`, the group couldn't shrink below the minimum content width of its children.
+- The 3 wrappers (214px + 214px + 48px + gaps) totalled ~492px, forcing the toolbar beyond its 292px available width.
+
+### Fix
+Added `min-width: 0` to `.filter-group` in the `@media (max-width: 920px)` block — this allows the group to shrink below its natural content size, and the child wrappers (with `flex: 1 1 auto; min-width: 0`) distribute the reduced space proportionally.
+
+### Files changed
+**`admin-conversations.component.scss`** — `.filter-group` media-query block: added `min-width: 0`
+**`conversations-list.component.scss`** — `.filter-group` media-query block: added `min-width: 0`
+
+### Verified results at 360px viewport (admin Conversations page)
+| Element | Width | Status |
+|---|---|---|
+| Toolbar | 292px | ✅ |
+| FilterGroup | 262px | ✅ Shrinks via min-width:0 |
+| W0 (Date) | 99px | ✅ Fits, shrinks proportionally |
+| W1 (Agent) | 99px | ✅ Fits, shrinks proportionally |
+| W2 (Unread) | 48px | ✅ Fixed |
+| Date popup (Custom range) | — | ✅ Visible and functional |
+
+### Verified at 360px viewport (agent Messages page)
+| Element | Width | Status |
+|---|---|---|
+| FilterGroup | 262px | ✅ |
+| W0 (Date) | 206px | ✅ |
+| W1 (Unread) | 48px | ✅ |
+| Date popup | — | ✅ Visible and functional |
+
+### Key behaviors
+- All filters stay on a single row (row 2) at **any width** — never more than 2 rows total.
+- Filters compress proportionally, never overflow.
+- Date popup overlay remains visible and correctly positioned.
+
+## [Phase 25z — Date Popup Visibility & Positioning Fix] (2026-07-30)
+**Status:** ✅ COMPLETE (build verified)
+
+### Problem
+The date input popup (custom range, before-date, after-date) had multiple issues:
+1. Auto-hid once date fields were filled (computed returned `false` after values set).
+2. Did not re-appear when clicking the filter area if a date preset was already selected (the `(openedChange)` approach hid the popup when the dropdown opened, and the CDK overlay panel covered it).
+3. Appeared below the dropdown, overlapping with the mat-select panel.
+
+### Solution — 10 edits across 4 files
+
+**TypeScript** (`admin-conversations.component.ts`, `conversations-list.component.ts`):
+1. `showDatePopup` changed from `computed` → `signal(false)` — stays open after dates are filled.
+2. `onDatePresetChange(preset)` — shows popup for date-requiring presets, hides for others.
+3. `onFilterWrapperClick()` — new method called from clicking the `.filter-wrapper` area. Re-shows popup when no ngModelChange fires (same preset re-selected).
+4. `@HostListener('document:click')` — now also excludes `.filter-wrapper` clicks from closing the popup (alongside existing `.cdk-overlay-container` exclusion). This lets the user click the mat-select trigger without the popup closing.
+
+**HTML** (`admin-conversations.component.html`, `conversations-list.component.html`):
+5. Removed `(openedChange)="onDateSelectOpenedChange($event)"` from `<mat-select>`.
+6. Added `(click)="onFilterWrapperClick()"` on `.filter-wrapper` div.
+
+**SCSS** (`admin-conversations.component.scss`, `conversations-list.component.scss`):
+7. `.date-popup` repositioned: `top: 0; left: calc(100% + 10px)` — appears to the **right** of the filter dropdown, alongside it, not underneath.
+8. `z-index` raised from 50 → 1000 so popup sits above the CDK overlay panel.
+9. `.date-popup-arrow` repositioned to left side (`top: 14px; left: -5px`) with borders rotated to point **left** toward the filter trigger.
+10. `min-width` increased from 240px → 280px for better date input spacing.
+
+### Behavioral matrix
+| Action | Popup behavior |
+|---|---|
+| Select "Custom range" from dropdown | ✅ Appears right of filter |
+| Fill in date(s) | ✅ Stays visible |
+| Click anywhere inside the popup | ✅ Stays visible |
+| Click the filter area (dropdown trigger) | ✅ Stays visible (onFilterWrapperClick re-shows it) |
+| **Click once outside while panel+popup both visible** | ✅ **Both close — one click** |
+| Switch to "All time" / "Today" | ✅ Closes |
+| Hit clear filter (×) button | ✅ Closes + resets all |
+
+### One-click close both mechanism
+Added `popupKeepOnPanelClose` private flag. Since `ngModelChange` fires **before** `openedChange(false)`, the flag lets `onDateSelectOpenedChange` distinguish:
+- **Outside click** → flag is `false` → popup closes together with the dropdown panel.
+- **Preset selected via dropdown** → `onDatePresetChange` sets flag → `openedChange(false` sees `true` → popup stays open.
+The flag is always reset to `false` after each `openedChange` event.
+
+## [Phase 25y — Unread Count Badge on Each Conversation Card] (2026-07-30)
+**Status:** ✅ COMPLETE (build verified)
+
+### Changes made
+
+**`admin-conversations.component.html`** and **`conversations-list.component.html`**
+- Inside each `.conv-card` button, after the chevron icon, added: `@if (c.unreadCount > 0) { <span class="conv-badge">{{ c.unreadCount > 9 ? '9+' : c.unreadCount }}</span> }`
+- Shows the count of unread messages per conversation, capped at `9+`.
+
+**`admin-conversations.component.scss`** and **`conversations-list.component.scss`**
+- Added `position: relative` to `.conv-card` to establish a positioning anchor.
+- Added `.conv-badge` style — positioned `absolute` at `top: -6px; right: -6px`, matching the notification bell badge pattern.
+- Red pill (`var(--cs-danger)`), white text, `min-width: 18px; height: 18px; border-radius: 9px`, bold `0.68rem` font.
+- `box-shadow: 0 0 0 2px var(--cs-surface)` creates the cutout ring so the badge cleanly overlaps the card border.
+- `badge-pop` entrance animation + `pointer-events: none` (click passes through to the card button).
+
+### Key behaviors
+- **Numbered badge** appears at the top-right corner of each conversation card when `unreadCount > 0`.
+- **Overlaps the card outline** with a surface-colored ring (same as the bell notification badge).
+- **Auto-animates** in with the `badge-pop` scale animation.
+- **Caps at `9+`** for counts above 9 to keep the pill compact.
+- **Works alongside** the existing small blue unread dot in the subject line.
+
+---
+
+## [Phase 25x — Unread Message Filter Button on Conversations & Messages Pages] (2026-07-30)
+**Status:** ✅ COMPLETE (build verified)
+
+### Changes made
+
+**`admin-conversations.component.ts`** and **`conversations-list.component.ts`**
+- Added `unreadOnly` signal (`signal(false)`) to track whether the unread filter is active.
+- Added `toggleUnreadFilter()` method — toggles `unreadOnly` on/off.
+- Added `resetUnreadFilter()` method — resets `unreadOnly` to `false`.
+- Updated `hasActiveFilter` computed to include `|| this.unreadOnly()`.
+- Updated `filteredConversations` computed: when `unreadOnly()` is `true`, filters to only conversations where `c.unread === true`.
+
+**`admin-conversations.component.html`** and **`conversations-list.component.html`**
+- Added a new `.filter-wrapper` with a square outline button (`class="unread-filter-btn"`) using a `mail` icon.
+- The button sits in the `.filter-group` area alongside existing date/agent filters.
+- When `unreadOnly()` is active, the button shows `[class.active]` styling and a clear X button appears.
+
+**`admin-conversations.component.scss`** and **`conversations-list.component.scss`**
+- Added `.unread-filter-btn` — 48×48px square, 1.5px solid border, 8px border-radius, transparent background, centered icon.
+- Hover state: accent border + light accent background.
+- Active state (`&.active`): same accent styling, matching the other filter active indicators.
+
+### Key behaviors
+- **Square outline button** with a `mail` (envelope) icon appears in the search toolbar on both pages.
+- **Click toggles** the unread-only filter — only conversations with `unread: true` remain visible.
+- **Active state** is visually indicated with accent-colored border + light background fill + a clear X button.
+- **Combines with existing filters** — works alongside search text, date preset, and agent filters.
+- **Responsive** — stacks naturally with other filters on narrow viewports.
+
+---
+
 ## [Phase 25w — Sidenav Username Auto-Update After Profile Edit] (2026-07-29)
 **Status:** ✅ COMPLETE (build verified)
 

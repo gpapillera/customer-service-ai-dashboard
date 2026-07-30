@@ -50,6 +50,7 @@
 }
 
 .conv-card {
+  position: relative;
   width: 100%;
   display: flex;
   align-items: center;
@@ -73,6 +74,28 @@
     border-color: var(--cs-accent);
     background: var(--cs-accent-light, #eef2ff);
   }
+}
+
+/* ── Unread count badge (top-right pill, like bell badge) ── */
+
+.conv-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--cs-danger, #ef4444);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+  z-index: 2;
+  box-shadow: 0 0 0 2px var(--cs-surface);
+  animation: badge-pop 0.25s var(--cs-ease);
+  pointer-events: none;
 }
 
 .conv-icon {
@@ -200,21 +223,34 @@
   --mat-form-field-container-text-size: 16px;
 }
 
-/* Responsive: stack filters below search on narrow screens */
-@media (max-width: 768px) {
-  .search-toolbar {
-    flex-direction: column;
-    align-items: stretch;
-  }
+/* ── Responsive: max 2 rows — search on row 1, filters on row 2 ── */
+/* Date wrapper keeps natural width so the date-popup can sit to its right.
+   Unread button stays fixed. */
+
+@media (max-width: 920px) {
   .search-field {
-    flex: 1 1 auto;
+    flex: 1 1 100%;
   }
   .filter-group {
-    width: 100%;
-    justify-content: flex-start;
+    flex: 1 1 100%;
+    flex-wrap: nowrap;
+    gap: 8px;
+    min-width: 0;
+  }
+  /* both wrappers shrink to fit on row 2 — unread button stays fixed */
+  .filter-group > .filter-wrapper:not(:last-child) {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .filter-group > .filter-wrapper:last-child {
+    flex: 0 0 auto;
   }
   .date-preset-field {
     width: 100%;
+  }
+  .search-toolbar {
+    padding: 10px 14px;
+    gap: 8px;
   }
 }
 
@@ -298,13 +334,13 @@
 }
 
 /* ── Date popup (shown for custom/before/after presets) ── */
+/* Positioned below the filter wrapper so it's always visible at any breakpoint. */
 
 .date-popup {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  z-index: 50;
-  min-width: 240px;
+  position: fixed;
+  z-index: 1001;
+  min-width: 280px;
+  /* top and left set dynamically via [style.top]/[style.left] binding */
 }
 
 .date-popup-arrow {
@@ -315,8 +351,8 @@
   height: 10px;
   background: var(--cs-surface);
   border: 1px solid var(--cs-border);
-  border-right: none;
   border-bottom: none;
+  border-right: none;
   transform: rotate(45deg);
   z-index: 1;
 }
@@ -398,6 +434,43 @@
 }
 
 .clear-filter-btn cs-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Unread filter button (square outline with mail icon) ── */
+
+.unread-filter-btn {
+  width: 48px;
+  height: 48px;
+  border: 1.5px solid #dce6ef;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--cs-text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.18s var(--cs-ease, ease), background 0.18s var(--cs-ease, ease), color 0.18s var(--cs-ease, ease);
+  padding: 0;
+  line-height: 1;
+}
+
+.unread-filter-btn:hover {
+  border-color: var(--cs-accent);
+  background: var(--cs-accent-light, #eef2ff);
+  color: var(--cs-accent-strong);
+}
+
+.unread-filter-btn.active {
+  border-color: var(--cs-accent);
+  background: var(--cs-accent-light, #eef2ff);
+  color: var(--cs-accent-strong);
+}
+
+.unread-filter-btn cs-icon {
+  font-size: 1.25rem;
   display: flex;
   align-items: center;
   justify-content: center;
