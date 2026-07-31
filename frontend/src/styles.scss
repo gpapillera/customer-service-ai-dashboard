@@ -98,6 +98,8 @@ body {
   --cs-overlay: rgba(0, 0, 0, 0.32);
   --cs-inverse-text: #ffffff;
   --cs-input-bg: #ffffff;
+  --cs-popup-bg: #eef2ff;
+  --cs-popup-shadow: 0 16px 40px rgba(15, 23, 42, 0.16), 0 2px 8px rgba(15, 23, 42, 0.06);
   --cs-table-stripe: rgba(0, 0, 0, 0.02);
 
   /* Active-case pill (>0) — green, visible on light bg */
@@ -148,6 +150,8 @@ body {
   --cs-overlay: rgba(0, 0, 0, 0.56);
   --cs-inverse-text: #0f172a;
   --cs-input-bg: #1e293b;
+  --cs-popup-bg: #334155;
+  --cs-popup-shadow: 0 16px 40px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.3);
   --cs-table-stripe: rgba(255, 255, 255, 0.03);
 
   /* Active-case pill (>0) — lighter green for dark bg */

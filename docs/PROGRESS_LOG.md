@@ -2,13 +2,29 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
-## [Phase 25aa — Date popup interaction fix] (2026-07-30)
-**Status:** ✅ COMPLETE (build verified)
+## [Phase 25ab — Date Popup Light/Dark Contrast] (2026-07-31)
+**Status:** ✅ COMPLETE (build + browser verified)
 
 ### Changes made
-- Wired the fixed-position date popup to the computed top/left coordinates in both conversations UIs.
-- Kept the popup open when the user clicks into its date inputs by closing the active mat-select panel first.
-- Verified the frontend build still succeeds after the interaction fix.
+
+**`frontend/src/styles.scss`**
+- Added two new theme-aware design tokens so the date popup can stand apart from the page/toolbar surface (which is the same color as the old popup background in both themes):
+  - Light (`:root` / `[data-theme='light']`): `--cs-popup-bg: #eef2ff` (soft indigo tint) + `--cs-popup-shadow: 0 16px 40px rgba(15,23,42,0.16), 0 2px 8px rgba(15,23,42,0.06)`.
+  - Dark (`[data-theme='dark']`): `--cs-popup-bg: #334155` (raised slate, lighter than the `#1e293b` surface) + `--cs-popup-shadow: 0 16px 40px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.3)`.
+
+**`admin-conversations.component.scss`** and **`conversations-list.component.scss`** (both files, identical change)
+- `.date-popup-body` / `.date-popup-arrow`: background now `var(--cs-popup-bg)` (arrow matches the body so the pointer looks seamless), border upgraded to `var(--cs-border-strong)`, shadow upgraded to `var(--cs-popup-shadow)` — the popup now visibly "floats" above the toolbar instead of blending into it.
+- `.date-popup-input`: background now `var(--cs-input-bg)` (white in light mode, surface slate in dark mode), border upgraded to `var(--cs-border-strong)` so the fields read as distinct controls on the tinted panel; added `background` to the focus transition for a smooth theme switch.
+
+### Resulting look
+- **Light mode:** soft indigo-tinted popup panel with white input fields — clearly distinct from the white toolbar/page behind it.
+- **Dark mode:** lighter raised-slate panel with darker input fields — clearly distinct from the `#1e293b` toolbar.
+- Both modes keep the Apple-like aesthetic (rounded 10px corners, subtle shadow, gentle transitions).
+
+### Verified
+- Build: `npm run build` ✅
+- Admin Conversations page (light + dark): popup is clearly distinguishable from the filter toolbar ✅
+- Agent Messages page (light + dark): same ✅
 
 ## [Phase 25z — Date Filter Presets: "On or before…" / "On or after…"] (2026-07-30)
 **Status:** ✅ COMPLETE (build + browser verified)
