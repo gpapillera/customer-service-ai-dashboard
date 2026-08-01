@@ -179,7 +179,7 @@ public class CaseServiceTests
         var created = await svc.CreateAsync(new CreateCaseDto { Subject = "A", CustomerId = 1, CategoryId = 1 });
         Assert.NotNull(await svc.GetByIdAsync(created.Id));
 
-        await svc.DeleteAsync(created.Id);
+        await svc.DeleteAsync(created.Id, callerRole: "Admin");
         Assert.Null(await svc.GetByIdAsync(created.Id));
     }
 
@@ -187,7 +187,7 @@ public class CaseServiceTests
     public async Task DeleteAsync_UnknownId_ThrowsKeyNotFoundException()
     {
         var svc = BuildService(out var cases, out var customers, out var categories);
-        await Assert.ThrowsAsync<KeyNotFoundException>(() => svc.DeleteAsync(123));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => svc.DeleteAsync(123, callerRole: "Admin"));
     }
 
     /// <summary>No-op notification service for CaseService tests.</summary>

@@ -1,4 +1,15 @@
-import { Component, computed, OnInit, inject, signal } from '@angular/core';
+import {
+  Component,
+  afterNextRender,
+  computed,
+  ElementRef,
+  EnvironmentInjector,
+  HostListener,
+  OnDestroy,
+  OnInit,
+  inject,
+  signal,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -9,6 +20,7 @@ import { CsIconComponent } from '../shared/cs-icon.component';
 import { EmailLogService } from './email-log.service';
 import { Notification } from '../shared/models';
 import { LayoutComponent } from '../shared/layout/layout.component';
+import { DatePreset, DATE_PRESETS, formatDatePreset, filterByDatePreset, positionHeaderDropdown } from '../shared/date-filter';
 
 /** Type label helper for the table. */
 const TYPE_LABELS: Record<string, string> = {
@@ -49,8 +61,12 @@ const STATUS_LABELS: Record<string, string> = {
   templateUrl: './email-list.component.html',
   styleUrl: './email-list.component.scss',
 })
-export class EmailListComponent implements OnInit {
+export class EmailListComponent implements OnInit, OnDestroy {
   private readonly service = inject(EmailLogService);
+  private readonly elRef = inject(ElementRef);
+  private readonly envInjector = inject(EnvironmentInjector);
+  /** True while the scroll/resize watch for the date dropdown is attached. */
+  private dropdownWatchAttached = false;
 
   /** Sidenav open state — brand logo hidden when open. */
   readonly sidenavOpen = inject(LayoutComponent).opened;
@@ -70,6 +86,21 @@ export class EmailListComponent implements OnInit {
   readonly searchTerm = signal('');
   /** Selected notification type filter ('' = all). */
   readonly filterType = signal('');
+
+  /** Date filter preset for the "Date" column (same presets as Conversations). */
+  readonly dateFilterPreset = signal<DatePreset>('all');
+  /** Custom range start (YYYY-MM-DD) — only used when preset is 'custom'. */
+  readonly customDateFrom = signal('');
+  /** Custom range end (YYYY-MM-DD) — only used when preset is 'custom'. */
+  readonly customDateTo = signal('');
+  /** Single date input (YYYY-MM-DD) — used by the before/after/on-or-before/on-or-after presets. */
+  readonly customDateSingle = signal('');
+  /** Preset options for the Date header filter dropdown. */
+  readonly datePresets = DATE_PRESETS;
+  /** Labels a date preset key for display. */
+  readonly datePresetLabel = formatDatePreset;
+  /** Track which table-header filter dropdown is open, or null. */
+  readonly openHeaderFilter = signal<string | null>(null);
 
   /** Sort column. */
   readonly sortColumn = signal<'date' | 'recipient' | 'subject' | 'type' | 'status'>('date');
@@ -102,6 +133,16 @@ export class EmailListComponent implements OnInit {
       );
     });
 
+    // Apply date filter (conversations-style presets on the Date column).
+    result = filterByDatePreset(
+      result,
+      this.dateFilterPreset(),
+      (e) => e.createdAtUtc,
+      this.customDateFrom(),
+      this.customDateTo(),
+      this.customDateSingle(),
+    );
+
     // Apply sort
     return [...result].sort((a, b) => {
       let cmp = 0;
@@ -133,6 +174,92 @@ export class EmailListComponent implements OnInit {
   /** Clears the type filter. */
   clearTypeFilter(): void {
     this.filterType.set('');
+  }
+
+  /** Toggle a header filter dropdown open/closed. */
+  toggleHeaderFilter(col: string): void {
+    const next = this.openHeaderFilter() === col ? null : col;
+    this.openHeaderFilter.set(next);
+    if (next) {
+      this.attachDropdownScrollWatch();
+      // The dropdown is inside an @if, so it only exists after Angular
+      // renders. Schedule the placement for after that render.
+      afterNextRender(() => this.applyHeaderDropdownPlacement(), {
+        injector: this.envInjector,
+      });
+    } else {
+      this.detachDropdownScrollWatch();
+    }
+  }
+
+  /** Sets the date filter preset from the Date header dropdown. */
+  setDatePreset(preset: DatePreset): void {
+    this.dateFilterPreset.set(preset);
+    // Close the dropdown for presets that don't need date inputs; keep it
+    // open for date-requiring presets so the user can type dates inline.
+    if (preset === 'all' || preset === 'today' || preset === '7days' || preset === '30days') {
+      this.openHeaderFilter.set(null);
+      this.detachDropdownScrollWatch();
+    } else {
+      // Date inputs appear/disappear → height changes → re-place the popup
+      // after the render that adds/removes them.
+      afterNextRender(() => this.applyHeaderDropdownPlacement(), {
+        injector: this.envInjector,
+      });
+    }
+  }
+
+  /**
+   * Places the open header-filter dropdown with `position: fixed`, clamped to
+   * the visible area so it is never clipped by the (now short) table wrapper.
+   */
+  private applyHeaderDropdownPlacement(): void {
+    const dd = this.elRef.nativeElement.querySelector(
+      '.header-filter-dropdown',
+    ) as HTMLElement | null;
+    if (!dd) return;
+    const scrollRoot = (document.querySelector('.content') as HTMLElement | null) ?? document.body;
+    positionHeaderDropdown(dd, scrollRoot);
+  }
+
+  /** Re-place on scroll/resize so the fixed popup stays glued to the funnel. */
+  private readonly onDropdownViewportChange = (): void => {
+    if (this.openHeaderFilter() !== null) this.applyHeaderDropdownPlacement();
+  };
+
+  private attachDropdownScrollWatch(): void {
+    if (this.dropdownWatchAttached) return;
+    this.dropdownWatchAttached = true;
+    const root = (document.querySelector('.content') as HTMLElement | null) ?? window;
+    root.addEventListener('scroll', this.onDropdownViewportChange, { passive: true });
+    window.addEventListener('resize', this.onDropdownViewportChange);
+  }
+
+  private detachDropdownScrollWatch(): void {
+    if (!this.dropdownWatchAttached) return;
+    this.dropdownWatchAttached = false;
+    const root = (document.querySelector('.content') as HTMLElement | null) ?? window;
+    root.removeEventListener('scroll', this.onDropdownViewportChange);
+    window.removeEventListener('resize', this.onDropdownViewportChange);
+  }
+
+  ngOnDestroy(): void {
+    this.detachDropdownScrollWatch();
+  }
+
+  /** Updates a custom-date input (From/To/single). The filteredEmails
+      computed re-filters reactively, so no manual reload is needed. */
+  onCustomDateChange(field: 'from' | 'to' | 'single', value: string): void {
+    if (field === 'from') this.customDateFrom.set(value);
+    else if (field === 'to') this.customDateTo.set(value);
+    else this.customDateSingle.set(value);
+  }
+
+  /** Close the header filter dropdown when clicking outside. */
+  @HostListener('document:click')
+  closeHeaderFilter(): void {
+    this.detachDropdownScrollWatch();
+    this.openHeaderFilter.set(null);
   }
 
   /** Opens the email detail overlay. */

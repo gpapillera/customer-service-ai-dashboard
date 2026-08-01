@@ -234,6 +234,52 @@
   }
 }
 
+/* ---- Date header filter (Created column) ---- */
+/* Created is the last column — right-anchor the dropdown so it stays
+   inside the scrollable .table-wrap instead of overflowing to the right. */
+.date-dropdown {
+  left: auto;
+  right: 0;
+  min-width: 250px;
+  max-height: min(70vh, 420px);
+  overflow-y: auto;
+}
+
+.hfd-sep {
+  height: 1px;
+  margin: 4px 8px;
+  background: var(--cs-border);
+}
+
+.date-popup-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--cs-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 6px 8px 0;
+}
+
+.date-popup-input {
+  width: 100%;
+  height: 38px;
+  padding: 0 0.6rem;
+  border: 1px solid var(--cs-border-strong);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--cs-text);
+  background: var(--cs-input-bg);
+  outline: none;
+  transition: border-color 0.18s ease, background 0.18s ease;
+  box-sizing: border-box;
+  margin-bottom: 6px;
+}
+
+.date-popup-input:focus {
+  border-color: var(--cs-accent);
+}
+
 /* ---- Case ID badge ---- */
 .case-id {
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;

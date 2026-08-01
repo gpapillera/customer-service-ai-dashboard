@@ -2,6 +2,102 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 28 — Header Filter Dropdown Clipping Fix (all columns)] (2026-08-02)
+**Status:** ✅ COMPLETE (33/33 Karma + `npm run build` + browser verified on both pages)
+
+### Problem
+On the Cases page, clicking any header filter (Category, Priority, Status, **or** Created) opened a dropdown whose lower portion was clipped/hidden inside the table when the filtered result returned few rows. The user had to scroll the page to see the rest of the popup. (Originally reported for the date column only; expanded to all filter columns.)
+
+### Root cause (verified, not z-index)
+The table wrapper `.table-wrap` uses `overflow-x: auto`, which forces `overflow-y: auto` on the element. The dropdowns were `position: absolute`, anchored to the header cell, so the wrapper's overflow clip truncated them below the (shrinking) table. **z-index cannot fix overflow clipping** — the dropdown must escape the clip box, which is done with `position: fixed` and viewport-based coordinates.
+
+### Changes made
+
+**`frontend/src/app/shared/date-filter.ts`**
+- Renamed `positionDateDropdown` → `positionHeaderDropdown` (now column-agnostic: it locates the trigger via `dropdown.closest('.th-content')` → `.header-filter-btn`).
+- `positionHeaderDropdown(dropdown, scrollRoot)` sets `position: fixed` and computes coordinates from the trigger's `getBoundingClientRect()`:
+  - Horizontal: left-anchor the popup at the trigger's left edge, falling back to right-anchoring when it would overflow the viewport right edge; clamped to ≥ 8px margins.
+  - Vertical: `computeDateDropdownPlacement` flips the popup **up** when there is more space above than below, and clamps `maxHeight` to the available space; `open-up` class toggled accordingly.
+  - Auto-reveal: when the popup is height-clamped and contains a date input, it is scrolled into view (`scrollTop = scrollHeight`) so the input is never below the fold.
+- Re-placed on scroll/resize via each component's scroll-watch (popup follows the header cell while the page scrolls).
+
+**`frontend/src/app/cases/case-list.component.ts`** (all 4 filter columns)
+- `toggleHeaderFilter(col)` now wires placement for **every** column (`openHeaderFilter() !== null`), not just `'date'`.
+- Placement runs in `afterNextRender(..., { injector: envInjector })` — with `eventCoalescing: true` a `setTimeout(0)` fires before Angular renders the `@if`-inserted dropdown.
+- `placeHeaderDropdownAfterLoad()` re-applies placement after `load()` finishes (`dataLoading.set(false)`) in both success and error handlers — the loading spinner destroys the table+dropdown, and without this the preset path re-rendered an unplaced (absolute) popup.
+- `onDropdownViewportChange` re-places on scroll/resize.
+
+**`frontend/src/app/email/email-list.component.ts`**
+- Same generalized placement wiring; fixed a stale `applyDateDropdownPlacement` reference (compile error) → `applyHeaderDropdownPlacement`.
+
+### Verified (browser, dev server restarted to avoid stale bundle)
+- Cases, Status funnel: `position: fixed`, left:641, top:271, bottom:482 — fully in viewport ✅
+- Cases, Priority: fixed left:538, right:678 ✅; Category: fixed left:425, right:565 ✅
+- Cases, date "On or before 2026-07-10" (2 rows): fixed, left:631, flipped up (`bottom:304px`, `maxHeight:289px`), date input auto-revealed via internal scroll (`scrollTop:41`) ✅
+- Cases, Status reopened while table narrowed to 2 rows: fixed left:715, right:855, top:319, bottom:530 — fully in viewport ✅
+- Emails, date funnel fresh open: fixed left:373, right:623, top:263, bottom:533 ✅; after "On or after 2026-07-29" (6 rows): fixed, `maxHeight:329`, input fully visible ✅
+- Karma: 33/33 PASS; `npm run build`: success (pre-existing SCSS budget warnings only).
+
+### Note for future sessions
+The dev server's file watcher had died (running since Aug 01), so it was serving a stale bundle — the bug appeared unfixed despite correct code, and a TS2551 compile error silently blocked rebuilds. If browser behavior contradicts verified code, restart the dev server (`npm --prefix <frontend> start`) and confirm "Application bundle generation complete".
+
+## [Phase 27 — UTC-Suffixed DateTime Serialization] (2026-08-01)
+**Status:** ✅ COMPLETE (backend tests + build + browser verified)
+
+### Changes made
+
+**`backend/src/CustomerService.Api/Json/UtcDateTimeJsonConverter.cs`** (NEW)
+- `JsonConverter<DateTime>` that serializes every `DateTime` as a UTC instant (ISO-8601 with a trailing `Z`).
+- Rationale: EF Core returns `DateTimeKind.Unspecified` after a SQLite/SQL Server round-trip, so System.Text.Json emitted timezone-naive strings (e.g. `2026-07-30T06:56:18.98` with no `Z`). The frontend then parsed those as **local** time, while date-only filter inputs (`"YYYY-MM-DD"`) parse as **UTC midnight** — producing date-filter boundary mismatches (e.g. an email at 06:56 UTC displayed as Jul 30 but excluded from "On or after Jul 30").
+- `Read` parses normally; `Write` maps `Utc` → as-is, `Local` → `ToUniversalTime()`, `Unspecified` → `SpecifyKind(Utc)` (all `*Utc` columns are written from `DateTime.UtcNow`, so treating Unspecified as UTC is always correct).
+
+**`backend/src/CustomerService.Api/Program.cs`**
+- Registered `UtcDateTimeJsonConverter` in `AddJsonOptions` alongside the existing `JsonStringEnumConverter`.
+
+**`backend/tests/CustomerService.Tests/CaseServiceTests.cs`** (fixed — pre-existing failures)
+- `DeleteAsync_RemovesCase` and `DeleteAsync_UnknownId_ThrowsKeyNotFoundException` were calling `DeleteAsync(id)` without a caller role; the service now requires `callerRole: "Admin"` (role enforcement added in an earlier phase). Passed `callerRole: "Admin"` so the suite is green again.
+
+### Verified
+- Backend: `dotnet build` ✅ (0 errors); `dotnet test` → 64/64 PASS ✅.
+- API: `/api/emails` and `/api/cases` now return timestamps with `Z` (e.g. `2026-07-30T09:05:54.5517315Z`) ✅.
+- Browser (Emails page): "On or after 2026-07-30" now returns **3** rows (the 06:56 UTC email is correctly included — previously 2). Displayed times shift to correct local time (09:05 UTC → 05:05 PM local, UTC+8). "All time" still returns all 28 ✅.
+- Frontend: no frontend changes needed — `new Date('...Z')` now parses as UTC and aligns with the UTC-midnight filter boundaries; the earlier 2-vs-3 boundary note from Phase 26 is resolved.
+
+## [Phase 26 — Date Filters on Cases & Emails Tables] (2026-08-01)
+**Status:** ✅ COMPLETE (tests + build + browser verified)
+
+### Changes made
+
+**`frontend/src/app/shared/date-filter.ts`** (NEW — shared pure filter logic)
+- `DatePreset` union type + `DATE_PRESETS` (9 presets, display order): `all`, `today`, `last7days`, `last30days`, `customRange`, `beforeDate`, `afterDate`, `onOrBeforeDate`, `onOrAfterDate`.
+- `DATE_PRESET_LABELS` map, `datePresetNeedsInput(preset)` (date-requiring presets), `formatDatePreset(preset)` (falls back to raw key).
+- `filterByDatePreset<T>(items, preset, dateOf, from, to, single)` — mirrors the Conversations date filter semantics exactly:
+  - `today`: local midnight → now; `last7days`/`last30days`: `now − N*24h`; empty inputs ignored.
+  - `custom`/`onOrBefore`: `t <= toMs + 86_400_000` (inclusive end-of-day); `before`: `t < singleMs`; `after`/`onOrAfter`: `t >= singleMs`.
+  - `all` returns `[...items]`.
+
+**`frontend/src/app/shared/date-filter.spec.ts`** (NEW) — 15 unit tests using timezone-robust noon-UTC fixtures; all passing.
+
+**`frontend/src/app/cases/case-list.component.ts` / `.html` / `.scss`**
+- "Created" column header now has the funnel-icon header filter (same visual pattern as the other case columns): `.th-content` wrapper + funnel button (`aria-label="Filter by created date"`, `[class.filter-active]` when active) + `.header-filter-dropdown` with the 9 presets.
+- Right-anchored `.date-dropdown` (`left: auto; right: 0; min-width: 250px; max-height: min(70vh, 420px); overflow-y: auto`) since Created is the last column.
+- Inline date inputs inside the dropdown (From/To for Custom range; Before; After; On or before; On or after) — `[ngModel]` + `(ngModelChange)`.
+- Signals: `dateFilterPreset`, `customDateFrom/To/Single`, `openHeaderFilter`. `load()` applies `filterByDatePreset` on `createdAtUtc`; `activeChips` shows a `date` chip with the preset label when not `all`; `clearFilter()` resets the date branch.
+- Dropdown stays open for date-requiring presets, closes for `all`/`today`/`last7days`/`last30days`; `@HostListener('document:click')` closes on outside click; funnel click `stopPropagation` so it doesn't trigger column sort.
+
+**`frontend/src/app/email/email-list.component.ts` / `.html` / `.scss`**
+- Same header funnel filter on the "Date" column, left-anchored `.date-dropdown` (Date is the first column).
+- `filteredEmails` computed applies `filterByDatePreset` (on `createdAtUtc`) between the type/search filtering and the sort step; same signals, methods, and `@HostListener('document:click')` behavior.
+
+**`frontend/src/app/cases/case.service.spec.ts`** (fixed) — added `caseDisplayId: 'CS-7'` and `commentCount: 0` to the sample `Case` (required by the `Case` interface) so the spec compiles again.
+
+### Verified
+- Karma: full suite 28/28 PASS ✅ (incl. new `date-filter.spec.ts` 15/15).
+- Build: `npm run build` ✅ (2 non-fatal SCSS budget warnings: `email-list.component.scss`, `layout.component.scss`).
+- Browser (Cases page, `admin`/`Passw0rd!`): funnel renders, all 9 presets filter correctly, custom range (From/To), chip shows preset label + clear resets to 19 cases, dropdown close behavior, sort still works alongside the funnel ✅.
+- Browser (Emails page): funnel + 9 presets, custom range inline inputs filter reactively, outside-click closes dropdown, "All time" restores all 28 emails ✅.
+- Note: backend email timestamps are timezone-naive (no `Z` suffix), so `new Date('YYYY-MM-DD')` (UTC midnight) can exclude an email whose displayed local date matches the boundary (e.g. an email at 06:56 local = 22:56 UTC the previous day). This is identical to the Conversations reference filter's date-parsing semantics and to the Cases page data format difference (`createdAtUtc` has `Z`), not a regression.
+
 ## [Phase 25ab — Date Popup Light/Dark Contrast] (2026-07-31)
 **Status:** ✅ COMPLETE (build + browser verified)
 

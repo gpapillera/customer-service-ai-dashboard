@@ -1,4 +1,15 @@
-import { Component, computed, inject, OnInit, signal, HostListener } from '@angular/core';
+import {
+  Component,
+  afterNextRender,
+  computed,
+  ElementRef,
+  EnvironmentInjector,
+  HostListener,
+  OnDestroy,
+  OnInit,
+  inject,
+  signal,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -17,6 +28,7 @@ import { CaseService } from './case.service';
 import { CaseFormComponent } from './case-form.component';
 import { Case } from '../shared/models';
 import { CATEGORIES } from '../shared/categories';
+import { DatePreset, DATE_PRESETS, formatDatePreset, filterByDatePreset, positionHeaderDropdown } from '../shared/date-filter';
 import { SearchFilterToolbarComponent } from './search-filter-toolbar/search-filter-toolbar.component';
 import { LayoutComponent } from '../shared/layout/layout.component';
 
@@ -44,11 +56,15 @@ import { LayoutComponent } from '../shared/layout/layout.component';
   templateUrl: './case-list.component.html',
   styleUrl: './case-list.component.scss',
 })
-export class CaseListComponent implements OnInit {
+export class CaseListComponent implements OnInit, OnDestroy {
   private readonly service = inject(CaseService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly dialog = inject(MatDialog);
+  private readonly elRef = inject(ElementRef);
+  private readonly envInjector = inject(EnvironmentInjector);
+  /** True while the scroll/resize watch for the date dropdown is attached. */
+  private dropdownWatchAttached = false;
   /** Sidenav open state (from the app shell) — the page brand logo is shown
       only when the sidenav is collapsed. */
   readonly sidenavOpen = inject(LayoutComponent).opened;
@@ -85,6 +101,19 @@ export class CaseListComponent implements OnInit {
   /** Track which table-header filter dropdown is open, or null. */
   readonly openHeaderFilter = signal<string | null>(null);
 
+  /** Date filter preset for the "Created" column (same presets as Conversations). */
+  readonly dateFilterPreset = signal<DatePreset>('all');
+  /** Custom range start (YYYY-MM-DD) — only used when preset is 'custom'. */
+  readonly customDateFrom = signal('');
+  /** Custom range end (YYYY-MM-DD) — only used when preset is 'custom'. */
+  readonly customDateTo = signal('');
+  /** Single date input (YYYY-MM-DD) — used by the before/after/on-or-before/on-or-after presets. */
+  readonly customDateSingle = signal('');
+  /** Preset options for the Created header filter dropdown. */
+  readonly datePresets = DATE_PRESETS;
+  /** Labels a date preset key for display. */
+  readonly datePresetLabel = formatDatePreset;
+
   /** Active filters rendered as removable chips in the filter row. */
   readonly activeChips = computed<{ key: string; label: string }[]>(() => {
     const f = this.filters();
@@ -95,6 +124,9 @@ export class CaseListComponent implements OnInit {
     if (f.categoryId != null) {
       const cat = this.categories.find((c) => c.id === f.categoryId);
       chips.push({ key: 'categoryId', label: cat?.name ?? 'Category' });
+    }
+    if (this.dateFilterPreset() !== 'all') {
+      chips.push({ key: 'date', label: formatDatePreset(this.dateFilterPreset()) });
     }
     return chips;
   });
@@ -236,11 +268,40 @@ export class CaseListComponent implements OnInit {
                 c.customerName.toLowerCase().includes(term),
             );
           }
+          const preset = this.dateFilterPreset();
+          if (preset !== 'all') {
+            filtered = filterByDatePreset(
+              filtered,
+              preset,
+              (c) => c.createdAtUtc,
+              this.customDateFrom(),
+              this.customDateTo(),
+              this.customDateSingle(),
+            );
+          }
           this.cases.set(filtered);
           this.dataLoading.set(false);
+          this.placeHeaderDropdownAfterLoad();
         },
-        error: () => this.dataLoading.set(false),
+        error: () => {
+          this.dataLoading.set(false);
+          this.placeHeaderDropdownAfterLoad();
+        },
       });
+  }
+
+  /**
+   * If a header-filter dropdown is open, re-place it after the next render.
+   * load() flips the loading state, which swaps the table (and the open
+   * dropdown inside it) for a spinner and back — the recreated dropdown has
+   * no inline placement, so it must be re-placed once the table is back.
+   */
+  private placeHeaderDropdownAfterLoad(): void {
+    if (this.openHeaderFilter() !== null) {
+      afterNextRender(() => this.applyHeaderDropdownPlacement(), {
+        injector: this.envInjector,
+      });
+    }
   }
 
   /** Updates a single filter field and reloads. */
@@ -276,14 +337,48 @@ export class CaseListComponent implements OnInit {
     this.load();
   }
 
+  /** Sets the date filter preset from the Created header dropdown. */
+  setDatePreset(preset: DatePreset): void {
+    this.dateFilterPreset.set(preset);
+    // Close the dropdown for presets that don't need date inputs; keep it
+    // open for date-requiring presets so the user can type dates inline.
+    if (preset === 'all' || preset === 'today' || preset === '7days' || preset === '30days') {
+      this.openHeaderFilter.set(null);
+      this.detachDropdownScrollWatch();
+    }
+    // load() re-renders the table (spinner swap), which recreates the open
+    // dropdown — placeDateDropdownAfterLoad re-places it once the table is back.
+    this.load();
+  }
+
+  /** Updates a custom-date input (From/To/single) and re-applies the filter. */
+  onCustomDateChange(field: 'from' | 'to' | 'single', value: string): void {
+    if (field === 'from') this.customDateFrom.set(value);
+    else if (field === 'to') this.customDateTo.set(value);
+    else this.customDateSingle.set(value);
+    this.load();
+  }
+
   /** Toggle a header filter dropdown open/closed. */
   toggleHeaderFilter(col: string): void {
-    this.openHeaderFilter.update((current) => (current === col ? null : col));
+    const next = this.openHeaderFilter() === col ? null : col;
+    this.openHeaderFilter.set(next);
+    if (next) {
+      this.attachDropdownScrollWatch();
+      // The dropdown is inside an @if, so it only exists after Angular
+      // renders. Schedule the placement for after that render.
+      afterNextRender(() => this.applyHeaderDropdownPlacement(), {
+        injector: this.envInjector,
+      });
+    } else {
+      this.detachDropdownScrollWatch();
+    }
   }
 
   /** Set a filter value from a header dropdown and close it. */
   setHeaderFilter(col: string, value: string | number | null): void {
     this.openHeaderFilter.set(null);
+    this.detachDropdownScrollWatch();
     if (col === 'status') {
       this.isOpenFilter.set(value === 'Open');
       if (value !== 'Open') {
@@ -302,7 +397,46 @@ export class CaseListComponent implements OnInit {
   /** Close the header filter dropdown when clicking outside. */
   @HostListener('document:click')
   closeHeaderFilter(): void {
+    this.detachDropdownScrollWatch();
     this.openHeaderFilter.set(null);
+  }
+
+  /**
+   * Places the open header-filter dropdown with `position: fixed`, clamped to
+   * the visible area so it is never clipped by the (now short) table wrapper.
+   */
+  private applyHeaderDropdownPlacement(): void {
+    const dd = this.elRef.nativeElement.querySelector(
+      '.header-filter-dropdown',
+    ) as HTMLElement | null;
+    if (!dd) return;
+    const scrollRoot = (document.querySelector('.content') as HTMLElement | null) ?? document.body;
+    positionHeaderDropdown(dd, scrollRoot);
+  }
+
+  /** Re-place on scroll/resize so the fixed popup stays glued to the funnel. */
+  private readonly onDropdownViewportChange = (): void => {
+    if (this.openHeaderFilter() !== null) this.applyHeaderDropdownPlacement();
+  };
+
+  private attachDropdownScrollWatch(): void {
+    if (this.dropdownWatchAttached) return;
+    this.dropdownWatchAttached = true;
+    const root = (document.querySelector('.content') as HTMLElement | null) ?? window;
+    root.addEventListener('scroll', this.onDropdownViewportChange, { passive: true });
+    window.addEventListener('resize', this.onDropdownViewportChange);
+  }
+
+  private detachDropdownScrollWatch(): void {
+    if (!this.dropdownWatchAttached) return;
+    this.dropdownWatchAttached = false;
+    const root = (document.querySelector('.content') as HTMLElement | null) ?? window;
+    root.removeEventListener('scroll', this.onDropdownViewportChange);
+    window.removeEventListener('resize', this.onDropdownViewportChange);
+  }
+
+  ngOnDestroy(): void {
+    this.detachDropdownScrollWatch();
   }
 
   /** Clears a single active filter chip and reloads. */
@@ -316,6 +450,11 @@ export class CaseListComponent implements OnInit {
       this.filters.update((f) => ({ ...f, priority: '' }));
     } else if (chip.key === 'categoryId') {
       this.filters.update((f) => ({ ...f, categoryId: null }));
+    } else if (chip.key === 'date') {
+      this.dateFilterPreset.set('all');
+      this.customDateFrom.set('');
+      this.customDateTo.set('');
+      this.customDateSingle.set('');
     }
     this.load();
   }

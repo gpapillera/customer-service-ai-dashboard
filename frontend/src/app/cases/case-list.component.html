@@ -127,6 +127,65 @@
             <span class="th-content">
               <span class="th-label">Created</span>
               @if (sortColumn() === 'createdAtUtc') { <span class="sort-arrow">{{ sortDesc() ? '↓' : '↑' }}</span> }
+              <button type="button" class="header-filter-btn"
+                [class.filter-active]="dateFilterPreset() !== 'all'"
+                (click)="$event.stopPropagation(); toggleHeaderFilter('date')"
+                aria-label="Filter by created date">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z"/></svg>
+              </button>
+              @if (openHeaderFilter() === 'date') {
+                <div class="header-filter-dropdown date-dropdown" (click)="$event.stopPropagation()">
+                  @for (p of datePresets; track p) {
+                    <button type="button" class="hfd-option" [class.active]="dateFilterPreset() === p"
+                      (click)="setDatePreset(p)">{{ datePresetLabel(p) }}</button>
+                  }
+                  @if (dateFilterPreset() === 'custom') {
+                    <div class="hfd-sep"></div>
+                    <label class="date-popup-label">From</label>
+                    <input type="date" class="date-popup-input"
+                      [ngModel]="customDateFrom()"
+                      (ngModelChange)="onCustomDateChange('from', $event)"
+                      aria-label="From date" />
+                    <label class="date-popup-label">To</label>
+                    <input type="date" class="date-popup-input"
+                      [ngModel]="customDateTo()"
+                      (ngModelChange)="onCustomDateChange('to', $event)"
+                      aria-label="To date" />
+                  }
+                  @if (dateFilterPreset() === 'beforeCustomDate') {
+                    <div class="hfd-sep"></div>
+                    <label class="date-popup-label">Before</label>
+                    <input type="date" class="date-popup-input"
+                      [ngModel]="customDateSingle()"
+                      (ngModelChange)="onCustomDateChange('single', $event)"
+                      aria-label="Before date" />
+                  }
+                  @if (dateFilterPreset() === 'afterCustomDate') {
+                    <div class="hfd-sep"></div>
+                    <label class="date-popup-label">After</label>
+                    <input type="date" class="date-popup-input"
+                      [ngModel]="customDateSingle()"
+                      (ngModelChange)="onCustomDateChange('single', $event)"
+                      aria-label="After date" />
+                  }
+                  @if (dateFilterPreset() === 'onOrBeforeCustomDate') {
+                    <div class="hfd-sep"></div>
+                    <label class="date-popup-label">On or before</label>
+                    <input type="date" class="date-popup-input"
+                      [ngModel]="customDateSingle()"
+                      (ngModelChange)="onCustomDateChange('single', $event)"
+                      aria-label="On or before date" />
+                  }
+                  @if (dateFilterPreset() === 'onOrAfterCustomDate') {
+                    <div class="hfd-sep"></div>
+                    <label class="date-popup-label">On or after</label>
+                    <input type="date" class="date-popup-input"
+                      [ngModel]="customDateSingle()"
+                      (ngModelChange)="onCustomDateChange('single', $event)"
+                      aria-label="On or after date" />
+                  }
+                </div>
+              }
             </span>
           </th>
         </tr>

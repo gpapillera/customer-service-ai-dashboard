@@ -72,6 +72,11 @@ Api ──▶ Application ──▶ Domain ◀── Infrastructure
 - `IPriorityPredictor` → `OnnxPriorityPredictor` (singleton; falls back to rule-based)
 - `AddControllers()` registers `JsonStringEnumConverter` globally → enums serialize as **strings**
   (`Open`, `High`, etc.). The frontend relies on this; do not switch to numeric enums.
+- `AddControllers()` also registers `UtcDateTimeJsonConverter` (in `CustomerService.Api/Json/`)
+  → every `DateTime` serializes as a **UTC instant with a trailing `Z`**. EF Core returns
+  `DateTimeKind.Unspecified` after a DB round-trip, which would otherwise drop the `Z` and make
+  the frontend parse timestamps as local time (breaking date-filter boundaries). All `*Utc`
+  columns are written from `DateTime.UtcNow`, so treating Unspecified as UTC is correct.
 
 ### Database providers
 Controlled by `Database:Provider` in `appsettings.json` / env var `Database__Provider`:

@@ -149,8 +149,16 @@ public class Program
         builder.Services.AddAuthorization();
         builder.Services.AddControllers()
             .AddJsonOptions(options =>
+            {
                 options.JsonSerializerOptions.Converters.Add(
-                    new System.Text.Json.Serialization.JsonStringEnumConverter()));
+                    new System.Text.Json.Serialization.JsonStringEnumConverter());
+                // Serialize DateTime as UTC (with "Z"). EF Core returns
+                // Kind=Unspecified after a DB round-trip, which would otherwise
+                // drop the "Z" and make the frontend parse timestamps as local
+                // time (breaking date-filter boundaries). See UtcDateTimeJsonConverter.
+                options.JsonSerializerOptions.Converters.Add(
+                    new CustomerService.Api.Json.UtcDateTimeJsonConverter());
+            });
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen(c =>
         {

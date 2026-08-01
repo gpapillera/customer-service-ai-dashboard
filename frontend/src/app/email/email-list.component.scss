@@ -286,6 +286,132 @@
   color: var(--cs-accent);
 }
 
+/* ── Header column filter button + dropdown (Date column) ── */
+
+.th-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  position: relative;
+}
+
+.th-label {
+  cursor: pointer;
+  user-select: none;
+}
+
+.header-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--cs-text-muted);
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity 0.15s var(--cs-ease), background 0.15s var(--cs-ease), color 0.15s var(--cs-ease);
+}
+.header-filter-btn:hover,
+.header-filter-btn.filter-active {
+  opacity: 1;
+  background: var(--cs-bg-subtle, #f1f5f9);
+  color: var(--cs-text);
+}
+.header-filter-btn.filter-active {
+  color: var(--cs-accent);
+}
+
+.header-filter-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 100;
+  min-width: 140px;
+  background: var(--cs-surface);
+  border: 1px solid var(--cs-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.1);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Date is the first column — keep left-anchored, just widen it and cap its height. */
+.date-dropdown {
+  min-width: 250px;
+  max-height: min(70vh, 420px);
+  overflow-y: auto;
+}
+
+.hfd-option {
+  display: block;
+  width: 100%;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--cs-text);
+  font: inherit;
+  font-size: 0.82rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s var(--cs-ease);
+}
+.hfd-option:hover {
+  background: var(--cs-bg-subtle, #f1f5f9);
+}
+.hfd-option.active {
+  background: var(--cs-accent-light);
+  color: var(--cs-accent);
+  font-weight: 600;
+}
+
+.hfd-sep {
+  height: 1px;
+  margin: 4px 8px;
+  background: var(--cs-border);
+}
+
+.date-popup-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--cs-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 6px 8px 0;
+}
+
+.date-popup-input {
+  width: 100%;
+  height: 38px;
+  padding: 0 0.6rem;
+  border: 1px solid var(--cs-border-strong);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--cs-text);
+  background: var(--cs-input-bg);
+  outline: none;
+  transition: border-color 0.18s ease, background 0.18s ease;
+  box-sizing: border-box;
+  margin-bottom: 6px;
+}
+
+.date-popup-input:focus {
+  border-color: var(--cs-accent);
+}
+
+[data-theme="dark"] {
+  .header-filter-dropdown {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  }
+}
+
 .email-table td {
   padding: 0.85rem 1rem;
   border-bottom: 1px solid var(--cs-border);

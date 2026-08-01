@@ -41,6 +41,7 @@ describe('CaseService', () => {
   it('gets a single case by id', () => {
     const sample: Case = {
       id: 7,
+      caseDisplayId: 'CS-7',
       subject: 's',
       description: 'd',
       status: 'New',
@@ -56,6 +57,7 @@ describe('CaseService', () => {
       updatedAtUtc: null,
       followUpDueUtc: null,
       daysOverdue: null,
+      commentCount: 0,
     };
     service.get(7).subscribe((c) => expect(c.id).toBe(7));
     const req = httpMock.expectOne('/api/cases/7');
