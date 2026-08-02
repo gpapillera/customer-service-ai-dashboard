@@ -325,6 +325,31 @@
   color: var(--cs-accent);
 }
 
+/* Small X reset button pinned to the top-right of the active date funnel */
+.header-filter-reset {
+  position: absolute;
+  top: -6px;
+  right: -4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--cs-accent);
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.25);
+  z-index: 2;
+  transition: transform 0.15s var(--cs-ease), background 0.15s var(--cs-ease);
+}
+.header-filter-reset:hover {
+  transform: scale(1.15);
+  background: var(--cs-accent-strong, var(--cs-accent));
+}
+
 .header-filter-dropdown {
   position: absolute;
   top: 100%;
@@ -428,6 +453,42 @@
 
 .email-row {
   cursor: pointer;
+}
+
+/* Filtered-to-empty — keep the header visible, show the message below it */
+.no-results-row td {
+  padding: 0;
+  border-bottom: none;
+}
+
+.table-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--cs-text-muted);
+}
+
+.table-empty .empty-icon {
+  width: 40px;
+  height: 40px;
+  margin-bottom: 0.75rem;
+}
+
+.table-empty h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--cs-text);
+  margin: 0 0 0.4rem;
+}
+
+.table-empty p {
+  max-width: 420px;
+  margin: 0 auto;
+  font-size: 0.88rem;
+  line-height: 1.6;
 }
 
 /* Column widths */

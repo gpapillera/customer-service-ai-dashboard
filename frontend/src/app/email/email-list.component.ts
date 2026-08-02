@@ -209,6 +209,16 @@ export class EmailListComponent implements OnInit, OnDestroy {
     }
   }
 
+  /** Resets the date filter back to "All time" and closes the dropdown. */
+  resetDateFilter(): void {
+    this.dateFilterPreset.set('all');
+    this.customDateFrom.set('');
+    this.customDateTo.set('');
+    this.customDateSingle.set('');
+    this.openHeaderFilter.set(null);
+    this.detachDropdownScrollWatch();
+  }
+
   /**
    * Places the open header-filter dropdown with `position: fixed`, clamped to
    * the visible area so it is never clipped by the (now short) table wrapper.

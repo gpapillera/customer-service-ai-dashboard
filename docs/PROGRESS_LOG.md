@@ -2,6 +2,33 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 30 — Emails: keep table header on no-match + reset X on date funnel] (2026-08-02)
+**Status:** ✅ COMPLETE (33/33 Karma + `npm run build` + browser verified)
+
+### Problem
+On the Emails page (admin and agent), applying a date filter that matched no emails made the **whole table disappear** (header included), replaced by a standalone empty-state. There was also **no reset control** on the Date column funnel, so the user couldn't easily restore the table.
+
+### Changes made
+**`frontend/src/app/email/email-list.component.html`**
+- Table now renders whenever `emails().length > 0` (header stays visible even when filters match nothing).
+- `<tbody>` shows the usual rows when `filteredEmails().length > 0`; otherwise a full-width `.no-results-row` renders the search-icon warning **below the header**: "No matching emails / Try adjusting your search or filter…" (removed the old standalone empty-state block for the filtered case).
+- When a date preset is active (`dateFilterPreset() !== 'all'`), a small **reset ✕ button** (`.header-filter-reset`) appears at the top-right of the Date funnel.
+
+**`frontend/src/app/email/email-list.component.ts`**
+- New `resetDateFilter()` — resets preset + custom date inputs to empty, closes the dropdown, detaches the scroll watch.
+
+**`frontend/src/app/email/email-list.component.scss`**
+- `.header-filter-reset` — 15px accent-colored circular ✕, pinned top-right of the funnel, subtle scale on hover (matches the Apple-like micro-interaction style).
+- `.no-results-row` / `.table-empty` — centered search icon + heading + hint inside the table below the header.
+
+**`frontend/angular.json`**
+- `anyComponentStyle` budget raised 11kB/12kB → 12kB/13kB (warn/error). The email SCSS grew legitimately with the filter UI (Phases 26–28 + this) to 12.75 kB; 12 kB error made the build fail. 12.75 kB now yields only a non-fatal warning (same as pre-existing `layout.component.scss`).
+
+### Verified (browser)
+- Date funnel → "Before date…" → 2020-01-01 (0 matches): header row with all 6 columns stays visible ✅; warning row shows below header with exact copy ✅; reset ✕ visible at funnel top-right (x:384, y:232, 15×15) ✅.
+- Click reset ✕: filter cleared, dropdown closed, all 28 rows restored, ✕ gone ✅.
+- Karma 33/33 ✅; `npm run build` green (warning only) ✅.
+
 ## [Phase 29 — Root-level npm scripts] (2026-08-02)
 **Status:** ✅ COMPLETE
 

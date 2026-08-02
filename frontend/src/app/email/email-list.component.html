@@ -79,17 +79,8 @@
     </div>
   }
 
-  <!-- No results for current filters -->
-  @if (!loading() && !error() && emails().length > 0 && filteredEmails().length === 0) {
-    <div class="empty-state">
-      <cs-icon name="search" class="empty-icon"></cs-icon>
-      <h3>No matching emails</h3>
-      <p>Try adjusting your search or filter to find what you're looking for.</p>
-    </div>
-  }
-
-  <!-- Email table -->
-  @if (filteredEmails().length > 0) {
+  <!-- Email table — the header stays visible even when filters match nothing -->
+  @if (!loading() && !error() && emails().length > 0) {
     <div class="table-wrap">
       <table class="email-table">
         <thead>
@@ -106,6 +97,13 @@
                   aria-label="Filter by date">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z"/></svg>
                 </button>
+                @if (dateFilterPreset() !== 'all') {
+                  <button type="button" class="header-filter-reset"
+                    (click)="$event.stopPropagation(); resetDateFilter()"
+                    aria-label="Reset date filter" title="Reset date filter">
+                    <cs-icon name="close" [size]="12"></cs-icon>
+                  </button>
+                }
                 @if (openHeaderFilter() === 'date') {
                   <div class="header-filter-dropdown date-dropdown" (click)="$event.stopPropagation()">
                     @for (p of datePresets; track p) {
@@ -189,28 +187,40 @@
           </tr>
         </thead>
         <tbody>
-          @for (email of filteredEmails(); track email.id) {
-            <tr class="email-row" (click)="openEmail(email)">
-              <td class="col-date">{{ formatDate(email.createdAtUtc) }}</td>
-              <td class="col-recipient">{{ email.recipient ?? '—' }}</td>
-              <td class="col-subject">
-                <span class="subject-text">{{ email.title }}</span>
-                <span class="subject-message">{{ email.message }}</span>
-              </td>
-              <td class="col-type">
-                <span [class]="'type-badge ' + typeClass(email.type)">{{ typeLabel(email.type) }}</span>
-              </td>
-              <td class="col-status">
-                <span [class]="'status-pill ' + statusClass(email.status)">{{ statusLabel(email.status) }}</span>
-              </td>
-              <td class="col-case">
-                @if (email.caseId) {
-                  <a [routerLink]="['/cases', email.caseId]" class="case-link" (click)="$event.stopPropagation()">
-                    #{{ email.caseId }}
-                  </a>
-                } @else {
-                  <span class="muted">—</span>
-                }
+          @if (filteredEmails().length > 0) {
+            @for (email of filteredEmails(); track email.id) {
+              <tr class="email-row" (click)="openEmail(email)">
+                <td class="col-date">{{ formatDate(email.createdAtUtc) }}</td>
+                <td class="col-recipient">{{ email.recipient ?? '—' }}</td>
+                <td class="col-subject">
+                  <span class="subject-text">{{ email.title }}</span>
+                  <span class="subject-message">{{ email.message }}</span>
+                </td>
+                <td class="col-type">
+                  <span [class]="'type-badge ' + typeClass(email.type)">{{ typeLabel(email.type) }}</span>
+                </td>
+                <td class="col-status">
+                  <span [class]="'status-pill ' + statusClass(email.status)">{{ statusLabel(email.status) }}</span>
+                </td>
+                <td class="col-case">
+                  @if (email.caseId) {
+                    <a [routerLink]="['/cases', email.caseId]" class="case-link" (click)="$event.stopPropagation()">
+                      #{{ email.caseId }}
+                    </a>
+                  } @else {
+                    <span class="muted">—</span>
+                  }
+                </td>
+              </tr>
+            }
+          } @else {
+            <tr class="no-results-row">
+              <td colspan="6">
+                <div class="table-empty">
+                  <cs-icon name="search" class="empty-icon"></cs-icon>
+                  <h3>No matching emails</h3>
+                  <p>Try adjusting your search or filter to find what you're looking for.</p>
+                </div>
               </td>
             </tr>
           }
