@@ -176,6 +176,11 @@ export class EmailListComponent implements OnInit, OnDestroy {
     this.filterType.set('');
   }
 
+  /** Clears the search text. */
+  clearSearch(): void {
+    this.searchTerm.set('');
+  }
+
   /** Toggle a header filter dropdown open/closed. */
   toggleHeaderFilter(col: string): void {
     const next = this.openHeaderFilter() === col ? null : col;

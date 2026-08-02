@@ -2,6 +2,29 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 31 — Emails: search reset X button] (2026-08-02)
+**Status:** ✅ COMPLETE (33/33 Karma + `npm run build` + browser verified admin & agent)
+
+### Changes made
+**`frontend/src/app/email/email-list.component.html`**
+- Wrapped the search `mat-form-field` in `.search-wrapper`.
+- When `searchTerm()` is non-empty, a small ✕ reset button (`.search-reset-btn`, "Clear search") renders at the top-right of the search field — same placement pattern as the Conversations page date-filter reset.
+
+**`frontend/src/app/email/email-list.component.ts`**
+- New `clearSearch()` — sets `searchTerm` to `''`.
+
+**`frontend/src/app/email/email-list.component.scss`**
+- `.search-wrapper` — `position: relative`, flex 1 1 280px, min-width 0 (mobile media query updated to target the wrapper).
+- `.search-reset-btn` — 26px circular ✕ at top-right (`top:-8px; right:-8px`), mirrors Conversations' `.clear-filter-btn`: surface background, border-strong outline, danger-red hover with scale 1.2.
+
+**`frontend/angular.json`**
+- `anyComponentStyle` budget 12kB/13kB → 13kB/14kB (warn/error). Email SCSS reached 13.48 kB with the new reset styles; 13 kB error failed the build. Now only a non-fatal warning (13.48 < 14).
+
+### Verified (browser)
+- Admin: type in search → ✕ appears (26×26 at top-right of field), 0 rows + header stays + no-match row; click ✕ → search clears, all 28 rows restore ✅.
+- Agent: identical behavior ✅ (shared component/route).
+- Karma 33/33 ✅; `npm run build` green (warning only) ✅.
+
 ## [Phase 30 — Emails: keep table header on no-match + reset X on date funnel] (2026-08-02)
 **Status:** ✅ COMPLETE (33/33 Karma + `npm run build` + browser verified)
 
