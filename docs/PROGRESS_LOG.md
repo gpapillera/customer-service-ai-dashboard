@@ -2,6 +2,16 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 29 — Root-level npm scripts] (2026-08-02)
+**Status:** ✅ COMPLETE
+
+### Changes made
+- Root `package.json` had **no scripts** (only `@angular/cli` devDependency), so `npm start` from the repo root failed with "Missing script: start" — the app only ran via `npm --prefix frontend start`.
+- Added root scripts: `start` → `npm --prefix frontend start`, plus `build`, `test`, `watch` forwarding to the frontend package.
+
+### Verified
+- `npm start` from repo root now starts `ng serve` on :4200 cleanly ("Application bundle generation complete", no errors).
+
 ## [Phase 28 — Header Filter Dropdown Clipping Fix (all columns)] (2026-08-02)
 **Status:** ✅ COMPLETE (33/33 Karma + `npm run build` + browser verified on both pages)
 

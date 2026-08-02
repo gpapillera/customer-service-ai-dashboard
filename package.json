@@ -1,4 +1,10 @@
 {
+  "scripts": {
+    "start": "npm --prefix frontend start",
+    "build": "npm --prefix frontend run build",
+    "test": "npm --prefix frontend test",
+    "watch": "npm --prefix frontend run watch"
+  },
   "devDependencies": {
     "@angular/cli": "^18.2.21"
   }
