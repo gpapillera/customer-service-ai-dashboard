@@ -2,6 +2,30 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 32 — Cases: search reset X button (shared search-filter-toolbar)] (2026-08-03)
+**Status:** ✅ COMPLETE (33/33 Karma + `npm run build` + browser verified)
+
+### Problem
+The Cases page search bar had no reset ✕, unlike the Emails page search bar (Phase 31) and the Conversations page date-filter reset. Typing a search required manually clearing the text.
+
+### Changes made
+**`frontend/src/app/cases/search-filter-toolbar/search-filter-toolbar.component.html`**
+- Wrapped the search `mat-form-field` in a `.f-search-wrapper`.
+- When `form.get('search')?.value` is non-empty, a small ✕ reset button (`.search-reset-btn`, "Clear search") renders at the top-right of the search field — same placement pattern as Emails/Conversations.
+
+**`frontend/src/app/cases/search-filter-toolbar/search-filter-toolbar.component.ts`**
+- New `clearSearch()` — `form.patchValue({ search: '' })`. The existing `valueChanges` subscription emits `searchChanged('')`, so the parent `CaseListComponent` clears the search and restores all cases. No parent change needed.
+
+**`frontend/src/app/cases/search-filter-toolbar/search-filter-toolbar.component.scss`**
+- `.f-search-wrapper` — `position: relative`, flex 1 1 200px, min-width 180px, max-width 100%; mobile media query (800px) now targets the wrapper.
+- `.search-reset-btn` — 26px circular ✕ at top-right (`top:-8px; right:-8px`), mirrors the `.search-reset-btn`/`.clear-filter-btn` pattern: surface background, border-strong outline, danger-red hover with scale 1.2.
+
+### Verified (browser, agent session)
+- Type `zzzzzz` → ✕ appears (26×26 at top-right of field, ~x:861 y:111), 0 rows + "No cases match your filters" empty state + table header stays ✅.
+- Click ✕ → search input clears, all 11 rows restore, ✕ disappears ✅.
+- Shared component → admin and agent both get the fix automatically.
+- Karma 33/33 ✅; `npm run build` green (only the pre-existing non-fatal email SCSS budget warning) ✅.
+
 ## [Phase 31 — Emails: search reset X button] (2026-08-02)
 **Status:** ✅ COMPLETE (33/33 Karma + `npm run build` + browser verified admin & agent)
 

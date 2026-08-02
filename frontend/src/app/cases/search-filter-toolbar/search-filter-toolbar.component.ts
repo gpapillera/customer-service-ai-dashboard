@@ -51,4 +51,9 @@ export class SearchFilterToolbarComponent implements OnChanges {
       this.form.patchValue({ search: this.search ?? '' }, { emitEvent: false });
     }
   }
+
+  /** Clears the search input (emits '' via the valueChanges subscription). */
+  clearSearch(): void {
+    this.form.patchValue({ search: '' });
+  }
 }

@@ -1,13 +1,26 @@
 <form class="toolbar" [formGroup]="form" aria-label="Search and filter cases">
-  <mat-form-field appearance="outline" class="f-search">
-    <cs-icon name="search" matPrefix class="prefix-icon"></cs-icon>
-    <input
-      matInput
-      formControlName="search"
-      placeholder="Search by title or customer..."
-      aria-label="Search by title or customer"
-    />
-  </mat-form-field>
+  <div class="f-search-wrapper">
+    <mat-form-field appearance="outline" class="f-search">
+      <cs-icon name="search" matPrefix class="prefix-icon"></cs-icon>
+      <input
+        matInput
+        formControlName="search"
+        placeholder="Search by title or customer..."
+        aria-label="Search by title or customer"
+      />
+    </mat-form-field>
+    @if (form.get('search')?.value) {
+      <button
+        type="button"
+        class="search-reset-btn"
+        (click)="clearSearch()"
+        aria-label="Clear search"
+        title="Clear search"
+      >
+        <cs-icon name="close" [size]="12"></cs-icon>
+      </button>
+    }
+  </div>
 
   <div class="filters">
     <button
