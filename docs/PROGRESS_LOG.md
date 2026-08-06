@@ -2,6 +2,99 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 39 — Emails: move type filter dropdown from search bar to table header (Type column)] (2026-08-06)
+**Status:** ✅ COMPLETE (`npm run build` green)
+
+### Problem
+The Emails page had a `mat-select` type dropdown in the search toolbar area, visually competing with the search input. The reference implementation (Cases page) places filter dropdowns in table header columns via a funnel icon + options popup. Moving the type filter to the Type column header is more consistent and frees toolbar space.
+
+### Changes made
+**`frontend/src/app/email/email-list.component.html`**
+- Removed the `@if (typeOptions().length > 0)` block containing the `filter-wrapper` + `mat-select` from the search toolbar.
+- Restructured the Type `<th>` to wrap content in `.th-content`, added a `.header-filter-btn` (funnel SVG icon) that toggles `openHeaderFilter('type')`.
+- Added a `header-filter-dropdown` with `hfd-option` buttons for each type (reuses existing `typeOptions()` computed signal and `typeLabel()` method).
+
+**`frontend/src/app/email/email-list.component.ts`**
+- Removed the now-unused `clearTypeFilter()` method (its only caller was the removed toolbar button).
+- Added `setHeaderFilter(col, value)` method — closes the dropdown and sets `filterType` signal when `col === 'type'`.
+
+**`frontend/src/app/email/email-list.component.scss`**
+- Removed dead `.filter-wrapper`, `.filter-select`, and all `::ng-deep` rules for the old mat-select dropdown.
+- Fixed the `@media (max-width: 700px)` block (closing brace was lost during cleanup).
+
+### Verified
+- `npm run build` green ✅ (1.52 MB initial).
+- The existing header-filter infrastructure (`openHeaderFilter`, `toggleHeaderFilter`, `applyHeaderDropdownPlacement`, scroll watchers) was already in the component — only the Type column wiring was new.
+- The Date column's existing funnel button + dropdown remains unchanged.
+
+## [Phase 38 — Conversations: remove reset X from unread toggle button] (2026-08-06)
+**Status:** ✅ COMPLETE (`npm run build` green)
+
+### Problem
+Both the agent and admin Conversations pages had an unread-only filter button (mail icon) that showed a reset ✕ (`.clear-filter-btn`) when active. The ✕ was redundant because the button is a **toggle** — clicking it again deactivates the filter. Having both a toggle and a separate reset X was confusing and inconsistent with the button's purpose.
+
+### Changes made
+**`frontend/src/app/cases/conversations-list.component.html`** and **`frontend/src/app/cases/admin-conversations.component.html`**
+- Removed the `@if (unreadOnly())` block containing the `<button class="clear-filter-btn">` (the ✕ that appeared top-right of the mail button).
+- The `.filter-wrapper` now contains only the `<button class="unread-filter-btn">` (the mail icon toggle).
+
+**`frontend/src/app/cases/conversations-list.component.ts`** and **`frontend/src/app/cases/admin-conversations.component.ts`**
+- Removed the `resetUnreadFilter()` method (no longer called from the template).
+- Kept `clearSearch()` intact (still used by the search bar reset X).
+
+### Verified
+- `npm run build` green ✅ (1.53 MB initial, no budget errors).
+- Unread toggle still works: click mail icon → filters to unread, click again → clears filter.
+- Search bar reset X (added in Phase 36-37) still works on both pages.
+
+## [Phases 34–37 — Search reset X button rolled out across Customers, Agents, and both Conversations pages] (2026-08-06)
+**Status:** ✅ COMPLETE (`npm run build` green; browser verified admin & agent)
+
+### Problem
+The Cases page search bar (Phase 32) and the Emails page search bar (Phase 31) both had a floating reset ✕ (`.search-reset-btn`) that appears once the user types and clears the input on click. The Customers, Agents, and both Conversations (agent + admin) search bars had **no** reset ✕ — users had to manually clear typed text. The two Conversations pages already had `.clear-filter-btn` on their *filter pills* (date/agent/unread) but not on the search input itself.
+
+### Approach
+Replicated the canonical Cases pattern (wrap `mat-form-field` in a `position: relative` `.search-wrapper`, add an `@if (searchTerm())`-guarded `search-reset-btn` button, add a `clearSearch()` method). Unified on the `.search-reset-btn` class name (byte-identical CSS to `.clear-filter-btn` — keeping two names for "search clear" vs "filter-pill clear" preserves intent). All tokens (`--cs-border-strong`, `--cs-surface`, `--cs-danger-bg`, `--cs-danger`, `--cs-text-muted`) are already defined for both light and dark themes in `styles.scss:65-138` — no theme work needed.
+
+### Changes made (per page — same 3-file pattern each)
+Each page got: (1) a `clearSearch()` TS method, (2) an HTML `.search-wrapper` div wrapping the existing `mat-form-field` + an `@if (searchTerm())` `search-reset-btn` button, (3) a `.search-wrapper` + `.search-reset-btn` SCSS block with a `ponytail:` comment marking the duplication ceiling (hoist to `styles.scss` once 5+ pages use it).
+
+- **Phase 34 — Customers** (`customers/customer-list.component.{html,scss,ts}`): `clearSearch()` calls existing `load()` to reload the unfiltered list (server-side search).
+- **Phase 35 — Agents** (`users/agent-list.component.{html,scss,ts}`): `clearSearch()` just sets the signal — `filteredAgents` computed recomputes client-side.
+- **Phase 36 — Conversations (agent)** (`cases/conversations-list.component.{html,scss,ts}`): `clearSearch()` just sets the signal — `filteredConversations` computed recomputes. Existing filter-pill `.clear-filter-btn` buttons (date/agent/unread) untouched.
+- **Phase 37 — Conversations (admin)** (`cases/admin-conversations.component.{html,scss,ts}`): mirror of Phase 36 for the admin tab.
+
+### Verified
+- `npm run build` green ✅.
+- Browser (admin login): Customers search → ✕ appears on type → click clears + reloads ✅; Agents search → ✕ appears → click → full list ✅; admin Conversations search → ✕ appears → click → full list ✅; filter-pill ✕ buttons (date/agent/unread) still work (different class, untouched) ✅.
+- Browser (agent login): agent Conversations (Messages) search → ✕ appears → click → full list ✅.
+- Dark mode (nav theme toggle): ✕ stays legible on all 4 pages — border, surface, hover-red all theme-aware via tokens ✅.
+- Regression: Cases search ✕ and Emails search ✕ (source patterns) untouched and still work ✅.
+
+## [Phase 33 — Emails: type-filter reset X now top-right corner (matches search bar)] (2026-08-03)
+**Status:** ✅ COMPLETE (33/33 Karma + `npm run build` + browser verified admin & agent)
+
+### Problem
+On the Emails page, the type dropdown filter's reset ✕ (`.clear-filter-btn`) rendered **inline beside** the select field, unlike the search bar's reset ✕ (`.search-reset-btn`) which sits at the **top-right corner** of its field. The two resets looked inconsistent.
+
+### Changes made
+**`frontend/src/app/email/email-list.component.html`**
+- Wrapped the type `mat-form-field.filter-select` in a new `<div class="filter-wrapper">` (mirrors `.search-wrapper`).
+- Moved the `@if (filterType())` reset button **inside** the wrapper, right after the `mat-form-field`.
+- Changed its class from `clear-filter-btn` to `search-reset-btn` (reuses the existing top-right-corner style) and its icon size from `16` to `12` to match the search reset.
+
+**`frontend/src/app/email/email-list.component.scss`**
+- Added `.filter-wrapper` — `position: relative; flex: 0 0 180px; min-width: 0;` (keeps the select's fixed 180px width).
+- Changed `.filter-select` from `flex: 0 0 180px` to `flex: 1 1 auto; min-width: 0; width: 100%;` so it fills the wrapper. **`width: 100%` is required** — Material's `mat-form-field` has an intrinsic min-width (~214px) that otherwise overflows the 180px wrapper, leaving the reset ✕ 26px short of the field's right edge.
+- Removed the now-unused `.clear-filter-btn` / `.clear-filter-btn:hover` rules.
+- Updated the `@media (max-width: 700px)` block to target `.filter-wrapper` (flex `1 1 100%`) instead of `.filter-select`.
+
+### Verified (browser, admin & agent)
+- Select a type (e.g. "Overdue reminder") → reset ✕ appears at the **top-right corner** of the type field (26×26, `top:-8px; right:-8px`, `btnAboveField:true`, `btnNearFieldRight:true`), rows filter to 16 ✅.
+- Click ✕ → filter clears to "All types", all 28 rows restore, ✕ disappears ✅.
+- Identical behavior for admin and agent (shared component/route) ✅.
+- Karma 33/33 ✅; `npm run build` green (no budget warning — net SCSS change was small) ✅.
+
 ## [Phase 32 — Cases: search reset X button (shared search-filter-toolbar)] (2026-08-03)
 **Status:** ✅ COMPLETE (33/33 Karma + `npm run build` + browser verified)
 
