@@ -18,7 +18,7 @@
           <cs-icon name="search" matPrefix class="prefix-icon"></cs-icon>
           <input
             matInput
-            placeholder="Search by recipient or subject…"
+            placeholder="Search by recipient, subject, case ID…"
             [ngModel]="searchTerm()"
             (ngModelChange)="searchTerm.set($event)"
           />
@@ -29,28 +29,6 @@
           </button>
         }
       </div>
-
-      @if (typeOptions().length > 0) {
-        <mat-form-field appearance="outline" class="filter-select">
-          <mat-select
-            [value]="filterType()"
-            (valueChange)="filterType.set($event)"
-            placeholder="All types"
-            aria-label="Filter by notification type"
-          >
-            <mat-option value="">All types</mat-option>
-            @for (t of typeOptions(); track t) {
-              <mat-option [value]="t">{{ typeLabel(t) }}</mat-option>
-            }
-          </mat-select>
-        </mat-form-field>
-      }
-
-      @if (filterType()) {
-        <button type="button" class="clear-filter-btn" (click)="clearTypeFilter()" aria-label="Clear type filter">
-          <cs-icon name="close" [size]="16"></cs-icon>
-        </button>
-      }
 
       <button type="button" class="compose-btn" (click)="openCompose()" aria-label="Compose email">
         <cs-icon name="add"></cs-icon>
@@ -179,10 +157,35 @@
               }
             </th>
             <th class="col-type sortable" (click)="toggleSort('type')">
-              Type
-              @if (sortColumn() === 'type') {
-                <span class="sort-arrow">{{ sortDesc() ? '▼' : '▲' }}</span>
-              }
+              <span class="th-content">
+                <span class="th-label">Type</span>
+                @if (sortColumn() === 'type') {
+                  <span class="sort-arrow">{{ sortDesc() ? '▼' : '▲' }}</span>
+                }
+                <button type="button" class="header-filter-btn"
+                  [class.filter-active]="filterType()"
+                  (click)="$event.stopPropagation(); toggleHeaderFilter('type')"
+                  aria-label="Filter by type">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z"/></svg>
+                </button>
+                @if (filterType()) {
+                  <button type="button" class="header-filter-reset"
+                    (click)="$event.stopPropagation(); resetTypeFilter()"
+                    aria-label="Reset type filter" title="Reset type filter">
+                    <cs-icon name="close" [size]="12"></cs-icon>
+                  </button>
+                }
+                @if (openHeaderFilter() === 'type') {
+                  <div class="header-filter-dropdown" (click)="$event.stopPropagation()">
+                    <button type="button" class="hfd-option" [class.active]="!filterType()"
+                      (click)="setHeaderFilter('type', '')">All types</button>
+                    @for (t of typeOptions(); track t) {
+                      <button type="button" class="hfd-option" [class.active]="filterType() === t"
+                        (click)="setHeaderFilter('type', t)">{{ typeLabel(t) }}</button>
+                    }
+                  </div>
+                }
+              </span>
             </th>
             <th class="col-status sortable" (click)="toggleSort('status')">
               Status

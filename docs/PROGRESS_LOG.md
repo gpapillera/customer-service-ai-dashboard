@@ -2,6 +2,20 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 40 — Emails: clarify search placeholder to include Case ID] (2026-08-06)
+**Status:** ✅ COMPLETE (`npm run build` green)
+
+### Problem
+The Email search bar already searched `caseId` (logic at `email-list.component.ts:130`), but the placeholder text "Search by recipient or subject…" misled users into thinking Case was not searchable.
+
+### Change
+- `frontend/src/app/email/email-list.component.html`: updated the search input placeholder to "Search by recipient, subject, case ID…".
+
+### Verified
+- `npm run build` green (1.53 MB initial).
+- Case ID search was already functional — no logic change needed, only the UI hint.
+- Applies to both admin and agent Email pages (shared `EmailListComponent`).
+
 ## [Phase 39 — Emails: move type filter dropdown from search bar to table header (Type column)] (2026-08-06)
 **Status:** ✅ COMPLETE (`npm run build` green)
 
