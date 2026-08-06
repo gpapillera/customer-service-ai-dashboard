@@ -13,15 +13,24 @@
   <!-- Search bar -->
   <div class="search-bar">
     <div class="search-toolbar">
-      <mat-form-field appearance="outline" class="search-field">
-        <cs-icon name="search" matPrefix class="prefix-icon"></cs-icon>
-        <input
-          matInput
-          placeholder="Search by subject or customer…"
-          [ngModel]="searchTerm()"
-          (ngModelChange)="searchTerm.set($event)"
-        />
-      </mat-form-field>
+      <div class="search-wrapper">
+        <mat-form-field appearance="outline" class="search-field">
+          <cs-icon name="search" matPrefix class="prefix-icon"></cs-icon>
+          <input
+            matInput
+            placeholder="Search by subject or customer…"
+            [ngModel]="searchTerm()"
+            (ngModelChange)="searchTerm.set($event)"
+            aria-label="Search by subject or customer"
+          />
+        </mat-form-field>
+        @if (searchTerm()) {
+          <button type="button" class="search-reset-btn"
+            (click)="clearSearch()" aria-label="Clear search" title="Clear search">
+            <cs-icon name="close" [size]="12"></cs-icon>
+          </button>
+        }
+      </div>
       <div class="filter-group">
         <div class="filter-wrapper" [class.active]="dateFilterPreset() !== 'all'" (click)="onFilterWrapperClick()">
           <mat-form-field appearance="outline" class="date-preset-field">
@@ -129,11 +138,6 @@
           >
             <cs-icon name="mail"></cs-icon>
           </button>
-          @if (unreadOnly()) {
-            <button type="button" class="clear-filter-btn" (click)="resetUnreadFilter()" aria-label="Clear unread filter">
-              <cs-icon name="close" [size]="12"></cs-icon>
-            </button>
-          }
         </div>
       </div>
     </div>

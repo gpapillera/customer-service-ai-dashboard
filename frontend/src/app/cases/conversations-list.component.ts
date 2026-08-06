@@ -330,12 +330,12 @@ export class ConversationsListComponent implements OnInit, OnDestroy {
     this.unreadOnly.update((v) => !v);
   }
 
-  /** Resets unread filter to defaults. */
-  resetUnreadFilter(): void {
-    this.unreadOnly.set(false);
+  /** Clears the search input (filteredConversations recomputes automatically). */
+  clearSearch(): void {
+    this.searchTerm.set('');
   }
 
-  /** Formats an ISO timestamp for display. */
+  /** Formats an ISO date string for display. */
   formatDate(iso: string): string {
     const d = new Date(iso);
     if (isNaN(d.getTime())) return '';

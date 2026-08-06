@@ -33,6 +33,15 @@ public static class SeedDataInitializer
         ctx.Cases.AddRange(cases);
         ctx.CallLogs.AddRange(SeedData.CallLogs(cases));
         ctx.CaseComments.AddRange(SeedData.Comments(cases));
+
+        // Email configuration: singleton config, allowed domains, templates.
+        if (!ctx.EmailConfigs.Any())
+            ctx.EmailConfigs.Add(SeedData.EmailConfig());
+        if (!ctx.EmailDomains.Any())
+            ctx.EmailDomains.AddRange(SeedData.EmailDomains());
+        if (!ctx.EmailTemplates.Any())
+            ctx.EmailTemplates.AddRange(SeedData.EmailTemplates());
+
         ctx.SaveChanges();
     }
 }

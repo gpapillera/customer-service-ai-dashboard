@@ -346,9 +346,9 @@ export class AdminConversationsComponent implements OnInit, OnDestroy {
     this.unreadOnly.update((v) => !v);
   }
 
-  /** Resets unread filter to defaults. */
-  resetUnreadFilter(): void {
-    this.unreadOnly.set(false);
+  /** Clears the search input (filteredConversations recomputes automatically). */
+  clearSearch(): void {
+    this.searchTerm.set('');
   }
 
   formatDate(iso: string): string {

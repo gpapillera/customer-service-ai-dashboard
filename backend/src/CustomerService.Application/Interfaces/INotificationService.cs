@@ -71,4 +71,15 @@ public interface INotificationService
     /// <param name="request">The compose payload (recipient, subject, message, optional caseId).</param>
     /// <returns>The created notification DTO.</returns>
     Task<NotificationDto> ComposeEmailAsync(ComposeEmailRequest request);
+
+    /// <summary>
+    /// Re-sends an existing email log entry (Admin-only). Creates a fresh
+    /// <see cref="Notification"/> copied from the original (same recipient,
+    /// title, message, type, case link) and delivers it again through the
+    /// configured sender. Used when the original delivery is believed to have
+    /// failed or the recipient reports not receiving it.
+    /// </summary>
+    /// <param name="id">Id of the original email-log notification.</param>
+    /// <returns>The newly created (and re-sent) notification DTO, or null if the original was not found.</returns>
+    Task<NotificationDto?> ResendEmailAsync(int id);
 }

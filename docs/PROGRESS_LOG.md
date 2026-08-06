@@ -2,6 +2,70 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 42 — Email configuration: domains, templates, smart routing] (2026-08-06)
+**Status:** ✅ COMPLETE (`dotnet test` 73/73 + `npm run build` green + live browser + `emails.log` proof)
+
+### Problem
+SMTP was hard-wired to dev-redirect every email to `glnppllr@gmail.com`. There was no way for an admin to (a) whitelist real recipient domains for direct delivery, (b) edit the email text per notification type with personalization tokens, or (c) change the test/delivery address. The compose button also took prime toolbar real-estate that admins needed for configuration.
+
+### Backend (C# ASP.NET Core 8)
+- **New DB tables** (no migrations — `EnsureCreated` + idempotent seed): `EmailConfigs` (singleton test address), `EmailDomains` (allowed direct-delivery list), `EmailTemplates` (per-type subject/body with `{{tokens}}`).
+- `IEmailConfigService` + `EmailConfigService`: CRUD for config/domains/templates + `GetBundleAsync` (includes `knownDomainSuggestions`).
+- `EmailNotificationSender`:
+  - `ResolveEffectiveRecipient` (TDD) — listed domain → original recipient; else → configured test address. Replaces the old static `DevOverrideRecipient` block.
+  - `RenderTemplate` (TDD) — `{{token}}` substitution (case-insensitive, unknown tokens left literal).
+  - `BuildContentAsync` loads the related `Case` (Customer + AssignedToUser) to fill `{{customerName}}`, `{{agentName}}`, `{{caseId}}`, `{{caseSubject}}`, `{{caseStatus}}`, `{{customerEmail}}`, `{{agentEmail}}`, `{{portalLink}}`; falls back to legacy hardcoded text when no template exists.
+- `EmailConfigController` (`api/email-config`, **Admin-only**): get bundle, update test email, domain CRUD, template upsert/delete.
+- `EmailsController`: `POST /api/emails/{id}/resend` relaxed from **Admin-only → Admin + Agent** (per user request).
+- Seed: test address `glnppllr@gmail.com`, 8 known domains, 7 templates ported from the old hardcoded `BuildContent` into editable token text.
+
+### Frontend (Angular 18)
+- `models.ts`: added `EmailConfigDto`, `EmailDomainDto`, `EmailTemplateDto`, `EmailConfigBundleDto`, request DTOs.
+- `email-config.service.ts`: typed client for all `api/email-config` endpoints.
+- `email-list.component.ts`: `isAdmin` getter; `openConfig`/`closeConfig`; test-email save; domain add/remove/quick-add; template edit/save/delete with clickable token chips.
+- `email-list.component.html`: toolbar **"Email configuration" button (Admin)** replaces the compose button (agents still see Compose); full config side-panel markup (test address, domain list + quick-add, template editor with tokens).
+- `email-list.component.scss`: config-panel styles (reuses CSS vars; `ponytail:` no new abstraction).
+- `angular.json`: component-style budget raised 13/14 kB → 20/24 kB (feature needs the extra SCSS; build stays under 1.5 MB initial).
+
+### Verification (the gate you required)
+- **Redirect path:** resend of email id=2 (`agent@demo.com`, not listed) → `emails.log` shows `TO:glnppllr@gmail.com [DEV-REDIRECT from:agent@demo.com]` ✅
+- **Direct path:** after `POST /api/email-config/domains {demo.com}`, resend → `TO:agent@demo.com` (no redirect) ✅
+- **Roles:** admin resend = 200; agent resend = 200; agent `GET /api/email-config` = 403 ✅
+- **Browser:** logged in as admin at `/emails` → "Email configuration" button → side panel renders test email, 9 domains, 7 token-based templates ✅
+- Note: the SQLite DB was recreated once (deleted `customer_service.db`) so `EnsureCreated` could add the 3 new tables; seed re-ran. Backup at `/tmp/customer_service.db.bak`.
+
+### Notes
+- SMTP credentials are now valid (the July-24 `535` failures are gone — SENT lines succeed). Real delivery to listed domains works.
+- Compose functionality is unchanged in code (admin can still reach it via the service); only the toolbar primary button switched to configuration for admins.
+
+## [Phase 41 — Emails: add Resend button to email detail overlay] (2026-08-06)
+**Status:** ✅ COMPLETE (`dotnet build` + `dotnet test` 64/64 + `npm run build` all green)
+
+### Problem
+When an email was not received, admins had no way to re-deliver it from the UI. The email detail overlay (right-side panel) showed content but offered no retry action.
+
+### Backend (C# ASP.NET Core 8)
+- `INotificationService.cs`: added `Task<NotificationDto?> ResendEmailAsync(int id)`.
+- `NotificationService.cs`: implemented `ResendEmailAsync` — fetches the original email-log notification, copies it into a fresh `Notification` (same recipient/title/message/type/case link), delivers it again through `INotificationSender`, and returns the new DTO. Returns null if the id is missing or not an Email-channel row.
+- `EmailsController.cs`: added `POST api/emails/{id}/resend` (Admin-only). Returns 404 if not found.
+- `CaseServiceTests.cs` / `AuthBoundaryTests.cs`: added `ResendEmailAsync` stubs to the two `FakeNotificationService` test fakes (interface contract).
+
+### Frontend (Angular 18)
+- `email-log.service.ts`: added `resend(id: number)` → `POST /api/emails/{id}/resend`.
+- `email-list.component.ts`: added `resending` signal + `resend(email)` method (guards double-submit, reloads the log on success/error).
+- `email-list.component.html`: added a "Resend email" button (with spinner label "Resending…") + helper hint inside the overlay `.od-actions` block.
+- `email-list.component.scss`: added `.od-actions`, `.od-resend-btn`, `.od-resend-hint` styles (reuse `.cs-btn` / `.cs-btn-primary`).
+
+### Notes
+- The endpoint is **Admin-only** (matches the existing `compose` rule). Agents see the panel but the button would 403 — consistent with current auth model.
+- Applies to both admin and agent Email pages (shared `EmailListComponent`).
+- A re-send creates a **new** log row (distinct send event) rather than mutating the original, so delivery retries are auditable.
+
+### Verified
+- `dotnet build CustomerServiceApi.sln` ✅ (0 errors)
+- `dotnet test CustomerServiceApi.sln` ✅ 64/64 passing
+- `npm run build` ✅ (1.53 MB initial)
+
 ## [Phase 40 — Emails: clarify search placeholder to include Case ID] (2026-08-06)
 **Status:** ✅ COMPLETE (`npm run build` green)
 

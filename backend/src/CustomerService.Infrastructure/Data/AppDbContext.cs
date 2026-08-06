@@ -42,6 +42,15 @@ public class AppDbContext : DbContext
     /// <summary>Per-agent, per-case "last viewed" markers for the Messages tab.</summary>
     public DbSet<ConversationReadState> ConversationReadStates => Set<ConversationReadState>();
 
+    /// <summary>Singleton email-sending configuration (test address, etc.).</summary>
+    public DbSet<EmailConfig> EmailConfigs => Set<EmailConfig>();
+
+    /// <summary>Allowed email domains for direct (non-redirected) delivery.</summary>
+    public DbSet<EmailDomain> EmailDomains => Set<EmailDomain>();
+
+    /// <summary>Editable, per-type email templates with personalization tokens.</summary>
+    public DbSet<EmailTemplate> EmailTemplates => Set<EmailTemplate>();
+
     /// <summary>
     /// Configures the model: relationships, constraints, and value
     /// normalization (e.g. lowercase email) at the database level.

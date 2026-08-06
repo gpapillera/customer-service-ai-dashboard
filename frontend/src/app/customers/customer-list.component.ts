@@ -119,6 +119,12 @@ export class CustomerListComponent implements OnInit {
     this.load();
   }
 
+  /** Clears the search input and reloads the unfiltered list. */
+  clearSearch(): void {
+    this.searchTerm.set('');
+    this.load();
+  }
+
   /** Opens the new-customer modal dialog. */
   openNew(): void {
     const ref = this.dialog.open(CustomerFormComponent, {

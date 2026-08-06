@@ -356,6 +356,53 @@ export interface ComposeEmailRequest {
   caseId?: number;
 }
 
+/** Singleton email config: the test/delivery address for non-listed domains. */
+export interface EmailConfigDto {
+  id: number;
+  testEmailAddress: string;
+}
+
+/** An allowed email domain (direct delivery instead of test-address redirect). */
+export interface EmailDomainDto {
+  id: number;
+  domain: string;
+  description?: string | null;
+}
+
+/** An editable, per-type email template with personalization tokens. */
+export interface EmailTemplateDto {
+  id: number;
+  type: string;
+  subject: string;
+  body: string;
+}
+
+/** Full config bundle returned by GET /api/email-config. */
+export interface EmailConfigBundleDto {
+  config: EmailConfigDto;
+  domains: EmailDomainDto[];
+  templates: EmailTemplateDto[];
+  knownDomainSuggestions: string[];
+}
+
+/** Request to update the test email address. */
+export interface TestEmailRequest {
+  testEmail: string;
+}
+
+/** Request to add/update a domain. */
+export interface DomainRequest {
+  domain: string;
+  description?: string | null;
+}
+
+/** Request to upsert a template. */
+export interface TemplateRequest {
+  type: string;
+  subject?: string;
+  body?: string;
+}
+
 /**
  * A currently-overdue case surfaced in the notification center. Derived live
  * from the cases API (overdue filter), not from stored notification rows, so

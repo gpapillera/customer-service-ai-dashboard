@@ -30,10 +30,17 @@
         }
       </div>
 
-      <button type="button" class="compose-btn" (click)="openCompose()" aria-label="Compose email">
-        <cs-icon name="add"></cs-icon>
-        <span>Compose</span>
-      </button>
+      @if (isAdmin) {
+        <button type="button" class="compose-btn" (click)="openConfig()" aria-label="Email configuration">
+          <cs-icon name="settings"></cs-icon>
+          <span>Email configuration</span>
+        </button>
+      } @else {
+        <button type="button" class="compose-btn" (click)="openCompose()" aria-label="Compose email">
+          <cs-icon name="add"></cs-icon>
+          <span>Compose</span>
+        </button>
+      }
     </div>
   </div>
 
@@ -287,6 +294,16 @@
         <h4>Message</h4>
         <p>{{ email.message }}</p>
       </div>
+
+      <div class="od-actions">
+        <button type="button" class="cs-btn cs-btn-primary od-resend-btn"
+          [disabled]="resending()"
+          (click)="resend(email)">
+          <cs-icon name="send" [size]="16"></cs-icon>
+          {{ resending() ? 'Resending…' : 'Resend email' }}
+        </button>
+        <span class="od-resend-hint">Re-deliver to {{ email.recipient ?? 'recipient' }} if not received.</span>
+      </div>
     </div>
   </aside>
 }
@@ -373,6 +390,174 @@
             <span>Cancel</span>
           </button>
         </div>
+      }
+    </div>
+  </aside>
+}
+
+<!-- Email configuration side panel (Admin) -->
+@if (showConfig()) {
+  <div class="overlay-scrim" (click)="closeConfig()"></div>
+  <aside class="overlay-panel cs-lift config-panel" role="dialog" aria-label="Email configuration">
+    <div class="overlay-head">
+      <div class="overlay-title">
+        <cs-icon name="settings"></cs-icon>
+        <h2>Email Configuration</h2>
+      </div>
+      <button type="button" class="close-btn" (click)="closeConfig()" aria-label="Close">✕</button>
+    </div>
+
+    <div class="overlay-body config-body">
+      @if (configLoading()) {
+        <div class="config-loading">Loading configuration…</div>
+      } @else if (configError()) {
+        <div class="config-error">{{ configError() }}</div>
+      } @else {
+        @if (configBundle(); as bundle) {
+        @if (configSaved()) {
+          <div class="config-saved">{{ configSaved() }}</div>
+        }
+
+        <!-- Test email -->
+        <section class="config-section">
+          <h3>Test delivery address</h3>
+          <p class="config-hint">
+            Emails to recipients whose domain is not in the allowed list below are
+            redirected here instead of the real address.
+          </p>
+          <div class="config-row">
+            <input
+              class="config-input"
+              type="email"
+              [ngModel]="draftTestEmail()"
+              (ngModelChange)="draftTestEmail.set($event)"
+              placeholder="test@example.com"
+            />
+            <button type="button" class="cs-btn cs-btn-primary" (click)="saveTestEmail()">
+              Save
+            </button>
+          </div>
+        </section>
+
+        <!-- Allowed domains -->
+        <section class="config-section">
+          <h3>Allowed domains (direct delivery)</h3>
+          <p class="config-hint">
+            Recipients on these domains receive real email. Add others as needed.
+          </p>
+          <ul class="domain-list">
+            @for (d of bundle.domains; track d.id) {
+              <li class="domain-item">
+                <span class="domain-name">{{ d.domain }}</span>
+                @if (d.description) {
+                  <span class="domain-desc">{{ d.description }}</span>
+                }
+                <button
+                  type="button"
+                  class="domain-remove"
+                  (click)="removeDomain(d.id)"
+                  aria-label="Remove domain"
+                >✕</button>
+              </li>
+            } @empty {
+              <li class="domain-empty">No allowed domains yet.</li>
+            }
+          </ul>
+
+          <div class="config-row">
+            <input
+              class="config-input"
+              [ngModel]="newDomain()"
+              (ngModelChange)="newDomain.set($event)"
+              placeholder="example.com"
+              (keyup.enter)="addDomain()"
+            />
+            <button type="button" class="cs-btn cs-btn-primary" (click)="addDomain()">
+              Add domain
+            </button>
+          </div>
+
+          @if (bundle.knownDomainSuggestions.length) {
+            <div class="suggestions">
+              <span class="suggestions-label">Quick add:</span>
+              @for (s of bundle.knownDomainSuggestions; track s) {
+                <button
+                  type="button"
+                  class="suggestion-chip"
+                  (click)="addSuggestedDomain(s)"
+                >{{ s }}</button>
+              }
+            </div>
+          }
+        </section>
+
+        <!-- Templates -->
+        <section class="config-section">
+          <h3>Email templates</h3>
+          <p class="config-hint">
+            Click a template to edit its subject and body. Insert personalization
+            tokens with the chips.
+          </p>
+          <ul class="template-list">
+            @for (t of bundle.templates; track t.id) {
+              <li class="template-item">
+                @if (editingTemplateType() === t.type) {
+                  <div class="template-editor">
+                    <div class="template-type">{{ t.type }}</div>
+                    <label class="compose-field">
+                      <span class="compose-label">Subject</span>
+                      <input
+                        class="config-input"
+                        [ngModel]="draftTemplateSubject()"
+                        (ngModelChange)="draftTemplateSubject.set($event)"
+                      />
+                    </label>
+                    <label class="compose-field">
+                      <span class="compose-label">Body</span>
+                      <textarea
+                        class="compose-textarea"
+                        rows="6"
+                        [ngModel]="draftTemplateBody()"
+                        (ngModelChange)="draftTemplateBody.set($event)"
+                      ></textarea>
+                    </label>
+                    <div class="token-row">
+                      @for (tok of TEMPLATE_TOKENS; track tok) {
+                        <button
+                          type="button"
+                          class="token-chip"
+                          (click)="insertToken(tok, 'body')"
+                        >{{ tok }}</button>
+                      }
+                    </div>
+                    <div class="template-actions">
+                      <button type="button" class="cs-btn cs-btn-primary" (click)="saveTemplate()">
+                        Save
+                      </button>
+                      <button type="button" class="cs-btn cs-btn-ghost" (click)="cancelTemplateEdit()">
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                } @else {
+                  <div class="template-summary" (click)="editTemplate(t)" role="button" tabindex="0">
+                    <div class="template-type">{{ t.type }}</div>
+                    <div class="template-subject">{{ t.subject }}</div>
+                  </div>
+                  <button
+                    type="button"
+                    class="domain-remove"
+                    (click)="deleteTemplate(t.id)"
+                    aria-label="Delete template"
+                  >✕</button>
+                }
+              </li>
+            } @empty {
+              <li class="domain-empty">No templates yet.</li>
+            }
+          </ul>
+        </section>
+      }
       }
     </div>
   </aside>

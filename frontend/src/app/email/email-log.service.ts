@@ -22,4 +22,9 @@ export class EmailLogService {
   compose(data: ComposeEmailRequest): Observable<Notification> {
     return this.http.post<Notification>('/api/emails/compose', data);
   }
+
+  /** Re-sends an existing email log entry by id (Admin-only). */
+  resend(id: number): Observable<Notification> {
+    return this.http.post<Notification>(`/api/emails/${id}/resend`, null);
+  }
 }

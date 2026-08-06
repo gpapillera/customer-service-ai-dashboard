@@ -376,4 +376,43 @@ public class NotificationService : INotificationService
         // EmailNotificationSender, so we can return the DTO.
         return NotificationDto.FromEntity(notification);
     }
+
+    /// <inheritdoc/>
+    public async Task<NotificationDto?> ResendEmailAsync(int id)
+    {
+        var original = await _notifications.GetByIdAsync(id);
+        if (original is null || original.Channel != NotificationChannel.Email)
+        {
+            return null;
+        }
+
+        // Copy the original into a brand-new notification so the re-send is
+        // de-duplicated independently and the log shows a distinct send event.
+        var copy = new Notification
+        {
+            Title = original.Title,
+            Message = original.Message,
+            Channel = NotificationChannel.Email,
+            Type = original.Type,
+            Status = NotificationStatus.Unread,
+            CreatedAtUtc = DateTime.UtcNow,
+            CaseId = original.CaseId,
+            Recipient = original.Recipient,
+            Link = original.Link,
+        };
+
+        // SendAsync persists the copy and delivers it via the configured sender.
+        await _sender.SendAsync(copy);
+
+        // Re-fetch the persisted copy so the returned DTO carries the new Id.
+        var persisted = await _notifications.Query()
+            .OrderByDescending(n => n.CreatedAtUtc)
+            .FirstOrDefaultAsync(n =>
+                n.Channel == NotificationChannel.Email &&
+                n.Title == copy.Title &&
+                n.Recipient == copy.Recipient &&
+                n.CreatedAtUtc == copy.CreatedAtUtc);
+
+        return persisted is null ? NotificationDto.FromEntity(copy) : NotificationDto.FromEntity(persisted);
+    }
 }

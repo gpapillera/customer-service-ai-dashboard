@@ -130,4 +130,98 @@ public static class SeedData
         new CallLog { Case = cases[0], Direction = CallDirection.Outbound, Notes = "Confirmed refund processed, closed loop.", DurationSeconds = 180, LoggedByUserId = "agent-001", CreatedAtUtc = DateTime.UtcNow.AddDays(-10) },
         new CallLog { Case = cases[2], Direction = CallDirection.Outbound, Notes = "Escalated to engineering, ETA 4h.", DurationSeconds = 300, LoggedByUserId = "agent-001", CreatedAtUtc = DateTime.UtcNow.AddDays(-2) },
     };
+
+    /// <summary>Returns the singleton email config seed (test inbox).</summary>
+    public static EmailConfig EmailConfig() => new()
+    {
+        Id = 1,
+        TestEmailAddress = "glnppllr@gmail.com",
+    };
+
+    /// <summary>Returns the seed allowed email domains (well-known consumer domains).</summary>
+    public static List<EmailDomain> EmailDomains() => new()
+    {
+        new EmailDomain { Domain = "gmail.com", Description = "Google Mail" },
+        new EmailDomain { Domain = "yahoo.com", Description = "Yahoo Mail" },
+        new EmailDomain { Domain = "outlook.com", Description = "Microsoft Outlook" },
+        new EmailDomain { Domain = "hotmail.com", Description = "Microsoft Hotmail" },
+        new EmailDomain { Domain = "icloud.com", Description = "Apple iCloud" },
+        new EmailDomain { Domain = "proton.me", Description = "Proton Mail" },
+        new EmailDomain { Domain = "aol.com", Description = "AOL" },
+        new EmailDomain { Domain = "live.com", Description = "Microsoft Live" },
+    };
+
+    /// <summary>
+    /// Returns the seed per-type email templates. Text is ported from the
+    /// previously hard-coded <c>EmailNotificationSender.BuildContent</c> into
+    /// editable, token-based templates. Tokens: {{customerName}},
+    /// {{customerEmail}}, {{caseId}}, {{caseSubject}}, {{caseStatus}},
+    /// {{agentName}}, {{agentEmail}}, {{portalLink}}.
+    /// </summary>
+    public static List<EmailTemplate> EmailTemplates() => new()
+    {
+        new EmailTemplate
+        {
+            Type = "CaseOverdue",
+            Subject = "Case #{{caseId}} is overdue: {{caseSubject}}",
+            Body = "Hello {{agentName}},\n\n" +
+                   "A follow-up on case #{{caseId}} is overdue.\n\n" +
+                   "{{caseSubject}}\n\n" +
+                   "Please review and follow up at your earliest convenience.\n\n" +
+                   "— Customer Service Dashboard",
+        },
+        new EmailTemplate
+        {
+            Type = "CaseResolved",
+            Subject = "Your case has been {{caseStatus}}: {{caseSubject}}",
+            Body = "Hello {{customerName}},\n\n" +
+                   "Your support case #{{caseId}} \"{{caseSubject}}\" has been marked {{caseStatus}}.\n\n" +
+                   "If you have any further questions, simply reply to this email or open a new request and we'll be happy to help.\n\n" +
+                   "Thank you for contacting us,\nCustomer Service Team",
+        },
+        new EmailTemplate
+        {
+            Type = "CustomerInvite",
+            Subject = "You've been invited to the Customer Portal",
+            Body = "Hello {{customerName}},\n\n" +
+                   "You've been invited to the Customer Portal.\n\n" +
+                   "If you weren't expecting this invitation, you can safely ignore this email.\n\n" +
+                   "Thank you,\nCustomer Service Team",
+        },
+        new EmailTemplate
+        {
+            Type = "CustomerPasswordReset",
+            Subject = "Password Reset — Customer Portal",
+            Body = "Hello {{customerName}},\n\n" +
+                   "We received a request to reset your Customer Portal password.\n\n" +
+                   "If you didn't request a password reset, you can safely ignore this email.\n\n" +
+                   "Thank you,\nCustomer Service Team",
+        },
+        new EmailTemplate
+        {
+            Type = "StaffPasswordReset",
+            Subject = "Password Reset — Staff Account",
+            Body = "Hello {{agentName}},\n\n" +
+                   "We received a request to reset your staff account password.\n\n" +
+                   "If you didn't request a password reset, you can safely ignore this email.\n\n" +
+                   "Thank you,\nCustomer Service Dashboard",
+        },
+        new EmailTemplate
+        {
+            Type = "NewCustomerMessage",
+            Subject = "New customer message on case #{{caseId}}: {{caseSubject}}",
+            Body = "Hello {{agentName}},\n\n" +
+                   "{{customerName}} posted a new message on case #{{caseId}} \"{{caseSubject}}\".\n\n" +
+                   "Please review and respond at your earliest convenience.\n\n" +
+                   "— Customer Service Dashboard",
+        },
+        new EmailTemplate
+        {
+            Type = "AdminManual",
+            Subject = "{{caseSubject}}",
+            Body = "Hello,\n\n" +
+                   "{{caseSubject}}\n\n" +
+                   "— Customer Service Dashboard",
+        },
+    };
 }

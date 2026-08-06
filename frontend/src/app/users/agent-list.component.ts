@@ -61,6 +61,11 @@ export class AgentListComponent implements OnInit {
     );
   });
 
+  /** Clears the search input (filteredAgents recomputes automatically). */
+  clearSearch(): void {
+    this.searchTerm.set('');
+  }
+
   // ── Agent detail overlay state ──
   readonly selected = signal<Agent | null>(null);
   readonly kpis = signal<Dashboard | null>(null);

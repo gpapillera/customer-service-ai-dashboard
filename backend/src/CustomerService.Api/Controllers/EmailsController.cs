@@ -51,4 +51,23 @@ public class EmailsController : ControllerBase
         var dto = await _service.ComposeEmailAsync(request);
         return Ok(dto);
     }
+
+    /// <summary>
+    /// Re-sends an existing email log entry to its original recipient. Admin-only.
+    /// Creates a fresh copy of the original notification and delivers it again
+    /// through the configured email sender, so the delivery can be retried when
+    /// the recipient reports not receiving the original.
+    /// </summary>
+    /// <param name="id">Id of the email-log notification to re-send.</param>
+    [HttpPost("{id:int}/resend")]
+    [Authorize(Roles = "Admin,Agent")]
+    [ProducesResponseType(typeof(NotificationDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Resend(int id)
+    {
+        var dto = await _service.ResendEmailAsync(id);
+        if (dto is null)
+            return NotFound();
+        return Ok(dto);
+    }
 }

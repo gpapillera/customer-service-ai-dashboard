@@ -415,5 +415,8 @@ public class AuthBoundaryTests
         public Task<int> MarkAllReadAsync() => Task.FromResult(0);
         public Task<NotificationDto> ComposeEmailAsync(ComposeEmailRequest request) =>
             Task.FromResult(new NotificationDto { Id = 1, Title = request.Subject, Message = request.Message, Channel = NotificationChannel.Email, Type = NotificationType.AdminManual, Status = NotificationStatus.Unread, CreatedAtUtc = DateTime.UtcNow, CaseId = request.CaseId, Recipient = request.Recipient });
+
+        public Task<NotificationDto?> ResendEmailAsync(int id) =>
+            Task.FromResult<NotificationDto?>(new NotificationDto { Id = id + 1000, Title = "Resent", Message = "Resent body", Channel = NotificationChannel.Email, Type = NotificationType.AdminManual, Status = NotificationStatus.Unread, CreatedAtUtc = DateTime.UtcNow });
     }
 }

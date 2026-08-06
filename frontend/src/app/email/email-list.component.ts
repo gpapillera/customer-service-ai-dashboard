@@ -18,7 +18,14 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatInputModule } from '@angular/material/input';
 import { CsIconComponent } from '../shared/cs-icon.component';
 import { EmailLogService } from './email-log.service';
-import { Notification } from '../shared/models';
+import { EmailConfigService } from './email-config.service';
+import { AuthService } from '../auth/auth.service';
+import {
+  EmailConfigBundleDto,
+  EmailDomainDto,
+  EmailTemplateDto,
+  Notification,
+} from '../shared/models';
 import { LayoutComponent } from '../shared/layout/layout.component';
 import { DatePreset, DATE_PRESETS, formatDatePreset, filterByDatePreset, positionHeaderDropdown } from '../shared/date-filter';
 
@@ -63,6 +70,8 @@ const STATUS_LABELS: Record<string, string> = {
 })
 export class EmailListComponent implements OnInit, OnDestroy {
   private readonly service = inject(EmailLogService);
+  private readonly emailConfigService = inject(EmailConfigService);
+  private readonly auth = inject(AuthService);
   private readonly elRef = inject(ElementRef);
   private readonly envInjector = inject(EnvironmentInjector);
   /** True while the scroll/resize watch for the date dropdown is attached. */
@@ -79,6 +88,8 @@ export class EmailListComponent implements OnInit, OnDestroy {
   readonly selectedEmail = signal<Notification | null>(null);
   /** True while the initial load is in flight. */
   readonly loading = signal(false);
+  /** True while a resend request is in flight. */
+  readonly resending = signal(false);
   /** Error message, if the fetch failed. */
   readonly error = signal<string | null>(null);
 
@@ -171,11 +182,6 @@ export class EmailListComponent implements OnInit, OnDestroy {
     this.load();
   }
 
-  /** Clears the type filter. */
-  clearTypeFilter(): void {
-    this.filterType.set('');
-  }
-
   /** Clears the search text. */
   clearSearch(): void {
     this.searchTerm.set('');
@@ -220,6 +226,22 @@ export class EmailListComponent implements OnInit, OnDestroy {
     this.customDateFrom.set('');
     this.customDateTo.set('');
     this.customDateSingle.set('');
+    this.openHeaderFilter.set(null);
+    this.detachDropdownScrollWatch();
+  }
+
+  /** Set a filter value from a header dropdown and close it. */
+  setHeaderFilter(col: string, value: string | number | null): void {
+    this.openHeaderFilter.set(null);
+    this.detachDropdownScrollWatch();
+    if (col === 'type') {
+      this.filterType.set((value as string) ?? '');
+    }
+  }
+
+  /** Reset the type filter and close the dropdown. */
+  resetTypeFilter(): void {
+    this.filterType.set('');
     this.openHeaderFilter.set(null);
     this.detachDropdownScrollWatch();
   }
@@ -287,6 +309,21 @@ export class EmailListComponent implements OnInit, OnDestroy {
     this.selectedEmail.set(null);
   }
 
+  /** Re-sends the selected email to its original recipient (Admin only). */
+  resend(email: Notification): void {
+    if (this.resending()) return;
+    this.resending.set(true);
+    this.service.resend(email.id).subscribe({
+      next: () => {
+        this.resending.set(false);
+        this.load();
+      },
+      error: () => {
+        this.resending.set(false);
+      },
+    });
+  }
+
   /** Toggle sort for a column — reverses direction or switches column. */
   toggleSort(column: string): void {
     const col = column as 'date' | 'recipient' | 'subject' | 'type' | 'status';
@@ -347,7 +384,179 @@ export class EmailListComponent implements OnInit, OnDestroy {
     });
   }
 
-  // ── Compose email panel ──
+  /** True when the current user is an Admin (sees the config button). */
+  readonly isAdmin = this.auth.getRole() === 'Admin';
+
+  // ── Email configuration side panel (Admin) ──
+
+  /** Personalization tokens the user can insert into templates. */
+  readonly TEMPLATE_TOKENS = [
+    '{{customerName}}',
+    '{{customerEmail}}',
+    '{{caseId}}',
+    '{{caseSubject}}',
+    '{{caseStatus}}',
+    '{{agentName}}',
+    '{{agentEmail}}',
+    '{{portalLink}}',
+  ];
+
+  /** True when the config panel is open. */
+  readonly showConfig = signal(false);
+  /** Config bundle (config + domains + templates + suggestions). */
+  readonly configBundle = signal<EmailConfigBundleDto | null>(null);
+  /** True while the bundle is loading. */
+  readonly configLoading = signal(false);
+  /** Error message for config operations. */
+  readonly configError = signal<string | null>(null);
+  /** Per-section transient success message. */
+  readonly configSaved = signal<string | null>(null);
+
+  /** Working copy of the test email (edited in the panel). */
+  readonly draftTestEmail = signal('');
+  /** New-domain input. */
+  readonly newDomain = signal('');
+  /** Editing template key (type) or null. */
+  readonly editingTemplateType = signal<string | null>(null);
+  /** Draft template subject/body for the selected type. */
+  readonly draftTemplateSubject = signal('');
+  readonly draftTemplateBody = signal('');
+
+  /** Opens the config panel and loads the current bundle. */
+  openConfig(): void {
+    this.showConfig.set(true);
+    this.configError.set(null);
+    this.configSaved.set(null);
+    this.configLoading.set(true);
+    this.emailConfigService.getBundle().subscribe({
+      next: (bundle) => {
+        this.configBundle.set(bundle);
+        this.draftTestEmail.set(bundle.config.testEmailAddress);
+        this.configLoading.set(false);
+      },
+      error: (err) => {
+        this.configError.set(err?.error ?? err?.message ?? 'Failed to load email config.');
+        this.configLoading.set(false);
+      },
+    });
+  }
+
+  /** Closes the config panel. */
+  closeConfig(): void {
+    this.showConfig.set(false);
+    this.editingTemplateType.set(null);
+  }
+
+  /** Saves the test-email address. */
+  saveTestEmail(): void {
+    const email = this.draftTestEmail().trim();
+    if (!email) {
+      this.configError.set('Test email is required.');
+      return;
+    }
+    this.configError.set(null);
+    this.emailConfigService.updateTestEmail(email).subscribe({
+      next: (cfg) => {
+        this.draftTestEmail.set(cfg.testEmailAddress);
+        const b = this.configBundle();
+        if (b) this.configBundle.set({ ...b, config: cfg });
+        this.configSaved.set('Test email updated.');
+      },
+      error: (err) => this.configError.set(err?.error ?? err?.message ?? 'Failed to update test email.'),
+    });
+  }
+
+  /** Adds a new allowed domain. */
+  addDomain(): void {
+    const domain = this.newDomain().trim().toLowerCase();
+    if (!domain) return;
+    this.configError.set(null);
+    this.emailConfigService.addDomain({ domain }).subscribe({
+      next: (dto) => {
+        const b = this.configBundle();
+        if (b) this.configBundle.set({ ...b, domains: [...b.domains, dto] });
+        this.newDomain.set('');
+        this.configSaved.set(`Added domain ${dto.domain}.`);
+      },
+      error: (err) => this.configError.set(err?.error ?? err?.message ?? 'Failed to add domain.'),
+    });
+  }
+
+  /** Removes an allowed domain by id. */
+  removeDomain(id: number): void {
+    this.configError.set(null);
+    this.emailConfigService.removeDomain(id).subscribe({
+      next: () => {
+        const b = this.configBundle();
+        if (b) this.configBundle.set({ ...b, domains: b.domains.filter((d) => d.id !== id) });
+        this.configSaved.set('Domain removed.');
+      },
+      error: (err) => this.configError.set(err?.error ?? err?.message ?? 'Failed to remove domain.'),
+    });
+  }
+
+  /** Adds a suggested known domain from the quick-add list. */
+  addSuggestedDomain(domain: string): void {
+    const existing = this.configBundle()?.domains ?? [];
+    if (existing.some((d) => d.domain.toLowerCase() === domain.toLowerCase())) return;
+    this.newDomain.set(domain);
+    this.addDomain();
+  }
+
+  /** Begins editing a template for a given type. */
+  editTemplate(t: EmailTemplateDto): void {
+    this.editingTemplateType.set(t.type);
+    this.draftTemplateSubject.set(t.subject);
+    this.draftTemplateBody.set(t.body);
+  }
+
+  /** Cancels template editing. */
+  cancelTemplateEdit(): void {
+    this.editingTemplateType.set(null);
+  }
+
+  /** Inserts a token at the end of the focused draft (subject or body). */
+  insertToken(token: string, field: 'subject' | 'body'): void {
+    if (field === 'subject') {
+      this.draftTemplateSubject.update((v) => v + token);
+    } else {
+      this.draftTemplateBody.update((v) => v + token);
+    }
+  }
+
+  /** Saves the currently-edited template. */
+  saveTemplate(): void {
+    const type = this.editingTemplateType();
+    if (!type) return;
+    this.configError.set(null);
+    this.emailConfigService
+      .upsertTemplate({ type, subject: this.draftTemplateSubject(), body: this.draftTemplateBody() })
+      .subscribe({
+        next: (saved) => {
+          const b = this.configBundle();
+          if (b) {
+            const others = b.templates.filter((t) => t.type !== type);
+            this.configBundle.set({ ...b, templates: [...others, saved].sort((a, c) => a.type.localeCompare(c.type)) });
+          }
+          this.editingTemplateType.set(null);
+          this.configSaved.set(`Template "${type}" saved.`);
+        },
+        error: (err) => this.configError.set(err?.error ?? err?.message ?? 'Failed to save template.'),
+      });
+  }
+
+  /** Deletes a template by id. */
+  deleteTemplate(id: number): void {
+    this.configError.set(null);
+    this.emailConfigService.deleteTemplate(id).subscribe({
+      next: () => {
+        const b = this.configBundle();
+        if (b) this.configBundle.set({ ...b, templates: b.templates.filter((t) => t.id !== id) });
+        this.configSaved.set('Template deleted.');
+      },
+      error: (err) => this.configError.set(err?.error ?? err?.message ?? 'Failed to delete template.'),
+    });
+  }
 
   readonly showCompose = signal(false);
   readonly composeRecipient = signal('');

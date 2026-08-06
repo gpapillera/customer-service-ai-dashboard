@@ -13,15 +13,24 @@
   <!-- Search bar -->
   <div class="search-bar">
     <div class="search-toolbar">
-      <mat-form-field appearance="outline" class="search-field">
-        <cs-icon name="search" matPrefix class="prefix-icon"></cs-icon>
-        <input
-          matInput
-          placeholder="Search by name, email, or ID…"
-          [ngModel]="searchTerm()"
-          (ngModelChange)="searchTerm.set($event)"
-        />
-      </mat-form-field>
+      <div class="search-wrapper">
+        <mat-form-field appearance="outline" class="search-field">
+          <cs-icon name="search" matPrefix class="prefix-icon"></cs-icon>
+          <input
+            matInput
+            placeholder="Search by name, email, or ID…"
+            [ngModel]="searchTerm()"
+            (ngModelChange)="searchTerm.set($event)"
+            aria-label="Search by name, email, or ID"
+          />
+        </mat-form-field>
+        @if (searchTerm()) {
+          <button type="button" class="search-reset-btn"
+            (click)="clearSearch()" aria-label="Clear search" title="Clear search">
+            <cs-icon name="close" [size]="12"></cs-icon>
+          </button>
+        }
+      </div>
     </div>
   </div>
 

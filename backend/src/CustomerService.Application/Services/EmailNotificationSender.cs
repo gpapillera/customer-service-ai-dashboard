@@ -1,10 +1,13 @@
 using System.Net.Sockets;
+using System.Linq;
 using CustomerService.Application.Interfaces;
 using CustomerService.Application.Options;
 using CustomerService.Domain.Entities;
 using CustomerService.Domain.Interfaces;
 using MailKit.Net.Smtp;
 using MailKit.Security;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using MimeKit;
@@ -30,26 +33,65 @@ public class EmailNotificationSender : INotificationSender
     private readonly NotificationOptions _options;
     private readonly EmailOptions _emailOptions;
     private readonly IRepository<Notification> _notifications;
+    private readonly IRepository<Case> _cases;
     private readonly IHostEnvironment _environment;
+    private readonly IEmailConfigService _emailConfig;
+    private readonly string _frontendBaseUrl;
 
     /// <summary>Initializes a new <see cref="EmailNotificationSender"/>.</summary>
     /// <param name="logger">Logger.</param>
     /// <param name="options">Notification options (outbox path).</param>
     /// <param name="emailOptions">SMTP / sender configuration.</param>
     /// <param name="notifications">Notification repository (persists a row so de-dup is uniform across channels).</param>
-    /// <param name="environment">Host environment (used for the dev recipient override).</param>
+    /// <param name="cases">Case repository (loads customer/agent for token personalization).</param>
+    /// <param name="environment">Host environment.</param>
+    /// <param name="emailConfig">Email configuration (allowed domains + test address).</param>
+    /// <param name="configuration">App configuration (for FrontendBaseUrl token).</param>
     public EmailNotificationSender(
         ILogger<EmailNotificationSender> logger,
         NotificationOptions options,
         EmailOptions emailOptions,
         IRepository<Notification> notifications,
-        IHostEnvironment environment)
+        IRepository<Case> cases,
+        IHostEnvironment environment,
+        IEmailConfigService emailConfig,
+        IConfiguration configuration)
     {
         _logger = logger;
         _options = options;
         _emailOptions = emailOptions;
         _notifications = notifications;
+        _cases = cases;
         _environment = environment;
+        _emailConfig = emailConfig;
+        _frontendBaseUrl = configuration["FrontendBaseUrl"] ?? "http://localhost:4200";
+    }
+
+    /// <summary>
+    /// Determines the real delivery address for an outbound email. If the
+    /// recipient's domain is on the allowed list, the message goes to the
+    /// original recipient. Otherwise it is redirected to the configured test
+    /// address so the demo never spams real customers/agents. A blank original
+    /// recipient always redirects (we never guess an address).
+    /// </summary>
+    /// <param name="originalRecipient">The intended recipient (may be empty).</param>
+    /// <param name="allowedDomains">Lower-cased allowed domain suffixes.</param>
+    /// <param name="testEmailAddress">Configured redirect/test address.</param>
+    /// <returns>The effective delivery address.</returns>
+    public static string ResolveEffectiveRecipient(
+        string? originalRecipient,
+        ISet<string> allowedDomains,
+        string testEmailAddress)
+    {
+        if (string.IsNullOrWhiteSpace(originalRecipient))
+            return testEmailAddress;
+
+        var at = originalRecipient.IndexOf('@');
+        if (at < 0 || at == originalRecipient.Length - 1)
+            return testEmailAddress;
+
+        var domain = originalRecipient[(at + 1)..].ToLowerInvariant();
+        return allowedDomains.Contains(domain) ? originalRecipient : testEmailAddress;
     }
 
     /// <inheritdoc/>
@@ -79,21 +121,19 @@ public class EmailNotificationSender : INotificationSender
         await _notifications.AddAsync(notification);
         await _notifications.SaveChangesAsync();
 
-        // In Development, redirect to a controlled inbox so we never spam real
-        // customers/agents while testing. The original recipient is preserved in
-        // the body and an X-Original-Recipient header for verification.
+        // Recipient routing: listed domains deliver directly; everything else
+        // is redirected to the configured test address (never spam real
+        // customers/agents). The original recipient is preserved in the body
+        // and an X-Original-Recipient header for verification.
         var originalRecipient = notification.Recipient;
-        var effectiveRecipient = originalRecipient;
-        var devRedirected = false;
-        if (_environment.IsDevelopment()
-            && !string.IsNullOrWhiteSpace(_emailOptions.DevOverrideRecipient)
-            && !string.Equals(_emailOptions.DevOverrideRecipient, originalRecipient, StringComparison.OrdinalIgnoreCase))
-        {
-            effectiveRecipient = _emailOptions.DevOverrideRecipient!;
-            devRedirected = true;
-        }
+        var config = await _emailConfig.GetConfigAsync();
+        var allowed = (await _emailConfig.ListDomainsAsync())
+            .Select(d => d.Domain.ToLowerInvariant())
+            .ToHashSet();
+        var effectiveRecipient = ResolveEffectiveRecipient(originalRecipient, allowed, config.TestEmailAddress);
+        var devRedirected = !string.Equals(effectiveRecipient, originalRecipient, StringComparison.OrdinalIgnoreCase);
 
-        var (subject, body) = BuildContent(notification, originalRecipient);
+        var (subject, body) = await BuildContentAsync(notification, originalRecipient);
 
         try
         {
@@ -117,6 +157,98 @@ public class EmailNotificationSender : INotificationSender
             AppendToOutbox("emails.log",
                 $"[{notification.CreatedAtUtc:u}] FAILED ({errorDetail}): case #{notification.CaseId} ({notification.Type}) TO:{effectiveRecipient} (intended:{originalRecipient}) ERROR:{ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// Substitutes <c>{{token}}</c> placeholders in a template string using the
+    /// provided token map (case-insensitive key match). Unknown tokens are left
+    /// as literals so mis-configured templates remain visible rather than
+    /// silently dropping content.
+    /// </summary>
+    /// <param name="template">Subject or body template text.</param>
+    /// <param name="tokens">Token name → value map.</param>
+    /// <returns>The rendered string.</returns>
+    public static string RenderTemplate(string template, IReadOnlyDictionary<string, string> tokens)
+    {
+        if (string.IsNullOrEmpty(template))
+            return template ?? string.Empty;
+
+        var result = template;
+        foreach (var (key, value) in tokens)
+        {
+            result = result.Replace($"{{{{{key}}}}}", value ?? string.Empty,
+                StringComparison.OrdinalIgnoreCase);
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Renders the email subject/body for a notification. Prefers the editable
+    /// <see cref="EmailTemplate"/> matching the notification's
+    /// <see cref="NotificationType"/> (with personalization tokens filled from
+    /// the related case/customer/agent), and falls back to the legacy
+    /// hard-coded <see cref="BuildContent"/> when no template exists.
+    /// </summary>
+    private async Task<(string Subject, string Body)> BuildContentAsync(
+        Notification notification, string originalRecipient)
+    {
+        var typeName = notification.Type.ToString();
+        var templates = await _emailConfig.ListTemplatesAsync();
+        var template = templates.FirstOrDefault(t =>
+            string.Equals(t.Type, typeName, StringComparison.OrdinalIgnoreCase));
+
+        if (template is null)
+        {
+            // No editable template configured yet — use the built-in fallback.
+            return BuildContent(notification, originalRecipient);
+        }
+
+        var tokens = await BuildTokenMapAsync(notification);
+        return (RenderTemplate(template.Subject, tokens), RenderTemplate(template.Body, tokens));
+    }
+
+    /// <summary>
+    /// Builds the personalization token map for a notification by loading the
+    /// related case (with customer + assigned agent). Missing data resolves to
+    /// an empty string so templates degrade gracefully.
+    /// </summary>
+    private async Task<IReadOnlyDictionary<string, string>> BuildTokenMapAsync(Notification notification)
+    {
+        var tokens = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["caseId"] = notification.CaseId?.ToString() ?? string.Empty,
+            ["caseSubject"] = ExtractSubject(notification.Message),
+            ["portalLink"] = _frontendBaseUrl,
+            ["customerName"] = string.Empty,
+            ["customerEmail"] = string.Empty,
+            ["caseStatus"] = string.Empty,
+            ["agentName"] = string.Empty,
+            ["agentEmail"] = string.Empty,
+        };
+
+        if (notification.CaseId.HasValue)
+        {
+            var caseEntity = await _cases.Query()
+                .Include(c => c.Customer)
+                .Include(c => c.AssignedToUser)
+                .FirstOrDefaultAsync(c => c.Id == notification.CaseId.Value);
+            if (caseEntity is not null)
+            {
+                if (caseEntity.Customer is not null)
+                {
+                    tokens["customerName"] = caseEntity.Customer.Name;
+                    tokens["customerEmail"] = caseEntity.Customer.Email;
+                }
+                tokens["caseStatus"] = caseEntity.Status.ToString();
+                if (caseEntity.AssignedToUser is not null)
+                {
+                    tokens["agentName"] = caseEntity.AssignedToUser.FullName;
+                    tokens["agentEmail"] = caseEntity.AssignedToUser.Email;
+                }
+            }
+        }
+
+        return tokens;
     }
 
     /// <summary>
