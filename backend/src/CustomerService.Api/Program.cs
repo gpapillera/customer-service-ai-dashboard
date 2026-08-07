@@ -211,6 +211,7 @@ public class Program
         EnsureCaseCommentsTable(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
         EnsureCaseResolvedAtColumn(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
         EnsureCaseFollowUpDueUtcColumn(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
+        EnsureCaseLastOverdueNotifiedUtcColumn(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
         EnsureConversationReadStatesTable(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
         EnsureUserResetTokenColumns(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
         EnsureCaseDisplayIdColumn(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
@@ -500,6 +501,50 @@ public class Program
     {
         const string table = "Cases";
         const string column = "FollowUpDueUtc";
+        try
+        {
+            if (provider != null && provider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase))
+            {
+                var conn = ctx.Database.GetDbConnection();
+                if (conn.State != System.Data.ConnectionState.Open)
+                {
+                    await conn.OpenAsync();
+                }
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = $"SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name='{column}';";
+                var count = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+                if (count == 0)
+                {
+                    using var alter = conn.CreateCommand();
+                    alter.CommandText = $"ALTER TABLE {table} ADD COLUMN {column} TEXT;";
+                    await alter.ExecuteNonQueryAsync();
+                }
+            }
+            else
+            {
+                var exists = ctx.Database.ExecuteSqlRaw(
+                    $"IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='{table}' AND COLUMN_NAME='{column}') " +
+                    $"ALTER TABLE {table} ADD [{column}] datetime2;");
+                _ = exists;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"WARN: could not ensure {table}.{column} column: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Adds the <c>Cases.LastOverdueNotifiedUtc</c> column if it is missing
+    /// (Phase 44 durable overdue de-dup marker). Mirrors the other Ensure*Column
+    /// helpers: idempotent + provider-aware. Swap for EF migrations in production.
+    /// ponytail: reuse the established pattern instead of introducing a migration
+    /// toolchain (dotnet ef not installed in this environment).
+    /// </summary>
+    private static async Task EnsureCaseLastOverdueNotifiedUtcColumn(AppDbContext ctx, string? provider)
+    {
+        const string table = "Cases";
+        const string column = "LastOverdueNotifiedUtc";
         try
         {
             if (provider != null && provider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase))

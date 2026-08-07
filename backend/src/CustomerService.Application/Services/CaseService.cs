@@ -263,6 +263,13 @@ public class CaseService : ICaseService
         }
 
         caseEntity.UpdatedAtUtc = DateTime.UtcNow;
+        // Clearing the overdue marker here ends the overdue episode so a future
+        // re-open can notify again (Phase 44). Folded into the existing save below.
+        if (priorStatus != dto.Status
+            && (dto.Status == CaseStatus.Resolved || dto.Status == CaseStatus.Closed))
+        {
+            caseEntity.LastOverdueNotifiedUtc = null;
+        }
         _cases.Update(caseEntity);
         await _cases.SaveChangesAsync();
 

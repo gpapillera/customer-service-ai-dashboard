@@ -109,6 +109,17 @@ public class Case
     /// </summary>
     public DateTime? FollowUpDueUtc { get; set; }
 
+    /// <summary>
+    /// ponytail: durable de-dup marker for the overdue-follow-up email. Set when
+    /// an overdue email is sent for the case's current overdue episode; while set
+    /// (and the case is still overdue for the same reason) no further overdue
+    /// email is sent — even across backend restarts or timer re-fires. Cleared
+    /// when the episode ends (case resolved/closed, or a follow-up logged on/after
+    /// the deadline). Nullable + nullable-column so it is safe to add to an
+    /// existing SQLite DB via the Ensure*Column bootstrap helper.
+    /// </summary>
+    public DateTime? LastOverdueNotifiedUtc { get; set; }
+
     /// <summary>Navigation property: call / follow-up logs attached to this case.</summary>
     public ICollection<CallLog> CallLogs { get; set; } = new List<CallLog>();
 

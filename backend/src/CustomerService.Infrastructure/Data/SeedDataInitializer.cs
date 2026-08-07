@@ -14,7 +14,10 @@ public static class SeedDataInitializer
     /// <summary>Demo password shared by all seed users.</summary>
     public const string DemoPassword = "Passw0rd!";
 
-    /// <summary>Populates the database if it has no categories yet.</summary>
+    /// <summary>Populates the database if it is empty. Non-destructive: once a
+    /// table has rows it is never touched again, so a restart or model change can
+    /// never reset existing case/notification data (Phase 44). The Cases guard in
+    /// particular means user-resolved/closed cases survive every restart.</summary>
     /// <param name="ctx">The database context.</param>
     public static void Initialize(AppDbContext ctx)
     {

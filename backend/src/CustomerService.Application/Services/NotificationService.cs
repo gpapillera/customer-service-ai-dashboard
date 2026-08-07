@@ -74,32 +74,31 @@ public class NotificationService : INotificationService
             return 0;
         }
 
-        // (CaseId, Channel, Type) triples that already have a notification
-        // (read or unread) — never re-notify the same case/channel/type, even
-        // after the user marks it read. The Type dimension lets an overdue-agent
-        // email and a resolved-customer email coexist for the same case.
-        var alreadyNotified = await _notifications.Query()
-            .Where(n => n.CaseId.HasValue)
-            .Select(n => new { n.CaseId, n.Channel, n.Type })
-            .ToListAsync();
-        var alreadySet = new HashSet<(int, NotificationChannel, NotificationType)>(
-            alreadyNotified.Select(x => (x.CaseId!.Value, x.Channel, x.Type)));
-
+        // DURABLE DE-DUP (Phase 44): a case is only notified once per overdue
+        // episode. Once we send the overdue email we stamp LastOverdueNotifiedUtc;
+        // while that stamp is set AND the case is still overdue for the same
+        // reason (no follow-up since the stamp), we skip — this holds across
+        // backend restarts and timer re-fires, unlike the old Notifications-table
+        // de-dup which could re-fire after a restart. The episode ends when the
+        // case is resolved/closed or a follow-up is logged (marker cleared there).
         var channels = _options.Channels.Distinct().ToList();
         var created = 0;
         foreach (var c in overdueCases)
         {
+            // Already notified for this episode?
+            if (c.LastOverdueNotifiedUtc.HasValue
+                && OverduePolicy.NeedsFollowUp(c, now)
+                && c.CallLogs.All(cl => cl.CreatedAtUtc < c.LastOverdueNotifiedUtc.Value))
+            {
+                continue;
+            }
+
             var daysOverdue = OverduePolicy.DaysOverdue(c, now);
             var customerName = c.Customer?.Name ?? "a customer";
             var body = $"Case #{c.Id} \"{c.Subject}\" for {customerName} is {daysOverdue} day(s) overdue for a follow-up.";
 
             foreach (var channel in channels)
             {
-                if (alreadySet.Contains((c.Id, channel, NotificationType.CaseOverdue)))
-                {
-                    continue;
-                }
-
                 // Recipient resolution (overdue alerts are agent-facing):
                 //  - InApp: shown to any agent (no single recipient).
                 //  - Email: the ASSIGNED AGENT's email. An unassigned case has
@@ -137,6 +136,17 @@ public class NotificationService : INotificationService
                 };
                 await _sender.SendAsync(notification);
                 created++;
+            }
+
+            // Stamp the episode so we never re-send for the same overdue window.
+            // The cases from _cases.Query() are AsNoTracking (Repository.Query),
+            // so `c` is NOT tracked — setting a property on it does nothing at
+            // SaveChanges. Load the tracked instance via FindAsync and stamp that.
+            var tracked = await _cases.GetByIdAsync(c.Id);
+            if (tracked is not null)
+            {
+                tracked.LastOverdueNotifiedUtc = now;
+                await _cases.SaveChangesAsync();
             }
         }
 

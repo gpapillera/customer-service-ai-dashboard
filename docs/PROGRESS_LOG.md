@@ -2,6 +2,33 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 44 — Durable overdue de-dup + safe, non-destructive bootstrap] (2026-08-07)
+**Status:** ✅ COMPLETE (`dotnet build` green + `dotnet test` 73/73 + live send-once + live restart-no-reset proof)
+
+### Problem (from live evidence)
+1. **Duplicate / restart resends.** `OverdueEmailHostedService` fires `GenerateOverdueAsync` on a timer (+15s after every startup, every 30 min). The old de-dup keyed off the `Notifications` table and was not durable across restarts — `emails.log` showed case #1 emailed 3x in ~7 min and case #21 4x in a day. For real users this means repeated "your case is overdue" emails.
+2. **Reseed wipes case state.** Bootstrap used `EnsureCreated()` (no migrations). The DB currently holds the exact seed distribution (8 New / 6 InProgress / 2 Escalated / 3 Resolved / 2 Closed), proving that a DB-file recreate silently resets ALL case state (including user-resolved cases) to seed. Not acceptable for real-user use.
+
+### Root cause (the real one)
+- `Repository.Query()` returns `AsNoTracking()` — so the `Case` objects in `GenerateOverdueAsync` are **never tracked**. Setting `LastOverdueNotifiedUtc` on them and calling `SaveChangesAsync()` was a silent no-op; the marker never persisted, so de-dup could not work.
+- The seeder guarded on `ctx.Categories.Any()` but the real reset vector is an external DB-file loss/recreate (no `EnsureDeleted` in code). Hardening: never reseed `Cases` once any exist.
+
+### Backend (C# ASP.NET Core 8)
+- `Case` entity: added `LastOverdueNotifiedUtc` (nullable `DateTime?`) — durable per-episode de-dup marker.
+- `NotificationService.GenerateOverdueAsync`: replaced the `Notifications`-table de-dup with a `Case.LastOverdueNotifiedUtc` check. Because `Query()` is `AsNoTracking`, the marker is written via `_cases.GetByIdAsync(c.Id)` (tracked `FindAsync`) then `SaveChangesAsync()` — the correct way to persist when the source list is untracked. Skips a case if already notified for the current episode (marker set AND still overdue AND no follow-up since the marker).
+- `CaseService.UpdateAsync`: clears `LastOverdueNotifiedUtc` when a case transitions to Resolved/Closed (episode ends; a future re-open can notify again). Folded into the existing save — no extra round-trip.
+- `Program.cs`: added `EnsureCaseLastOverdueNotifiedUtcColumn` (mirrors the existing `Ensure*Column` helpers — idempotent, provider-aware SQLite/SqlServer ALTER). Kept `EnsureCreated()` (did not switch to `Migrate()` — `dotnet ef` is not installed in this env; the established Ensure*Column pattern is the codebase-consistent choice; ponytail: reuse over adding a migration toolchain).
+- `SeedDataInitializer`: doc clarified — non-destructive; the `ctx.Categories.Any()` guard means it never touches existing rows, so a restart or model change cannot reset case/notification data.
+
+### Verification (live)
+- Column added to the live `customer_service.db` with NO data loss; all 21 case statuses survived a backend restart.
+- First worker run: 14 genuinely-overdue cases sent exactly once and stamped (cases #3/#20 correctly excluded — #20's `FollowUpDueUtc` is in the future, #3 has a recent follow-up).
+- Second run after a full backend restart: **0 new emails** (SENT count stayed 212). De-dup is now durable across restarts.
+- `dotnet test`: 73/73 pass. `dotnet build`: 0 warnings/0 errors.
+
+### Known ceiling (ponytail)
+- Bootstrap still uses `EnsureCreated()` + hand-rolled `Ensure*Column` helpers rather than EF migrations. This is consistent with the existing codebase and works, but real production should eventually move to `dotnet ef migrations add` + `Migrate()` for first-class schema versioning. Documented here, not blocking for demo/real-use-with-sqlite.
+
 ## [Phase 43 — Email template editor UX + send-path robustness] (2026-08-07)
 **Status:** ✅ COMPLETE (`dotnet build` green + `npm run build` green + live browser + live resend proof)
 
