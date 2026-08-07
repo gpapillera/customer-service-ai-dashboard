@@ -3196,3 +3196,14 @@ The `ChromeHeadlessCI` launcher already exists in `karma.conf.js` with `--no-san
 **Known issues / TODO:**
 - None.
 **Next step:** Phase 2 — SQL Server schema + EF Core + seed (done immediately after).
+
+---
+
+## [Session notes — runtime observation] (2026-08-07)
+**Context:** captured while verifying Phases 43–44 (backend restarts + live email checks).
+
+- **Vite/ng-serve proxy `ECONNREFUSED` during backend restart is EXPECTED, not a fault.** The frontend dev server proxies `/api` to the backend (`:5274`). After a `dotnet run` restart or rebuild, the backend port is free during first-run warmup (~60–90s for EF seed + ONNX model load) and the proxy logs a flood of `http proxy error: /api/... ECONNREFUSED 127.0.0.1:5274`. The proxy auto-heals the moment the backend binds (`Now listening`); no frontend restart needed.
+- **Verify benign with 3 curls** (do once, then stop): backend `:5274/api/emails` → expect `401` (listening, auth gate); proxy `:4200/api/emails` → expect `401` (proxy reaches backend); frontend `:4200/` → `200`. A `401` here is GOOD.
+- **Only a REAL problem if** backend `curl` returns `000`/refused >2 min after `dotnet run` started, or `ps aux | grep CustomerService.Api` shows two listeners (port conflict). Then read the backend process log, not the proxy log.
+- **Stale watch-pattern replays:** killing+restarting the backend many times during verification makes the background-process watcher echo old processes' `Now listening` / `error` lines long after they died. Those are dead echoes — confirm live state with the 3 curls + PID check; ignore unless a NEW live symptom appears. (Saved as Hermes skill `vite-proxy-econnrefused-warmup`.)
+- **Root-cause discipline reinforced:** the Phase 44 duplicate-email bug was NOT a proxy/send issue — it was `Repository.Query()` returning `AsNoTracking`, so stamping `LastOverdueNotifiedUtc` on the untracked list entity was a silent no-op. Fixed by persisting via `GetByIdAsync` (tracked). Always trace the actual mechanism, not the symptom that surfaces in a different log.
