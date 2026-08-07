@@ -496,50 +496,16 @@
           <h3>Email templates</h3>
           <p class="config-hint">
             Click a template to edit its subject and body. Insert personalization
-            tokens with the chips.
+            tokens with the chips — they drop in at the cursor position.
           </p>
-          <ul class="template-list">
-            @for (t of bundle.templates; track t.id) {
-              <li class="template-item">
-                @if (editingTemplateType() === t.type) {
-                  <div class="template-editor">
-                    <div class="template-type">{{ t.type }}</div>
-                    <label class="compose-field">
-                      <span class="compose-label">Subject</span>
-                      <input
-                        class="config-input"
-                        [ngModel]="draftTemplateSubject()"
-                        (ngModelChange)="draftTemplateSubject.set($event)"
-                      />
-                    </label>
-                    <label class="compose-field">
-                      <span class="compose-label">Body</span>
-                      <textarea
-                        class="compose-textarea"
-                        rows="6"
-                        [ngModel]="draftTemplateBody()"
-                        (ngModelChange)="draftTemplateBody.set($event)"
-                      ></textarea>
-                    </label>
-                    <div class="token-row">
-                      @for (tok of TEMPLATE_TOKENS; track tok) {
-                        <button
-                          type="button"
-                          class="token-chip"
-                          (click)="insertToken(tok, 'body')"
-                        >{{ tok }}</button>
-                      }
-                    </div>
-                    <div class="template-actions">
-                      <button type="button" class="cs-btn cs-btn-primary" (click)="saveTemplate()">
-                        Save
-                      </button>
-                      <button type="button" class="cs-btn cs-btn-ghost" (click)="cancelTemplateEdit()">
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                } @else {
+
+          @if (!editingTemplateType()) {
+            <button type="button" class="cs-btn cs-btn-ghost" (click)="startNewTemplate()">
+              + New template
+            </button>
+            <ul class="template-list">
+              @for (t of bundle.templates; track t.id) {
+                <li class="template-item">
                   <div class="template-summary" (click)="editTemplate(t)" role="button" tabindex="0">
                     <div class="template-type">{{ t.type }}</div>
                     <div class="template-subject">{{ t.subject }}</div>
@@ -550,12 +516,79 @@
                     (click)="deleteTemplate(t.id)"
                     aria-label="Delete template"
                   >✕</button>
+                </li>
+              } @empty {
+                <li class="domain-empty">No templates yet.</li>
+              }
+            </ul>
+          } @else {
+            <div class="template-editor">
+              @if (isNewTemplate()) {
+                <label class="compose-field">
+                  <span class="compose-label">Type</span>
+                  <select
+                    class="config-input"
+                    [ngModel]="draftTemplateType()"
+                    (ngModelChange)="draftTemplateType.set($event)"
+                  >
+                    @for (ty of TEMPLATE_TYPES; track ty) {
+                      <option [value]="ty">{{ ty }}</option>
+                    }
+                  </select>
+                </label>
+              } @else {
+                <div class="template-type">{{ editingTemplateType() }}</div>
+              }
+
+              <label class="compose-field">
+                <span class="compose-label">Subject</span>
+                <input
+                  #subjectInput
+                  class="config-input"
+                  [ngModel]="draftTemplateSubject()"
+                  (ngModelChange)="draftTemplateSubject.set($event)"
+                />
+              </label>
+              <div class="token-row">
+                @for (tok of TEMPLATE_TOKENS; track tok) {
+                  <button
+                    type="button"
+                    class="token-chip"
+                    (click)="insertToken(tok, 'subject')"
+                  >{{ tok }}</button>
                 }
-              </li>
-            } @empty {
-              <li class="domain-empty">No templates yet.</li>
-            }
-          </ul>
+              </div>
+
+              <label class="compose-field">
+                <span class="compose-label">Body</span>
+                <textarea
+                  #bodyTextarea
+                  class="compose-textarea"
+                  rows="6"
+                  [ngModel]="draftTemplateBody()"
+                  (ngModelChange)="draftTemplateBody.set($event)"
+                ></textarea>
+              </label>
+              <div class="token-row">
+                @for (tok of TEMPLATE_TOKENS; track tok) {
+                  <button
+                    type="button"
+                    class="token-chip"
+                    (click)="insertToken(tok, 'body')"
+                  >{{ tok }}</button>
+                }
+              </div>
+
+              <div class="template-actions">
+                <button type="button" class="cs-btn cs-btn-primary" (click)="saveTemplate()">
+                  Save
+                </button>
+                <button type="button" class="cs-btn cs-btn-ghost" (click)="cancelTemplateEdit()">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          }
         </section>
       }
       }

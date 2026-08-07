@@ -9,6 +9,7 @@ import {
   OnInit,
   inject,
   signal,
+  ViewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
@@ -421,6 +422,19 @@ export class EmailListComponent implements OnInit, OnDestroy {
   /** Draft template subject/body for the selected type. */
   readonly draftTemplateSubject = signal('');
   readonly draftTemplateBody = signal('');
+  /** True while creating a brand-new template (vs editing an existing one). */
+  readonly isNewTemplate = signal(false);
+  /** Draft type for a new template. */
+  readonly draftTemplateType = signal('');
+  /** Known NotificationType names a new template may target. */
+  readonly TEMPLATE_TYPES = [
+    'CaseOverdue', 'CaseResolved', 'CustomerInvite',
+    'CustomerPasswordReset', 'NewCustomerMessage', 'StaffPasswordReset', 'AdminManual',
+  ];
+
+  /** Element refs so token chips can insert at the caret of the focused field. */
+  @ViewChild('subjectInput') subjectInputRef?: ElementRef<HTMLInputElement>;
+  @ViewChild('bodyTextarea') bodyTextareaRef?: ElementRef<HTMLTextAreaElement>;
 
   /** Opens the config panel and loads the current bundle. */
   openConfig(): void {
@@ -510,24 +524,46 @@ export class EmailListComponent implements OnInit, OnDestroy {
     this.draftTemplateBody.set(t.body);
   }
 
-  /** Cancels template editing. */
+  /** Begins creating a brand-new template. */
+  startNewTemplate(): void {
+    this.editingTemplateType.set('__new__');
+    this.isNewTemplate.set(true);
+    this.draftTemplateType.set('');
+    this.draftTemplateSubject.set('');
+    this.draftTemplateBody.set('');
+  }
+
+  /** Cancels template editing/creation. */
   cancelTemplateEdit(): void {
     this.editingTemplateType.set(null);
+    this.isNewTemplate.set(false);
+    this.draftTemplateType.set('');
   }
 
-  /** Inserts a token at the end of the focused draft (subject or body). */
+  /** Inserts a token at the caret of the focused field (subject or body). */
   insertToken(token: string, field: 'subject' | 'body'): void {
-    if (field === 'subject') {
-      this.draftTemplateSubject.update((v) => v + token);
-    } else {
-      this.draftTemplateBody.update((v) => v + token);
+    const el = (field === 'subject' ? this.subjectInputRef?.nativeElement
+                                     : this.bodyTextareaRef?.nativeElement) as
+      HTMLInputElement | HTMLTextAreaElement | undefined;
+    const sig = field === 'subject' ? this.draftTemplateSubject : this.draftTemplateBody;
+    if (!el) {
+      sig.update((v) => v + token); // fallback: append
+      return;
     }
+    const start = el.selectionStart ?? sig().length;
+    const end = el.selectionEnd ?? sig().length;
+    sig.update((v) => v.slice(0, start) + token + v.slice(end));
+    const pos = start + token.length;
+    Promise.resolve().then(() => { el.focus(); el.setSelectionRange(pos, pos); });
   }
 
-  /** Saves the currently-edited template. */
+  /** Saves the currently-edited or newly-created template. */
   saveTemplate(): void {
-    const type = this.editingTemplateType();
-    if (!type) return;
+    const type = this.isNewTemplate() ? this.draftTemplateType().trim() : this.editingTemplateType();
+    if (!type) {
+      this.configError.set('Template type is required.');
+      return;
+    }
     this.configError.set(null);
     this.emailConfigService
       .upsertTemplate({ type, subject: this.draftTemplateSubject(), body: this.draftTemplateBody() })
@@ -535,11 +571,13 @@ export class EmailListComponent implements OnInit, OnDestroy {
         next: (saved) => {
           const b = this.configBundle();
           if (b) {
-            const others = b.templates.filter((t) => t.type !== type);
+            const others = b.templates.filter((t) => t.type !== saved.type);
             this.configBundle.set({ ...b, templates: [...others, saved].sort((a, c) => a.type.localeCompare(c.type)) });
           }
           this.editingTemplateType.set(null);
-          this.configSaved.set(`Template "${type}" saved.`);
+          this.isNewTemplate.set(false);
+          this.draftTemplateType.set('');
+          this.configSaved.set(`Template "${saved.type}" saved.`);
         },
         error: (err) => this.configError.set(err?.error ?? err?.message ?? 'Failed to save template.'),
       });

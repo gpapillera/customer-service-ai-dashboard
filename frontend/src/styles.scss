@@ -71,6 +71,8 @@ body {
   --cs-accent-strong: #4338ca;
   --cs-accent-light: #eef2ff;
   --cs-accent-gradient: linear-gradient(135deg, #6366f1, #4f46e5);
+  /* Button hover ramp — darker indigo so white label stays legible. */
+  --cs-accent-hover: #4338ca;
 
   /* Semantic status / priority colors */
   --cs-success: #10b981;
@@ -98,6 +100,8 @@ body {
   --cs-overlay: rgba(0, 0, 0, 0.32);
   --cs-inverse-text: #ffffff;
   --cs-input-bg: #ffffff;
+  /* Subtle inset surface for list rows (domain/template items). Mirrors --cs-bg. */
+  --cs-surface-2: #f8fafc;
   --cs-popup-bg: #eef2ff;
   --cs-popup-shadow: 0 16px 40px rgba(15, 23, 42, 0.16), 0 2px 8px rgba(15, 23, 42, 0.06);
   --cs-table-stripe: rgba(0, 0, 0, 0.02);
@@ -127,6 +131,8 @@ body {
   --cs-accent-strong: #a5b4fc;
   --cs-accent-light: #1e1b4b;
   --cs-accent-gradient: linear-gradient(135deg, #818cf8, #6366f1);
+  /* Button hover ramp — medium indigo keeps white label legible on dark. */
+  --cs-accent-hover: #6366f1;
 
   /* Semantic colours — more vivid on dark */
   --cs-success: #34d399;
@@ -150,6 +156,8 @@ body {
   --cs-overlay: rgba(0, 0, 0, 0.56);
   --cs-inverse-text: #0f172a;
   --cs-input-bg: #1e293b;
+  /* Subtle inset surface for list rows (domain/template items). Mirrors --cs-bg. */
+  --cs-surface-2: #0f172a;
   --cs-popup-bg: #334155;
   --cs-popup-shadow: 0 16px 40px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.3);
   --cs-table-stripe: rgba(255, 255, 255, 0.03);

@@ -837,16 +837,16 @@
 }
 
 .config-error {
-  background: rgba(220, 38, 38, 0.08);
-  color: #b91c1c;
+  background: var(--cs-danger-bg);
+  color: var(--cs-danger);
 }
 
 .config-saved {
   padding: 10px 12px;
   margin-bottom: 14px;
   border-radius: var(--cs-radius, 14px);
-  background: rgba(16, 185, 129, 0.12);
-  color: #047857;
+  background: var(--cs-success-bg);
+  color: var(--cs-success);
   font-size: 0.85rem;
 }
 
@@ -930,14 +930,14 @@
   margin-left: auto;
   border: none;
   background: transparent;
-  color: #ef4444;
+  color: var(--cs-danger);
   cursor: pointer;
   font-size: 0.9rem;
   padding: 4px 6px;
   border-radius: 8px;
 
   &:hover {
-    background: rgba(239, 68, 68, 0.12);
+    background: var(--cs-danger-bg);
   }
 }
 

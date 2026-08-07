@@ -188,15 +188,25 @@ public class EmailConfigService : IEmailConfigService
 
         var existing = await _templates.Query()
             .FirstOrDefaultAsync(t => t.Type == key);
+        bool isNew;
         if (existing is null)
         {
             existing = new EmailTemplate { Type = key };
             await _templates.AddAsync(existing);
+            isNew = true;
+        }
+        else
+        {
+            isNew = false;
         }
 
         existing.Subject = subject ?? string.Empty;
         existing.Body = body ?? string.Empty;
-        _templates.Update(existing);
+        // Only call Update on the edit branch. On the new branch AddAsync already
+        // tracks the entity as Added; calling Update here would flip it to
+        // Modified with a temporary Id and throw on SaveChangesAsync.
+        if (!isNew)
+            _templates.Update(existing);
         await _templates.SaveChangesAsync();
 
         return new EmailTemplateDto

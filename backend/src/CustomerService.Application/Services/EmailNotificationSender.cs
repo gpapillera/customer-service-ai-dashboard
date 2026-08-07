@@ -133,7 +133,7 @@ public class EmailNotificationSender : INotificationSender
         var effectiveRecipient = ResolveEffectiveRecipient(originalRecipient, allowed, config.TestEmailAddress);
         var devRedirected = !string.Equals(effectiveRecipient, originalRecipient, StringComparison.OrdinalIgnoreCase);
 
-        var (subject, body) = await BuildContentAsync(notification, originalRecipient);
+        var (subject, body) = await BuildContentAsync(notification);
 
         try
         {
@@ -186,11 +186,12 @@ public class EmailNotificationSender : INotificationSender
     /// Renders the email subject/body for a notification. Prefers the editable
     /// <see cref="EmailTemplate"/> matching the notification's
     /// <see cref="NotificationType"/> (with personalization tokens filled from
-    /// the related case/customer/agent), and falls back to the legacy
-    /// hard-coded <see cref="BuildContent"/> when no template exists.
+    /// the related case/customer/agent), and falls back to a generic
+    /// <see cref="BuildFallbackContent"/> (with a warning log) only when no
+    /// template exists for that type.
     /// </summary>
     private async Task<(string Subject, string Body)> BuildContentAsync(
-        Notification notification, string originalRecipient)
+        Notification notification)
     {
         var typeName = notification.Type.ToString();
         var templates = await _emailConfig.ListTemplatesAsync();
@@ -199,8 +200,15 @@ public class EmailNotificationSender : INotificationSender
 
         if (template is null)
         {
-            // No editable template configured yet — use the built-in fallback.
-            return BuildContent(notification, originalRecipient);
+            // No editable template configured for this type. This is a config gap,
+            // not a normal path (the seed data ships a template for every type), so
+            // warn loudly and fall back to a generic last-resort message rather than
+            // a type-specific hard-coded string that could silently diverge from the
+            // intended template.
+            _logger.LogWarning(
+                "No email template configured for NotificationType {Type}. Using a generic fallback subject/body. Add a template of this Type in Email Configuration to take control of the content.",
+                typeName);
+            return BuildFallbackContent(notification);
         }
 
         var tokens = await BuildTokenMapAsync(notification);
@@ -214,10 +222,11 @@ public class EmailNotificationSender : INotificationSender
     /// </summary>
     private async Task<IReadOnlyDictionary<string, string>> BuildTokenMapAsync(Notification notification)
     {
+        var caseSubject = ExtractCaseSubject(notification.Message);
         var tokens = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             ["caseId"] = notification.CaseId?.ToString() ?? string.Empty,
-            ["caseSubject"] = ExtractSubject(notification.Message),
+            ["caseSubject"] = caseSubject,
             ["portalLink"] = _frontendBaseUrl,
             ["customerName"] = string.Empty,
             ["customerEmail"] = string.Empty,
@@ -252,75 +261,30 @@ public class EmailNotificationSender : INotificationSender
     }
 
     /// <summary>
-    /// Builds type-specific subject/body. Content differs by
-    /// <see cref="NotificationType"/> because a human will actually read these
-    /// now: overdue alerts are agent-facing and operational; resolved/closed
-    /// confirmations are customer-facing and kept professional and simple.
+    /// Last-resort content used only when no editable <see cref="EmailTemplate"/>
+    /// exists for a notification type (a config gap). Kept deliberately generic and
+    /// token-light so it can never silently diverge from the intended template the
+    /// operator would see in Email Configuration. The DB template is always preferred;
+    /// this path should not normally execute because seed data ships a template per type.
     /// </summary>
-    private static (string Subject, string Body) BuildContent(Notification notification, string originalRecipient)
+    private static (string Subject, string Body) BuildFallbackContent(Notification notification)
     {
-        if (notification.Type == NotificationType.CustomerInvite)
-        {
-            // Customer-facing invite: plain-language explanation + the link.
-            // The link is carried in the message body (set by CustomerAuthService).
-            var subject = "You've been invited to the Customer Portal";
-            var body = $"Hello,\n\n"
-                + $"{notification.Message}\n\n"
-                + $"If you weren't expecting this invitation, you can safely ignore this email.\n\n"
-                + $"Thank you,\nCustomer Service Team";
-            return (subject, body);
-        }
-
-        if (notification.Type == NotificationType.StaffPasswordReset)
-        {
-            var subject = "Password Reset — Staff Account";
-            var body = $"Hello,\n\n"
-                + $"{notification.Message}\n\n"
-                + $"If you didn't request a password reset, you can safely ignore this email.\n\n"
-                + $"Thank you,\nCustomer Service Dashboard";
-            return (subject, body);
-        }
-
-        if (notification.Type == NotificationType.CustomerPasswordReset)
-        {
-            var subject = "Password Reset — Customer Portal";
-            var body = $"Hello,\n\n"
-                + $"{notification.Message}\n\n"
-                + $"If you didn't request a password reset, you can safely ignore this email.\n\n"
-                + $"Thank you,\nCustomer Service Team";
-            return (subject, body);
-        }
-
-        if (notification.Type == NotificationType.CaseResolved)
-        {
-            var status = notification.Title.Replace("Case ", "", StringComparison.OrdinalIgnoreCase).Trim();
-            var subject = $"Your case has been {status}: {notification.Message}";
-            // Customer-facing: no internal jargon. Keep it short and reassuring.
-            var body = $"Hello,\n\n"
-                + $"Your support case #{notification.CaseId} \"{ExtractSubject(notification.Message)}\" has been marked {status}.\n\n"
-                + $"If you have any further questions, simply reply to this email or open a new request and we'll be happy to help.\n\n"
-                + $"Thank you for contacting us,\nCustomer Service Team";
-            return (subject, body);
-        }
-
-        // CaseOverdue (agent-facing).
-        var overdueSubject = $"Case #{notification.CaseId} is overdue: {ExtractSubject(notification.Message)}";
-        var overdueBody = $"Hello,\n\n"
-            + $"A follow-up on case #{notification.CaseId} is overdue.\n\n"
+        var subject = notification.CaseId.HasValue
+            ? $"Update on case #{notification.CaseId}"
+            : "Update from Customer Service";
+        var body = $"Hello,\n\n"
             + $"{notification.Message}\n\n"
-            + $"Please review and follow up at your earliest convenience.\n\n"
-            + $"— Customer Service Dashboard";
-        return (overdueSubject, overdueBody);
+            + $"Thank you,\nCustomer Service Team";
+        return (subject, body);
     }
 
     /// <summary>
     /// Extracts the human-readable case subject from the stored message text
-    /// (which is formatted as 'Case #id "subject" for ...'). Falls back to the
-    /// raw message when the pattern is not present.
+    /// (formatted as 'Case #id "subject" for ...'). Falls back to the raw
+    /// message when the pattern is not present.
     /// </summary>
-    private static string ExtractSubject(string message)
+    private static string ExtractCaseSubject(string message)
     {
-        // Pattern: Case #3 "API returning 500 errors" for Pedro Penduko ...
         var start = message.IndexOf('"');
         var end = message.IndexOf('"', start + 1);
         if (start >= 0 && end > start)

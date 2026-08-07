@@ -2,6 +2,38 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 43 — Email template editor UX + send-path robustness] (2026-08-07)
+**Status:** ✅ COMPLETE (`dotnet build` green + `npm run build` green + live browser + live resend proof)
+
+### Problem
+User reported two gaps on the Email configuration panel:
+1. No way to **add a new email template** — only edit/delete existing ones.
+2. Token autofill chips always inserted at the **end** of the template instead of at the cursor.
+While investigating, a deeper issue surfaced: the "add new template" UI feature built in Phase 42 relied on a backend `UpsertTemplateAsync` that threw `InvalidOperationException` (temporary Id) for brand-new types — so adding a template would have 400'd. Separately, the email sender's missing-template fallback used type-specific hardcoded strings that could silently diverge from the operator-visible config.
+
+### Backend (C# ASP.NET Core 8)
+- `EmailNotificationSender`:
+  - **Removed** the type-specific hardcoded `BuildContent` method (CustomerInvite / *PasswordReset / CaseResolved / CaseOverdue branches) and its `ExtractSubject` helper. The per-type text already lives in DB templates (seeded in Phase 42), so that code was dead/unreachable.
+  - Replaced the fallback with `BuildFallbackContent` — a single generic, token-light message used **only** when a template is genuinely missing, and now emits a `LogWarning("No email template configured for NotificationType {Type}…")` so the gap is visible instead of silent.
+  - `BuildContentAsync` now prefers the DB template (unchanged) and logs a warning before the generic fallback when `template is null`.
+  - `ExtractSubject` retained as `ExtractCaseSubject` (still needed for the `{{caseSubject}}` token).
+- `EmailConfigService.UpsertTemplateAsync` (root-cause fix): `Update()` was called unconditionally, even right after `AddAsync` on the new-template branch, flipping a transient `Id=0` to Modified and throwing on save. Now `Update()` runs **only** on the edit branch; the new branch relies on `AddAsync` tracking.
+
+### Frontend (Angular 18)
+- `email-list.component.ts`:
+  - New signals `isNewTemplate`, `draftTemplateType`, `TEMPLATE_TYPES` (the 7 valid `NotificationType` names); `startNewTemplate()`; `saveTemplate()` detects new-vs-edit via `isNewTemplate`.
+  - `@ViewChild` refs `subjectInput`/`bodyTextarea`; `insertToken()` rewritten to insert at the caret of the **focused** field (reads `selectionStart`/`selectionEnd`, restores caret), with a fallback append when the ref is unavailable.
+- `email-list.component.html`:
+  - `+ New template` button in the templates list; editor shows a **Type dropdown** (valid names only) for new templates.
+  - Token chip rows added under **both** Subject and Body (previously body only).
+
+### Verification
+- Frontend build green (1.55 MB, under budget). Backend build green (0 warnings/errors).
+- Live (Angelshark browser drive, admin login): `+ New template` renders; Type dropdown lists 7 valid types; 7 existing templates list; clicking a token with caret mid-text inserts **at the caret** (e.g. `Hello ▏world` + `{{customerName}}` → `Hello {{customerName}}world`), not the end.
+- Live API: adding a fresh template type now returns **200** (previously 400 on the add path); restoring CaseOverdue returned 200.
+- `POST /api/emails/49/resend` (case #21, `CaseOverdue`) → `emails.log` `SUBJECT:Case #21 is overdue: Bulk discount not applied` — confirms the **DB template is what actually sends**.
+- Missing-template path confirmed: deleting `CaseOverdue` then resend → subject fell back to generic `Update on case #21` (proves the new fallback + warning path), not the old hardcoded text.
+
 ## [Phase 42 — Email configuration: domains, templates, smart routing] (2026-08-06)
 **Status:** ✅ COMPLETE (`dotnet test` 73/73 + `npm run build` green + live browser + `emails.log` proof)
 
