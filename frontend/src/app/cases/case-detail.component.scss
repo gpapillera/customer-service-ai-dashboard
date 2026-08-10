@@ -82,11 +82,17 @@
   align-items: flex-start;
   gap: 1rem;
   margin-bottom: 0.75rem;
+  /* Let the Edit button wrap below the titles on narrow cards instead of
+     overlapping the subject (no flex-wrap = overflow on squeezed widths). */
+  flex-wrap: wrap;
 }
 .head-titles {
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
+  /* Allow the subject to shrink/wrap rather than force the row to overflow. */
+  min-width: 0;
+  flex: 1 1 auto;
 }
 .subject {
   font-size: 1.35rem;
@@ -538,8 +544,9 @@
    viewports. The sidenav is "side" (pushing content) on desktop and becomes an
    overlay/icon-rail below 768px, so the content area shrinks — but .detail-grid
    stayed `1fr 320px` at every width, leaving the right Status/Priority/Assignee
-   column cramped (or wider than the main column) on tablets/phones. Stack it. */
-@media (max-width: 900px) {
+   column cramped (or wider than the main column) on tablets/phones. Stack it at
+   1024px so the four main cards keep a comfortable width before the squeeze band. */
+@media (max-width: 1024px) {
   .detail-grid {
     grid-template-columns: 1fr;
   }

@@ -338,7 +338,9 @@
    padding is constant, so the page never jumps when the wide sidenav opens or
    closes. */
 .content.sidebar-closed {
-  padding-left: 4.5rem;
+  /* Rail is 64px wide: 64px + 2rem (32px) gutter = 6rem, equal to the right
+     padding so the page is symmetric in collapsed-rail + handset overlay modes. */
+  padding-left: 6rem;
 }
 
 /* When the bottom nav bar is shown, add bottom padding so content is not

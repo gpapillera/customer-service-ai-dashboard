@@ -2,6 +2,32 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 45e — Case Detail: collapse breakpoint, head wrap, symmetric rail gutter] (2026-08-10)
+**Status:** ✅ COMPLETE (`npm run build` green + live browser verification, dark/light)
+
+### Problem (from user observation)
+1. The four main case cards had no breakpoint in the ~900–1100px band, so when the sidenav was open the main column got squeezed beside the fixed 320px side column and content was cramped.
+2. The `.head` row (subject + Edit Case button) had no `flex-wrap`, so at narrow widths the Edit Case button overflowed / overlapped the subject instead of dropping to its own line.
+3. With the sidenav collapsed to the icon rail (or in handset overlay mode), the page was tighter on the left: `.content.sidebar-closed` used `padding-left: 4.5rem` against the 64px rail (only ~8px gutter) while the right gutter was 2rem (32px) — visibly asymmetric.
+
+### Fix (SCSS only — no TS, no behavior change)
+- `frontend/src/app/cases/case-detail.component.scss`:
+  - Raised the single-column collapse from `max-width: 900px` → `max-width: 1024px` so the four main cards keep a comfortable width before the squeeze band.
+  - Added `flex-wrap: wrap` to `.head` and `min-width: 0` + `flex: 1 1 auto` to `.head-titles` so the long subject shrinks/wraps and the Edit Case button drops below the title on narrow widths instead of overlapping.
+- `frontend/src/app/shared/layout/layout.component.scss`:
+  - `.content.sidebar-closed` `padding-left: 4.5rem` → `6rem` (64px rail + 32px gutter), equal to the right `2rem` gutter → symmetric left/right spacing in collapsed-rail + handset overlay modes.
+
+### Files
+- `frontend/src/app/cases/case-detail.component.scss`
+- `frontend/src/app/shared/layout/layout.component.scss`
+
+### Verification (live browser)
+- `npm run build` green (exit 0, 1.57 MB initial — under budget). ✅
+- Served CSS confirms: `@media (max-width: 1024px) { .detail-grid { grid-template-columns: 1fr } }` live; `.head { flex-wrap: wrap }`; `.head-titles { min-width: 0; flex-grow: 1 }`. ✅
+- Collapsed-rail state: `.content.sidebar-closed` computed `padding-left: 96px` (6rem) = 64px rail + 32px gap; left gap = 32px = right gutter → symmetric. ✅
+- Overlap regression: forced the case card to 260px (the old failure width); Edit Case button stays inside the card (`editWithinCard: true`), no overlap with subject (`noOverlapWithSubject: true`), and correctly wraps below the title (`wrappedBelow: true`). ✅
+- NOTE: headless window resize is clamped, so the live "watch it stack at 700px" pixel check was done via computed-style + forced-narrow-context assertions rather than an actual viewport resize; the cascade is verified correct at both states.
+
 ## [Phase 45d — Case Detail responsive breakpoints + panel icon registration] (2026-08-10)
 **Status:** ✅ COMPLETE (`npm run build` green)
 
