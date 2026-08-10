@@ -48,6 +48,8 @@ import {
   ChevronDown,
   Sun,
   Moon,
+  History,
+  Calendar,
 } from 'lucide-angular/src/icons';
 
 /**
@@ -98,6 +100,8 @@ const ICON_MAP: Record<string, LucideIconData> = {
   chevron_down: ChevronDown,
   sun: Sun,
   moon: Moon,
+  history: History,
+  calendar_month: Calendar,
 };
 
 @Component({

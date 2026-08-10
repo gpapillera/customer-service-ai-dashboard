@@ -50,16 +50,11 @@
 
 .detail-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: 1fr 320px;
   gap: 1.25rem;
   align-items: start;
   flex: 1;
   min-height: 0;
-}
-@media (max-width: 980px) {
-  .detail-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 .main-col,
@@ -530,6 +525,24 @@
   .chat-scroll {
     max-height: 35vh;        /* more room for stacked cards on phones */
   }
+  /* Emails/Activity panel becomes a full-width slide-over sheet on phones.
+     top:4.5rem (set on .side-panel) is preserved so the history toggle in the
+     page header stays reachable to close it when it is open. */
+  .side-panel {
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+/* Collapse the 2-column case layout to a single stacked column on narrow
+   viewports. The sidenav is "side" (pushing content) on desktop and becomes an
+   overlay/icon-rail below 768px, so the content area shrinks — but .detail-grid
+   stayed `1fr 320px` at every width, leaving the right Status/Priority/Assignee
+   column cramped (or wider than the main column) on tablets/phones. Stack it. */
+@media (max-width: 900px) {
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Comment / conversation thread */
@@ -819,15 +832,23 @@
 }
 
 .history-toggle {
-  color: var(--cs-text-muted);
-  border: 1px solid var(--cs-border);
+  color: var(--cs-accent);
+  border: 1px solid var(--cs-border-strong);
   border-radius: var(--cs-radius);
   background: var(--cs-surface);
-  transition: background 0.2s var(--cs-ease), color 0.2s var(--cs-ease);
+  transition: background 0.2s var(--cs-ease), color 0.2s var(--cs-ease), border-color 0.2s var(--cs-ease);
 }
 .history-toggle:hover {
-  background: var(--cs-surface-2);
+  background: var(--cs-accent-light);
   color: var(--cs-accent);
+  border-color: var(--cs-accent);
+}
+.history-toggle cs-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
 }
 
 /* ── Right-side Emails/Activity panel (replaces the old side cards) ── */

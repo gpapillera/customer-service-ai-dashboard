@@ -2,6 +2,28 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 45d — Case Detail responsive breakpoints + panel icon registration] (2026-08-10)
+**Status:** ✅ COMPLETE (`npm run build` green)
+
+### What changed (from user request)
+The Case Detail page had no breakpoint that collapses its two-column layout, and nothing was sized for the sidenav-collapsed state. The page also relied on `history` / `calendar_month` lucide icons (used by the Emails/Activity panel) that were never registered in the icon map — leaving them unregistered.
+
+### Fix
+- `frontend/src/app/cases/case-detail.component.scss`:
+  - Added `@media (max-width: 900px)` collapsing `.detail-grid` to a single stacked column (`1fr`), so the Status/Priority/Assignee side column stops sitting cramped next to the main column on tablets/phones (the sidenav is "side" on desktop and becomes a rail/overlay below 768px, shrinking the content area).
+  - Added `@media (max-width: 600px)` making the Emails/Activity `.side-panel` a full-width slide-over sheet (`width:100%; max-width:100%`); `top:4.5rem` is preserved so the history toggle stays reachable to close it.
+  - No BreakpointObserver wiring needed — `.side-panel` is anchored to `:host`, which already shrinks when the sidenav collapses, so plain media queries match the existing pattern in the file.
+- `frontend/src/app/shared/cs-icon.component.ts`:
+  - Registered `history` and `calendar_month` lucide icons (the icons the Emails/Activity panel renders) into `ICON_MAP` so they resolve instead of falling back.
+
+### Files
+- `frontend/src/app/cases/case-detail.component.scss`
+- `frontend/src/app/shared/cs-icon.component.ts`
+
+### Verification
+- `npm run build` green (exit 0, bundle generation complete, 1.57 MB initial — under budget). ✅
+- NOTE: visual behavior at the 900px/600px boundaries was not exercised in a browser; build success confirms compilation only.
+
 ## [Phase 45c — Case Detail: Emails + Activity as right-side slide-in panel] (2026-08-08)
 **Status:** ✅ COMPLETE (`npm run build` green + live browser 10-step gate, dark/light)
 
