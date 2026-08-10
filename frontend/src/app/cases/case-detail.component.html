@@ -273,8 +273,10 @@
   }
 
   @if (panelOpen()) {
-    <aside class="side-panel" id="history-panel" [class.mode-email]="panelMode() === 'email'" [class.mode-activity]="panelMode() === 'activity'">
+    <aside class="side-panel" id="history-panel" [class.mode-email]="panelMode() === 'email'" [class.mode-activity]="panelMode() === 'activity'"
+      [class.closing]="closing()" (animationend)="onPanelAnimationEnd()">
       <div class="panel-top">
+        <span class="panel-title">{{ panelMode() === 'email' ? 'Emails' : 'Activity' }}</span>
         <div class="panel-modes">
           <button type="button" class="mode-btn" [class.active]="panelMode() === 'email'"
                   (click)="setPanelMode('email')" title="Emails">

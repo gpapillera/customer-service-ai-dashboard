@@ -2,6 +2,140 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 45j — Case Detail: date-input dark-mode calendar icon + sizing + date-filter spacing] (2026-08-10)
+**Status:** ✅ COMPLETE (`npm run build` green + live dark-mode browser verification)
+
+### Problems (from user observation)
+1. Inside the panel, when the date dropdown filter is enabled and a preset needing input is selected, the native date-input **calendar icon was invisible in dark mode**.
+2. The date input length was wrong (crushed/clipped).
+3. Wanted a bit more space above the date dropdown filter.
+
+### Root cause
+The whole app declares no `color-scheme` anywhere. The native `<input type="date">` calendar picker indicator is drawn by the browser per `color-scheme`; with the dark `--cs-input-bg (#1e293b)` but default (light) scheme, the indicator rendered dark-on-dark and vanished. (Light mode was unaffected because its input bg is white.)
+
+### Fix (SCSS only — `frontend/src/app/cases/case-detail.component.scss`)
+- `.date-input`: `flex:1; min-width:0` → `flex:1 1 130px; min-width:130px; height:38px; box-sizing:border-box; line-height:1.2; padding:0.35rem 0.55rem` (proper, unclipped size matching the `.date-preset` field height of 38px).
+- Added `:host-context([data-theme='dark']) .date-input { color-scheme: dark; }` — scopes the dark calendar icon to dark mode only; light mode untouched.
+- `.panel-date`: added `margin-top: 0.45rem` (extra space above the date dropdown filter).
+
+### Files
+- `frontend/src/app/cases/case-detail.component.scss`
+
+### Verification (live browser, dark mode, http://localhost:4200 — admin/Passw0rd!)
+- `npm run build` green (exit 0, 1.57 MB initial — under budget). ✅
+- Set date preset to "Custom range" → 2 date inputs render. Computed: `colorScheme:"dark"`, `bg:rgb(30,41,59)`, `height:38`, `width:~170`, `fontSize:12.8px`. ✅
+- Vision: calendar/picker icon on each date input is **visible (light colored)** in dark mode; inputs properly sized (not crushed); reasonable spacing above the date dropdown. ✅
+
+## [Phase 45i — Case Detail: panel close animation (reverse of slide-in)] (2026-08-10)
+**Status:** ✅ COMPLETE (`npm run build` green + live measured-animation trace, dark mode)
+
+### Problem (from user request)
+The panel had a slide-IN animation on open but disappeared instantly on close — no reverse animation. Root cause: it renders via `@if (panelOpen())`, so closing destroyed the node immediately with no exit transition.
+
+### Fix
+- `frontend/src/app/cases/case-detail.component.scss`:
+  - Added `@keyframes panel-slide-out { from { translateX(0) } to { translateX(100%) } }` (exact reverse of `panel-slide-in`).
+  - Added `.side-panel.closing { animation: panel-slide-out 0.22s var(--cs-ease) forwards; pointer-events: none; }` (slightly faster than the 0.28s open so close feels snappy).
+  - Added `.side-panel.act-pulse.closing` to keep the deep-link pulse running alongside the slide-out (so the `animationend` of the pulse doesn't matter — handler filters by name).
+- `frontend/src/app/cases/case-detail.component.ts`:
+  - Added `readonly closing = signal(false)`.
+  - Added `closePanel()` → guards (only if open & not already closing) then sets `closing=true`; the node stays mounted for the animation.
+  - Added `onPanelAnimationEnd(event?)` on `(animationend)` — only unmounts when `event.animationName === 'panel-slide-out'` (ignores the `act-pulse` end), then clears `closing` + sets `panelOpen=false`.
+  - `togglePanel()` now calls `closePanel()` when open (and resets `closing` before reopening).
+  - Routed all 3 close paths through `closePanel()`: `onDocumentClick` (outside click), `onEscape` (Esc), and the toggle button.
+- `frontend/src/app/cases/case-detail.component.html`: added `[class.closing]="closing()"` and `(animationend)="onPanelAnimationEnd()"` to the `<aside>`.
+
+### Files
+- `frontend/src/app/cases/case-detail.component.ts`
+- `frontend/src/app/cases/case-detail.component.html`
+- `frontend/src/app/cases/case-detail.component.scss`
+
+### Verification (live browser, http://localhost:4200 — admin/Passw0rd!)
+- `npm run build` green (exit 0, 1.57 MB initial — under budget). ✅
+- Open animation intact: panel `animationName: panel-slide-in`, settles at `translateX(0)`. ✅
+- Close animation: sampled `getComputedStyle().transform` every frame on close → `tx` eased `0 → 119 → 380px` over ~194ms (slide-out to the right), held at 380px, then the node was removed at ~244ms (right AFTER `animationend`). ✅ Reverses the in-animation as requested.
+- All 3 close paths (toggle, Esc, outside-click) route through `closePanel()` and animate out. ✅
+- `act-pulse` deep-link pulse still coexists (`.act-pulse.closing` rule) and does not prematurely unmount (handler filters by animation name). ✅
+
+## [Phase 45h — Case Detail: fix panel search/date text pushed upward (Material infix overflow)] (2026-08-10)
+**Status:** ✅ COMPLETE (`npm run build` green + live measured-geometry verification)
+
+### Problem (from user observation)
+After Phase 45g shrank the search/date fields to 38px, the search icon/text and the date text appeared **pushed upward** inside their field boxes (not vertically centered).
+
+### Root cause
+Shrinking the flex/wrapper to `height:38px` was correct, but the Material `.mat-mdc-form-field-infix` (inner content box) still had its default `min-height:56px`. The 56px infix overflowed the 38px flex and, with default alignment, pushed the text up ~9px above the field box. Measured live: search `inputTop 153.9` vs wrapper `wrapTop 162.9` (text sat ~9px ABOVE the box); date trigger same.
+
+### Fix (SCSS only — `frontend/src/app/cases/case-detail.component.scss`)
+- `.card-search ::ng-deep .mat-mdc-form-field-infix` AND `.date-preset ::ng-deep .mat-mdc-form-field-infix`: added `min-height:0; height:38px; display:flex; align-items:center;` (on top of the existing `padding-top/bottom:0`). This caps the infix to the field height and centers its content, so the text sits in the middle of the 38px box.
+
+### Files
+- `frontend/src/app/cases/case-detail.component.scss`
+
+### Verification (live browser, measured DOM geometry — http://localhost:4200, case detail panel)
+- `npm run build` green (exit 0, 1.57 MB initial — under budget). ✅
+- Before: search text -9px above field top (pushed up). After: search `triggerTopGap:7, triggerBottomGap:7, vertCenterDiff:0`; date `triggerTopGap:7, triggerBottomGap:7, vertCenterDiff:0`; value-text center within 0.5px of true field center. ✅ (Symmetric 7px/7px confirms vertical centering; the negative overflow is gone.)
+- NOTE: a vision pass subjectively read the date text as "slightly high," but the computed geometry is exactly centered (center diff 0). The horizontal texToffset between the two fields (search indented for its leading icon, date not) is intentional design, not a defect.
+
+## [Phase 45g — Case Detail: panel click-outside close + minimalist smaller filters] (2026-08-10)
+**Status:** ✅ COMPLETE (`npm run build` green + live browser gate, dark mode)
+
+### What changed (from user request)
+1. The Emails/Activity panel did not close when clicking outside it.
+2. The search icon/text were not indented.
+3. The search bar and date dropdown filter were too large; requested a more minimalist look.
+
+### Fix
+- `frontend/src/app/cases/case-detail.component.ts`:
+  - Added `HostListener('document:click')` `onDocumentClick` → closes the panel when the click target is outside `#history-panel` AND outside the `.history-toggle` header button (so re-clicking the toggle still toggles, not just closes). Early-returns if already closed.
+  - Added `HostListener('document:keydown.escape')` `onEscape` → closes on Escape for keyboard users.
+  - **Edge-case guard:** the date-preset `mat-select` dropdown renders in a body-level `.cdk-overlay-container` OUTSIDE `#history-panel`. Without excluding it, picking a date would register as an outside click and wrongly close the panel. The guard also excludes `.cdk-overlay-container` so selecting a date (or any Material overlay) keeps the panel open. (ponytail: scoped to this specific overlay class — correct today since the only overlays opened from the panel are these selects.)
+- `frontend/src/app/cases/case-detail.component.scss`:
+  - `.panel-search, .panel-date` top padding `0.6rem → 0.35rem` (tighter).
+  - `.card-search` + `.date-preset`: text size `--mat-form-field-container-text-size: 0.82rem`, wrapper/flex height `38px` (was ~56px default), `padding-left: 0.55rem` on the flex to **indent** the search icon + typed text (and the date icon + label). Infix vertical padding zeroed.
+  - `.card-search .prefix-icon` 1rem → 0.95rem.
+  - `.date-input` padding `0.5rem 0.6rem` → `0.4rem 0.55rem`, font `0.85rem → 0.8rem`.
+
+### Files
+- `frontend/src/app/cases/case-detail.component.ts`
+- `frontend/src/app/cases/case-detail.component.scss`
+
+### Verification (live browser, http://localhost:4200 — admin/Passw0rd!, dark mode)
+- `npm run build` green (exit 0, 1.57 MB initial — under budget). ✅
+- Click-outside closes: clicking the page header with panel open → `panelPresent=false`. ✅
+- Inside clicks keep it open (mode/tool buttons live inside the panel). ✅
+- CDK-overlay guard: opened the date `mat-select`, picked "Today" → dropdown closed, panel stayed open (`panelStillOpen:true`). ✅
+- Smaller/indented fields: search input computed `fontSize:13.12px`, wrapper `height:38px`, field `padding-left:8.8px` (indent). Vision confirms compact/minimalist, no glitch. ✅
+
+## [Phase 45f — Case Detail: Emails/Activity panel redesign (round + distinct + single scrollbar)] (2026-08-10)
+**Status:** ✅ COMPLETE (`npm run build` green + live browser 6-step gate, dark/light)
+
+### What changed (from user request)
+The right-side Emails/Activity panel (opened via the top-right history icon) had four UI/UX problems: rectangular corners (not rounded), it blended into the page background cards (not distinguishable), it showed two stacked scrollbars, and the empty header space read as underused. Scrollbar had no on-brand styling anywhere in the app.
+
+### Fix (SCSS + one HTML line — no TS, no behavior change, toggle preserved)
+- `frontend/src/app/cases/case-detail.component.scss`:
+  - `.side-panel` (was flush `right:0;bottom:0;border-left:1px`) → floats off the edge (`right:1.25rem;bottom:1.25rem`), `border-radius:var(--cs-radius)` (16px), full `1px solid var(--cs-border-strong)` border, real lift `box-shadow:var(--cs-popup-shadow)`, and `overflow:hidden` to clip children to the rounded corners. Width 380px, `max-width:calc(100vw - 2.5rem)`.
+  - `.panel-top` → 3-group `space-between` layout (title | mode buttons | tool buttons) + `.panel-title` style (font-weight 700).
+  - Removed the nested scroll on `.mini-list` (was `max-height:320px;overflow-y:auto`) so `.panel-body` is the ONLY scroller. Hardened `.panel-body`: `overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scroll-behavior:smooth`.
+  - Added a **scoped** thin on-brand scrollbar (`.side-panel` + `.side-panel ::-webkit-scrollbar`): 8px, rounded thumb, accent on hover. Scoped to the panel only (Glen's request — NOT global).
+  - `@media (max-width:600px)` `.side-panel` → full-width edge-to-edge sheet (`left:0;right:0;border-radius:0;border-left:none`).
+- `frontend/src/app/cases/case-detail.component.html`:
+  - Added `<span class="panel-title">{{ panelMode() === 'email' ? 'Emails' : 'Activity' }}</span>` to the panel header.
+
+### Files
+- `frontend/src/app/cases/case-detail.component.scss`
+- `frontend/src/app/cases/case-detail.component.html`
+
+### Verification (live browser, http://localhost:4200 — admin/Passw0rd!)
+- `npm run build` green (exit 0, 1.57 MB initial — under budget). ✅
+- Compiled bundle grep confirms: `.side-panel{right:1.25rem;...border-radius:var(--cs-radius);box-shadow:var(--cs-popup-shadow);overflow:hidden}`; `.panel-title`; scoped `::-webkit-scrollbar`; `.mini-list` no longer carries `max-height`/`overflow`. ✅
+- Panel computed styles: `position:absolute; right:20px; bottom:20px; borderRadius:16px; border:1px solid; boxShadow:rgba(0,0,0,.55) 0 16px 40px…; overflow:hidden; title:"Emails"`. ✅
+- Title switches to "Activity" when mode toggled. ✅
+- Single scrollbar proof: injected 40 rows → panel-body `scrollHeight:1075 > clientHeight:427` (body scrolls), `nestedScrollContainers:0` (mini-list has no own scroll). Vision confirms ONE thin scrollbar inside the panel. ✅
+- Distinct in BOTH themes: light mode panel reads as a floating card on the page; dark mode panel still elevated with border+shadow. ✅
+- Mobile (<600px): CSS present — full-width sheet, radius/left-border dropped. (Not exercised at a real 360px viewport; cascade verified in source + compiled CSS.)
+
 ## [Phase 45e — Case Detail: collapse breakpoint, head wrap, symmetric rail gutter] (2026-08-10)
 **Status:** ✅ COMPLETE (`npm run build` green + live browser verification, dark/light)
 

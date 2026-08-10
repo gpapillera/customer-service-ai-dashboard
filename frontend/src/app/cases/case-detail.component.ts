@@ -1,4 +1,4 @@
-import { Component, computed, DestroyRef, ElementRef, inject, OnInit, signal, ViewChild } from '@angular/core';
+import { Component, computed, DestroyRef, ElementRef, HostListener, inject, OnInit, signal, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink, Router, NavigationStart } from '@angular/router';
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -259,9 +259,66 @@ export class CaseDetailComponent implements OnInit {
     this.router.navigateByUrl('/cases');
   }
 
+  /** True while the close animation is playing (keeps the element mounted). */
+  readonly closing = signal(false);
+
+  /**
+   * Closes the panel with a slide-out animation that reverses `panel-slide-in`.
+   * We can't rely on the open `@if` alone because it destroys the node instantly
+   * on close — so we set `closing`, let the reverse animation play, then unmount.
+   */
+  closePanel(): void {
+    if (!this.panelOpen() || this.closing()) return;
+    this.closing.set(true);
+  }
+
+  /**
+   * Fires on every CSS animation end inside the panel. Only the slide-out
+   * animation should unmount the node; the deep-link `act-pulse` also emits
+   * `animationend` and must be ignored here.
+   */
+  onPanelAnimationEnd(event?: AnimationEvent): void {
+    if (event && event.animationName !== 'panel-slide-out') return;
+    if (!this.closing()) return;
+    this.closing.set(false);
+    this.panelOpen.set(false);
+  }
+
   /** Toggles the right-side Emails/Activity panel. */
   togglePanel(): void {
-    this.panelOpen.update((v) => !v);
+    if (this.panelOpen()) {
+      this.closePanel();
+    } else {
+      this.closing.set(false);
+      this.panelOpen.set(true);
+    }
+  }
+
+  /**
+   * Closes the panel when a click lands outside it AND outside the header
+   * toggle button (so re-clicking the toggle still just toggles). Mode/tool
+   * buttons live inside the panel, so clicks there don't dismiss it. Material
+   * overlays (mat-select dropdowns) render in a body-level cdk container
+   * outside the panel, so exclude those too or selecting a date would close it.
+   */
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    if (!this.panelOpen()) return;
+    const target = event.target as HTMLElement | null;
+    if (
+      target?.closest('#history-panel') ||
+      target?.closest('.history-toggle') ||
+      target?.closest('.cdk-overlay-container')
+    ) {
+      return;
+    }
+    this.closePanel();
+  }
+
+  /** Closes the panel on Escape for keyboard users. */
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    if (this.panelOpen()) this.closePanel();
   }
 
   /** Switches the panel to show emails or activity (never both at once). */
