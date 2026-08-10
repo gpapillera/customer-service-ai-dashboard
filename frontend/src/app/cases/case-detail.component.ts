@@ -138,6 +138,16 @@ export class CaseDetailComponent implements OnInit {
   readonly activityDateTo = signal('');
   readonly activityDateSingle = signal('');
 
+  // ── History side panel (replaces the old Emails/Activity side cards) ──
+  /** Whether the right-side Emails/Activity panel is open. */
+  readonly panelOpen = signal(false);
+  /** Which list the panel shows. Only one at a time (never both). */
+  readonly panelMode = signal<'email' | 'activity'>('email');
+  /** Search input is revealed only after the search icon is clicked. */
+  readonly searchVisible = signal(false);
+  /** Date filter is revealed only after the date icon is clicked. */
+  readonly dateVisible = signal(false);
+
   /** Merged timeline of everything done to this case, newest first. */
   readonly activity = computed<ActivityItem[]>(() => {
     const c = this.case();
@@ -247,6 +257,46 @@ export class CaseDetailComponent implements OnInit {
   /** Navigate back to the cases list. */
   goBack(): void {
     this.router.navigateByUrl('/cases');
+  }
+
+  /** Toggles the right-side Emails/Activity panel. */
+  togglePanel(): void {
+    this.panelOpen.update((v) => !v);
+  }
+
+  /** Switches the panel to show emails or activity (never both at once). */
+  setPanelMode(mode: 'email' | 'activity'): void {
+    this.panelMode.set(mode);
+  }
+
+  /** Reveals/hides the search input (deferred until the search icon is clicked). */
+  toggleSearch(): void {
+    this.searchVisible.update((v) => !v);
+  }
+
+  /** Reveals/hides the date filter (deferred until the date icon is clicked). */
+  toggleDate(): void {
+    this.dateVisible.update((v) => !v);
+  }
+
+  /**
+   * Clears every panel filter value and hides both filter UIs. Called by the
+   * reset 'x' button and automatically when leaving the case. Filters persist
+   * across mode switches and panel open/close — only this resets them.
+   */
+  resetFilters(): void {
+    this.emailSearch.set('');
+    this.emailDatePreset.set('all');
+    this.emailDateFrom.set('');
+    this.emailDateTo.set('');
+    this.emailDateSingle.set('');
+    this.activitySearch.set('');
+    this.activityDatePreset.set('all');
+    this.activityDateFrom.set('');
+    this.activityDateTo.set('');
+    this.activityDateSingle.set('');
+    this.searchVisible.set(false);
+    this.dateVisible.set(false);
   }
 
   ngOnInit(): void {
@@ -392,27 +442,22 @@ export class CaseDetailComponent implements OnInit {
     // Poll for new comments every 5 seconds so messages appear in real-time.
     this.startCommentsPolling(id);
 
-    // Deep link from the Customers page: scroll to + pulse the Activity card.
+    // Deep link from the Customers page: open the history panel in Activity
+    // mode and pulse it (so the customer's latest activity is in view).
     if (focusActivity) {
-      const pulseActivity = (attempts = 20) => {
-        const card = document.getElementById('activity-card');
-        if (!card) {
-          if (attempts > 0) setTimeout(() => pulseActivity(attempts - 1), 200);
+      const pulsePanel = (attempts = 20) => {
+        const panel = document.getElementById('history-panel');
+        if (!panel) {
+          if (attempts > 0) setTimeout(() => pulsePanel(attempts - 1), 100);
           return;
         }
-        const scrollContainer = document.querySelector('.content');
-        if (scrollContainer && card) {
-          const cardRect = card.getBoundingClientRect();
-          const containerRect = scrollContainer.getBoundingClientRect();
-          const top = cardRect.top - containerRect.top + scrollContainer.scrollTop;
-          scrollContainer.scrollTo({ top: Math.max(0, top - 16), behavior: 'smooth' });
-        }
-        setTimeout(() => {
-          card.classList.add('act-pulse');
-          card.addEventListener('animationend', () => card.classList.remove('act-pulse'), { once: true });
-        }, 250);
+        panel.classList.add('act-pulse');
+        panel.addEventListener('animationend', () => panel.classList.remove('act-pulse'), { once: true });
       };
-      setTimeout(pulseActivity, 500);
+      // Open the panel first; the element only exists once panelOpen is true.
+      this.panelOpen.set(true);
+      this.panelMode.set('activity');
+      setTimeout(pulsePanel, 350);
     }
 
     // Reset the chat-scroll position when navigating away, so the next visit
@@ -421,6 +466,8 @@ export class CaseDetailComponent implements OnInit {
       if (e instanceof NavigationStart) {
         const el = document.querySelector<HTMLElement>('.chat-scroll');
         if (el) el.scrollTop = 0;
+        // Leaving the case clears the panel's filter state.
+        this.resetFilters();
       }
     });
   }

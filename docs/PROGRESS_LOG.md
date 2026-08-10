@@ -2,6 +2,39 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 45c — Case Detail: Emails + Activity as right-side slide-in panel] (2026-08-08)
+**Status:** ✅ COMPLETE (`npm run build` green + live browser 10-step gate, dark/light)
+
+### What changed (from user request)
+The two side-column cards (Emails, Activity) became a single **right-side slide-in panel** toggled by a top-right history (clock) icon button. The page also got a proper **title header** ("Case Detail" + case id/subject) like the other list pages.
+
+### Behavior
+- **Title header** (`page-header` / `page-brand`) with a `history-toggle` icon button top-right.
+- **Panel** (`#history-panel`, `position: absolute` overlay, slides in `transform: translateX`) — does not reflow the page; case stays readable behind it.
+- **Top bar:** left = Email / Activity mode icon buttons (mutually exclusive — only one list shows); right = search icon, date icon, reset 'x'.
+- **Deferred filter reveal:** search input + date preset render ONLY after their icon is clicked (`searchVisible` / `dateVisible` signals).
+- **Per-mode filter memory:** email & activity each keep their own search/date values (separate DOM inputs per mode — no cross-mode bleed). Filters persist across mode switches, panel open/close, and panel close.
+- **Reset:** the 'x' button (`resetFilters()`) clears all filter values + hides both filter UIs. Filters also reset automatically on `NavigationStart` (leaving the case).
+- **Deep link** `?activity=1` (from Customers page) opens the panel in Activity mode and pulses it.
+- **Dark/light:** panel uses `--cs-surface` / `--cs-border` / `--cs-accent` tokens — uniform with the app (dark slate, light white).
+
+### Files
+- `frontend/src/app/cases/case-detail.component.ts` — `panelOpen`/`panelMode`/`searchVisible`/`dateVisible` signals, `togglePanel`/`setPanelMode`/`toggleSearch`/`toggleDate`/`resetFilters`, deep-link re-pointed to panel.
+- `frontend/src/app/cases/case-detail.component.html` — page header + toggle; removed the two side cards; added the panel markup (mode switch, deferred search/date, reset, body list).
+- `frontend/src/app/cases/case-detail.component.scss` — `:host` relative + flex; grid single column; panel/header/button styles on `--cs-*` tokens; slide-in + pulse keyframes.
+
+### Verification (live browser)
+1. Title "Case Detail" + case subtitle + top-right toggle present. ✅
+2. Toggle slides panel in; dark bg `rgb(30,41,59)` = slate, light `rgb(255,255,255)` = white. ✅
+3. Default Email mode (case 21 → 11 rows); Activity button → 12-row timeline; never both. ✅
+4. Search icon reveals input; "opened" filters activity to 1 row. ✅
+5. Date icon reveals preset select. ✅
+6. No cross-mode bleed (activity "opened" does NOT leak into email search; per-mode memory kept). ✅
+7. Reset 'x' clears all + hides filter UIs. ✅
+8. Light + dark uniform with app. ✅
+9. `?activity=1` auto-opens panel in Activity mode (13 rows). ✅
+10. Leaving the case resets all filters. ✅
+
 ## [Phase 45b — Dark-mode uniformity: dialog surface + primary button indigo] (2026-08-08)
 **Status:** ✅ COMPLETE (`npm run build` green + live browser dark/light verification)
 
