@@ -33,6 +33,8 @@ export interface Customer {
   createdAtUtc?: string;
   lastActivityAtUtc?: string;
   lastActivityDescription?: string;
+  /** Id of the case that produced the most recent activity (deep-link target). */
+  lastActivityCaseId?: number | null;
   hasAccount: boolean;
   accountActive: boolean;
 }
@@ -335,7 +337,7 @@ export interface Notification {
   message: string;
   channel: 'InApp' | 'Email' | 'Sms';
   status: 'Unread' | 'Read';
-  type: 'CaseOverdue' | 'CaseResolved' | 'CustomerInvite' | 'CustomerPasswordReset' | 'NewCustomerMessage' | 'StaffPasswordReset';
+  type: 'CaseOverdue' | 'CaseResolved' | 'CustomerInvite' | 'CustomerPasswordReset' | 'NewCustomerMessage' | 'StaffPasswordReset' | 'AdminManual';
   createdAtUtc: string;
   link: string | null;
   caseId: number | null;

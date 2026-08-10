@@ -253,6 +253,121 @@
             </mat-card-content>
           </mat-card>
         }
+
+        <mat-card class="cs-lift side-card reveal emails-card" appReveal>
+          <mat-card-content>
+            <div class="side-title-row">
+              <h3 class="side-title">Emails ({{ caseEmails().length }})</h3>
+            </div>
+
+            <div class="card-filter">
+              <mat-form-field appearance="outline" class="card-search">
+                <cs-icon name="search" matPrefix class="prefix-icon"></cs-icon>
+                <input matInput placeholder="Search emails…" [ngModel]="emailSearch()" (ngModelChange)="emailSearch.set($event)" />
+              </mat-form-field>
+              <div class="date-filter-row">
+                <mat-form-field appearance="outline" class="date-preset">
+                  <mat-label>Date</mat-label>
+                  <mat-select [value]="emailDatePreset()" (selectionChange)="emailDatePreset.set($event.value)">
+                    @for (p of datePresets; track p) {
+                      <mat-option [value]="p">{{ datePresetLabels[p] }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+                @if (datePresetNeedsInput(emailDatePreset())) {
+                  <div class="date-inputs">
+                    @if (emailDatePreset() === 'custom') {
+                      <input type="date" class="date-input" [ngModel]="emailDateFrom()" (ngModelChange)="emailDateFrom.set($event)" aria-label="From date" />
+                      <input type="date" class="date-input" [ngModel]="emailDateTo()" (ngModelChange)="emailDateTo.set($event)" aria-label="To date" />
+                    } @else {
+                      <input type="date" class="date-input" [ngModel]="emailDateSingle()" (ngModelChange)="emailDateSingle.set($event)" aria-label="Single date" />
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+
+            @if (filteredEmails().length === 0) {
+              <p class="muted small empty-note">
+                {{ caseEmails().length === 0 ? 'No emails for this case yet.' : 'No emails match your search.' }}
+              </p>
+            } @else {
+              <div class="mini-list stagger">
+                @for (e of filteredEmails(); track e.id) {
+                  <div class="email-row">
+                    <div class="row-head">
+                      <span class="tl-kind kind-email"><cs-icon name="mail"></cs-icon>{{ typeLabel(e.type) }}</span>
+                      <span class="muted tl-time">{{ formatDate(e.createdAtUtc) }}</span>
+                    </div>
+                    <div class="row-title">{{ e.title }}</div>
+                    @if (e.recipient) {
+                      <div class="muted small row-sub"><cs-icon name="send"></cs-icon>{{ e.recipient }}</div>
+                    }
+                  </div>
+                }
+              </div>
+            }
+          </mat-card-content>
+        </mat-card>
+
+        <mat-card class="cs-lift side-card reveal activity-card" appReveal id="activity-card">
+          <mat-card-content>
+            <div class="side-title-row">
+              <h3 class="side-title">Activity ({{ activity().length }})</h3>
+            </div>
+
+            <div class="card-filter">
+              <mat-form-field appearance="outline" class="card-search">
+                <cs-icon name="search" matPrefix class="prefix-icon"></cs-icon>
+                <input matInput placeholder="Search activity…" [ngModel]="activitySearch()" (ngModelChange)="activitySearch.set($event)" />
+              </mat-form-field>
+              <div class="date-filter-row">
+                <mat-form-field appearance="outline" class="date-preset">
+                  <mat-label>Date</mat-label>
+                  <mat-select [value]="activityDatePreset()" (selectionChange)="activityDatePreset.set($event.value)">
+                    @for (p of datePresets; track p) {
+                      <mat-option [value]="p">{{ datePresetLabels[p] }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+                @if (datePresetNeedsInput(activityDatePreset())) {
+                  <div class="date-inputs">
+                    @if (activityDatePreset() === 'custom') {
+                      <input type="date" class="date-input" [ngModel]="activityDateFrom()" (ngModelChange)="activityDateFrom.set($event)" aria-label="From date" />
+                      <input type="date" class="date-input" [ngModel]="activityDateTo()" (ngModelChange)="activityDateTo.set($event)" aria-label="To date" />
+                    } @else {
+                      <input type="date" class="date-input" [ngModel]="activityDateSingle()" (ngModelChange)="activityDateSingle.set($event)" aria-label="Single date" />
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+
+            @if (filteredActivity().length === 0) {
+              <p class="muted small empty-note">No activity matches your search.</p>
+            } @else {
+              <div class="mini-list stagger">
+                @for (a of filteredActivity(); track a.key) {
+                  <div class="tl-row">
+                    <span class="tl-icon" [class]="'kind-' + a.kind">
+                      <cs-icon [name]="a.kind === 'opened' ? 'check_circle' : a.kind === 'updated' ? 'schedule' : a.kind === 'log' ? 'phone' : a.kind === 'comment' ? 'forum' : 'mail'"></cs-icon>
+                    </span>
+                    <div class="tl-body">
+                      <div class="tl-head">
+                        <span class="tl-kind" [class]="'kind-' + a.kind">{{ a.label }}</span>
+                        <span class="muted tl-time">{{ formatDate(a.atUtc) }}</span>
+                      </div>
+                      <div class="tl-detail">{{ a.detail }}</div>
+                      @if (a.who) {
+                        <div class="tl-who">{{ a.who }}</div>
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+          </mat-card-content>
+        </mat-card>
       </div>
     </div>
   }

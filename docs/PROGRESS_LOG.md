@@ -2,6 +2,59 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 45b — Dark-mode uniformity: dialog surface + primary button indigo] (2026-08-08)
+**Status:** ✅ COMPLETE (`npm run build` green + live browser dark/light verification)
+
+### Problem (from user report)
+In dark mode the Material "New case" / "New customer" popups (and their buttons) were off-tone vs. the app:
+1. **Dialog surface** fell back to Material's M3 dark container (`rgb(18, 19, 22)`, a near-black/brownish tone) instead of the app's slate `--cs-surface` (`#1e293b`). Looked like a hole next to every other card.
+2. **Primary buttons** (`mat-flat-button color="primary"`) used Material's Azure palette (`rgb(171, 199, 255)` light blue) instead of the app's indigo `--cs-accent` (`#818cf8` dark / `#4f46e5` light). Broke the indigo-violet brand used everywhere else.
+
+### Fix (root cause, in `frontend/src/styles.scss`)
+- `.mat-mdc-dialog-container .mdc-dialog__surface` now sets `background: var(--cs-surface)` + `border: 1px solid var(--cs-border)` (the global rule previously set padding/radius only — never a background — so it inherited the M3 dark surface). Covers every Material dialog in the app (case form, customer form, confirm, signup).
+- Added a global override routing filled primary buttons (`mat-raised-button` / `mat-unelevated-button` / `mat-flat-button` `.mat-primary`) through `--cs-accent` (and `--cs-accent-hover` on hover), with white label text. This fixes the New Case / New Customer page buttons AND the dialog's Create/Submit buttons in one place — no per-button patch.
+
+### Verification (live, browser)
+- Dark: dialog surface `rgb(30, 41, 59)` = `--cs-surface` slate; "New customer" button `rgb(129, 140, 248)` = `--cs-accent`; dialog "Create customer" button = same indigo. ✅
+- Light: page button `rgb(79, 70, 229)` = `--cs-accent`; dialog submit = same indigo. ✅
+- `npm run build` green (1.56 MB, under budget).
+
+## [Phase 45 — Case Detail: Emails + Activity history cards, with customer-card deep link] (2026-08-08)
+**Status:** ✅ COMPLETE (`dotnet build` green + `dotnet test` 73/73 + `npm run build` green + live browser light/dark + live deep-link proof)
+
+### Goal
+On the Case Details page add two cards (below the Assignee card, side column, aligned with the Conversation card):
+1. **Emails card** — every email sent for this case.
+2. **Activity card** — a merged timeline of everything done to the case (opened, status updates, call logs, comments, emails).
+Both cards have **search + date filter**. The Customers page card's bottom-right "most recent activity" footer now deep-links straight to the case's Activity card.
+
+### Backend (C# ASP.NET Core 8)
+- `CustomerDto`: added `LastActivityCaseId` (nullable `int`) — the id of the case that produced the customer's most-recent activity. Correct for customers with 1 *or more* cases: the footer links to the exact case that generated the event, not "the first case".
+- `CustomerService`: `ComputeLastActivity` now returns `(DateTime? atUtc, string? description, int? caseId)` — it already knew which case each event belonged to; the case id is now surfaced through `ToDto`.
+
+### Frontend (Angular 18)
+- `shared/models.ts`: `Notification.type` union + `AdminManual` (was missing — the 7th backend type); `Customer.lastActivityCaseId`.
+- `cases/case-detail.component.ts`:
+  - Injects `EmailLogService`; full email log is filtered client-side by `CaseId` (no new endpoint — the log is small; YAGNI).
+  - New signals + computeds: `caseEmails`, `filteredEmails`, `activity` (merged timeline), `filteredActivity`; per-card `*Search` + `*DatePreset`/`*DateFrom`/`*DateTo`/`*DateSingle` filter signals. Reuses the shared `date-filter.ts` utilities (`DATE_PRESETS`, `DATE_PRESET_LABELS`, `filterByDatePreset`, `datePresetNeedsInput`) so UX matches the Cases/Email/Conversation pages.
+  - `activity` timeline merges: case opened, status updates (`Updated`), call logs, comments (staff vs customer), email sends — newest first, each with kind-specific icons/colors.
+  - `typeLabel()` maps notification types to the same human labels as the Email Log page (`Overdue reminder`, `Resolved confirmation`, …).
+  - Deep-link support: `?activity=1` query param scrolls the `.content` container to the Activity card and pulses it (`act-pulse` animation) — the target of the customer-card footer link.
+- `cases/case-detail.component.html`: two new `mat-card`s at the end of `.side-col` (below Assignee, aligned with Conversation): "Emails (n)" + "Activity (n)", each with a search field (outline, `matPrefix` icon) and a Date preset select + conditional date inputs (custom range / single-date presets).
+- `cases/case-detail.component.scss`: `.card-filter`, `.date-inputs`, `.mini-list` (max-height + scroll), `.email-row`, `.tl-row`/`.tl-icon`/`.tl-kind`/`.tl-detail`, kind color chips, `act-pulse` keyframes. All `--cs-*` tokens → light + dark safe.
+- `customers/customer-list.component.html` + `.scss`: when `c.lastActivityCaseId` exists, the `.last-activity` footer becomes a router link to `/cases/{id}?activity=1` (with `stopPropagation` so it doesn't trigger the card's own customer-page link); hover shows a subtle `--cs-accent-light` chip. Falls back to the plain footer when no case id.
+
+### Verification (live)
+- `dotnet build` 0 errors + `dotnet test` 73/73; `npm run build` 1.56 MB (under budget).
+- Live browser (admin login): case #21 shows **Emails (11)** (subject/recipient/type/date per row) and **Activity (12)** (11 email events + "Opened / Case created"); case #8 shows **Emails (7)** + **Activity (13)** including `Updated — moved to Resolved`, staff comments, and an outbound call log merged into one newest-first timeline.
+- Search filter: typing "opened" in Activity search collapses 12 rows → 1. Date filter: preset "today" collapses Activity 13 → 9 (all in the local today window) — both cards' filters verified live.
+- Customer-card deep link: Sofia's footer ("Resolved case #8") navigates to `/cases/8?activity=1`; the Activity card scrolls into view and pulses. `lastActivityCaseId` verified per-customer via API (Ana→18, Benjie→9, Carlos→7, Ella→21).
+- Light mode + dark mode both verified (token-based colors; email rows contrast against the card via `--cs-bg-subtle`).
+
+### Notes
+- Frontend has no spec tests (repo convention) — verified via `npm run build` + live DOM/browser checks.
+- Emails are filtered client-side from the existing `/api/emails` log; if the log ever grows large, add a `?caseId=` query param to `EmailsController` (ponytail ceiling, not blocking).
+
 ## [Phase 44 — Durable overdue de-dup + safe, non-destructive bootstrap] (2026-08-07)
 **Status:** ✅ COMPLETE (`dotnet build` green + `dotnet test` 73/73 + live send-once + live restart-no-reset proof)
 

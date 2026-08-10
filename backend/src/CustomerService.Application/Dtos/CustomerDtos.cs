@@ -79,6 +79,13 @@ public class CustomerDto
     /// <summary>Human-readable description of the most recent activity (e.g. "Messaged customer").</summary>
     public string? LastActivityDescription { get; set; }
 
+    /// <summary>
+    /// Id of the case that produced the most recent activity, when any exists.
+    /// Lets the UI deep-link from the customer card's activity footer to the
+    /// exact case's history (customers may have one or many cases).
+    /// </summary>
+    public int? LastActivityCaseId { get; set; }
+
     /// <summary>True if the customer has an account record (login credentials).</summary>
     public bool HasAccount { get; set; }
 

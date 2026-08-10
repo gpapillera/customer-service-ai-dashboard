@@ -124,10 +124,23 @@
             </div>
             <div class="footer-right">
               @if (c.lastActivityDescription) {
-                <div class="last-activity">
-                  <div class="activity-desc">{{ c.lastActivityDescription }}</div>
-                  <div class="activity-time">{{ formatDateTime(c.lastActivityAtUtc) }}</div>
-                </div>
+                @if (c.lastActivityCaseId) {
+                  <a class="last-activity-link"
+                     [routerLink]="['/cases', c.lastActivityCaseId]"
+                     [queryParams]="{ activity: 1 }"
+                     (click)="$event.stopPropagation()"
+                     title="View activity on case {{ c.lastActivityCaseId }}">
+                    <div class="last-activity">
+                      <div class="activity-desc">{{ c.lastActivityDescription }}</div>
+                      <div class="activity-time">{{ formatDateTime(c.lastActivityAtUtc) }}</div>
+                    </div>
+                  </a>
+                } @else {
+                  <div class="last-activity">
+                    <div class="activity-desc">{{ c.lastActivityDescription }}</div>
+                    <div class="activity-time">{{ formatDateTime(c.lastActivityAtUtc) }}</div>
+                  </div>
+                }
               } @else {
                 <span class="since">Since {{ formatDate(c.createdAtUtc) }}</span>
               }

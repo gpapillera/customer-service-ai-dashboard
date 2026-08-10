@@ -432,6 +432,23 @@
   line-height: 1.3;
 }
 
+/* Phase 45: the last-activity footer becomes a deep link to the case's
+   Activity card on the Case Details page. Subtle hover to stay elegant. */
+.last-activity-link {
+  display: inline-block;
+  text-decoration: none;
+  border-radius: var(--cs-radius-sm);
+  padding: 0.2rem 0.35rem;
+  margin: -0.2rem -0.35rem;
+  transition: background 0.2s var(--cs-ease);
+}
+.last-activity-link:hover {
+  background: var(--cs-accent-light);
+}
+.last-activity-link:hover .activity-desc {
+  text-decoration: underline;
+}
+
 .activity-desc {
   font-size: 0.78rem;
   font-weight: 500;

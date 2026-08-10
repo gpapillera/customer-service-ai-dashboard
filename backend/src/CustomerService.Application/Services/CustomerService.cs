@@ -26,14 +26,18 @@ public class CustomerService : ICustomerService
 
     /// <summary>
     /// Scans all cases (and their call logs, comments, notifications) for a customer
-    /// and returns the most recent activity timestamp and a human-readable description.
+    /// and returns the most recent activity timestamp, a human-readable description,
+    /// and the id of the case that produced the activity (so the UI can deep-link
+    /// from the customer card to the right case's history even when a customer has
+    /// more than one case).
     /// </summary>
-    private static (DateTime? atUtc, string? description) ComputeLastActivity(Customer c)
+    private static (DateTime? atUtc, string? description, int? caseId) ComputeLastActivity(Customer c)
     {
         DateTime? latest = null;
         string? desc = null;
+        int? caseId = null;
 
-        if (c.Cases is null) return (null, null);
+        if (c.Cases is null) return (null, null, null);
 
         foreach (var cs in c.Cases)
         {
@@ -42,6 +46,7 @@ public class CustomerService : ICustomerService
             {
                 latest = cs.CreatedAtUtc;
                 desc = $"Opened case #{cs.Id}";
+                caseId = cs.Id;
             }
 
             // Case update (status change)
@@ -54,6 +59,7 @@ public class CustomerService : ICustomerService
                     CaseStatus.Closed => $"Closed case #{cs.Id}",
                     _ => $"Updated case #{cs.Id}",
                 };
+                caseId = cs.Id;
             }
 
             // Resolution timestamp (separate from UpdatedAtUtc for resolved/closed)
@@ -65,6 +71,7 @@ public class CustomerService : ICustomerService
                     CaseStatus.Closed => $"Closed case #{cs.Id}",
                     _ => $"Resolved case #{cs.Id}",
                 };
+                caseId = cs.Id;
             }
 
             // Call logs
@@ -76,6 +83,7 @@ public class CustomerService : ICustomerService
                     {
                         latest = log.CreatedAtUtc;
                         desc = "Updated call log";
+                        caseId = cs.Id;
                     }
                 }
             }
@@ -89,6 +97,7 @@ public class CustomerService : ICustomerService
                     {
                         latest = comment.CreatedAtUtc;
                         desc = comment.AuthorUserId != null ? "Messaged customer" : "Customer replied";
+                        caseId = cs.Id;
                     }
                 }
             }
@@ -105,12 +114,13 @@ public class CustomerService : ICustomerService
                     {
                         latest = n.CreatedAtUtc;
                         desc = "Sent email";
+                        caseId = cs.Id;
                     }
                 }
             }
         }
 
-        return (latest, desc);
+        return (latest, desc, caseId);
     }
 
     /// <inheritdoc/>
@@ -376,7 +386,7 @@ public class CustomerService : ICustomerService
 
     private static CustomerDto ToDto(Customer c)
     {
-        var (lastActivityAt, lastActivityDesc) = ComputeLastActivity(c);
+        var (lastActivityAt, lastActivityDesc, lastActivityCaseId) = ComputeLastActivity(c);
         return new()
         {
             Id = c.Id,
@@ -398,6 +408,7 @@ public class CustomerService : ICustomerService
             CreatedAtUtc = c.CreatedAtUtc,
             LastActivityAtUtc = lastActivityAt,
             LastActivityDescription = lastActivityDesc,
+            LastActivityCaseId = lastActivityCaseId,
             HasAccount = c.Account != null,
             AccountActive = c.Account != null && c.Account.IsActive,
         };

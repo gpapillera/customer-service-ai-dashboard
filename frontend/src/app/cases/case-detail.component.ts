@@ -1,7 +1,7 @@
 import { Component, computed, DestroyRef, ElementRef, inject, OnInit, signal, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink, Router, NavigationStart } from '@angular/router';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { interval, Subscription } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatCardModule } from '@angular/material/card';
@@ -20,9 +20,33 @@ import { TooltipData } from '../shared/tooltip-data';
 import { NavBadgeService } from '../shared/nav-badge.service';
 import { CaseService } from './case.service';
 import { CallLogService } from './call-log.service';
+import { EmailLogService } from '../email/email-log.service';
 import { CaseFormComponent, CaseFormDialogData } from './case-form.component';
-import { Case, CallLog, Agent, CustomerCaseComment } from '../shared/models';
+import { Case, CallLog, Agent, CustomerCaseComment, Notification } from '../shared/models';
+import { DatePreset, DATE_PRESETS, DATE_PRESET_LABELS, filterByDatePreset, datePresetNeedsInput } from '../shared/date-filter';
 import { AuthService } from '../auth/auth.service';
+
+/** One row in the case Activity timeline: an email, call log, comment, or state change. */
+export interface ActivityItem {
+  key: string;
+  kind: 'opened' | 'updated' | 'log' | 'comment' | 'email';
+  label: string;
+  detail: string;
+  atUtc: string;
+  /** Optional secondary author/recipient shown beside the label. */
+  who?: string;
+}
+
+/** Human-readable labels for notification/email types (mirrors email-list). */
+const EMAIL_TYPE_LABELS: Record<string, string> = {
+  CaseOverdue: 'Overdue reminder',
+  CaseResolved: 'Resolved confirmation',
+  CustomerInvite: 'Customer invite',
+  CustomerPasswordReset: 'Customer password reset',
+  NewCustomerMessage: 'New customer message',
+  StaffPasswordReset: 'Staff password reset',
+  AdminManual: 'Manual email',
+};
 
 /**
  * Case detail: shows the case, its AI-suggested priority, and the call/follow-up
@@ -35,6 +59,7 @@ import { AuthService } from '../auth/auth.service';
     CommonModule,
     RouterLink,
     ReactiveFormsModule,
+    FormsModule,
     MatCardModule,
     MatButtonModule,
     MatIconModule,
@@ -55,6 +80,7 @@ export class CaseDetailComponent implements OnInit {
   readonly router = inject(Router);
   private readonly caseService = inject(CaseService);
   private readonly callLogService = inject(CallLogService);
+  private readonly emailLogService = inject(EmailLogService);
   private readonly dialog = inject(MatDialog);
   private readonly fb = inject(FormBuilder);
   readonly auth = inject(AuthService);
@@ -71,6 +97,99 @@ export class CaseDetailComponent implements OnInit {
   /** Agents available for assignment (GET /api/users). */
   readonly agents = signal<Agent[]>([]);
   readonly assigning = signal(false);
+
+  // ── Emails card ────────────────────────────────────────────────
+  /** Full email log from the backend (newest first). Filtered client-side; no extra endpoint needed. */
+  readonly emails = signal<Notification[]>([]);
+  readonly emailSearch = signal('');
+  readonly emailDatePreset = signal<DatePreset>('all');
+  readonly emailDateFrom = signal('');
+  readonly emailDateTo = signal('');
+  readonly emailDateSingle = signal('');
+
+  /** Emails tied to this case (any email sender stamps CaseId). */
+  readonly caseEmails = computed(() => {
+    const id = this.case()?.id;
+    return id == null ? [] : this.emails().filter((e) => e.caseId === id);
+  });
+
+  /** Emails for this case, filtered by live search + date preset. */
+  readonly filteredEmails = computed(() => {
+    let list = this.caseEmails();
+    const term = this.emailSearch().toLowerCase().trim();
+    if (term) {
+      list = list.filter((e) =>
+        (e.title ?? '').toLowerCase().includes(term) ||
+        (e.message ?? '').toLowerCase().includes(term) ||
+        (e.recipient ?? '').toLowerCase().includes(term),
+      );
+    }
+    if (this.emailDatePreset() !== 'all') {
+      list = filterByDatePreset(list, this.emailDatePreset(), (e) => e.createdAtUtc,
+        this.emailDateFrom(), this.emailDateTo(), this.emailDateSingle());
+    }
+    return list;
+  });
+
+  // ── Activity card ─────────────────────────────────────────────
+  readonly activitySearch = signal('');
+  readonly activityDatePreset = signal<DatePreset>('all');
+  readonly activityDateFrom = signal('');
+  readonly activityDateTo = signal('');
+  readonly activityDateSingle = signal('');
+
+  /** Merged timeline of everything done to this case, newest first. */
+  readonly activity = computed<ActivityItem[]>(() => {
+    const c = this.case();
+    if (!c) return [];
+    const items: ActivityItem[] = [];
+
+    items.push({ key: `opened-${c.id}`, kind: 'opened', label: 'Opened', detail: `Case created`, atUtc: c.createdAtUtc });
+
+    if (c.updatedAtUtc) {
+      const statusLabel = c.status === 'New' ? c.status : `moved to ${c.status}`;
+      items.push({ key: `updated-${c.updatedAtUtc}`, kind: 'updated', label: 'Updated', detail: `Status ${statusLabel}`, atUtc: c.updatedAtUtc });
+    }
+
+    for (const log of this.logs()) {
+      items.push({ key: `log-${log.id}`, kind: 'log', label: log.direction, detail: log.notes, atUtc: log.createdAtUtc });
+    }
+
+    for (const comment of this.comments()) {
+      const who = comment.authorDisplayName || (comment.isStaff ? 'Staff' : 'Customer');
+      const what = comment.isStaff ? 'Staff comment' : 'Customer message';
+      items.push({ key: `comment-${comment.id}`, kind: 'comment', label: what, detail: comment.body, atUtc: comment.createdAtUtc, who });
+    }
+
+    for (const email of this.caseEmails()) {
+      items.push({ key: `email-${email.id}`, kind: 'email', label: 'Email sent', detail: email.title || email.message, atUtc: email.createdAtUtc, who: email.recipient ?? undefined });
+    }
+
+    return items.sort((a, b) => new Date(b.atUtc).getTime() - new Date(a.atUtc).getTime());
+  });
+
+  /** Activity rows filtered by live search + date preset. */
+  readonly filteredActivity = computed(() => {
+    let list = this.activity();
+    const term = this.activitySearch().toLowerCase().trim();
+    if (term) {
+      list = list.filter((a) =>
+        (a.label ?? '').toLowerCase().includes(term) ||
+        (a.detail ?? '').toLowerCase().includes(term) ||
+        (a.who ?? '').toLowerCase().includes(term),
+      );
+    }
+    if (this.activityDatePreset() !== 'all') {
+      list = filterByDatePreset(list, this.activityDatePreset(), (a) => a.atUtc,
+        this.activityDateFrom(), this.activityDateTo(), this.activityDateSingle());
+    }
+    return list;
+  });
+
+  // Shared by the template date-filter selects.
+  readonly datePresets = DATE_PRESETS;
+  readonly datePresetLabels = DATE_PRESET_LABELS;
+  datePresetNeedsInput = datePresetNeedsInput;
 
   /**
    * Whether the current user may edit this case. Admins always can. Agents may
@@ -134,6 +253,9 @@ export class CaseDetailComponent implements OnInit {
     const id = Number(this.route.snapshot.paramMap.get('id'));
     const scrollToCommentId = this.route.snapshot.queryParamMap.get('scrollToComment');
     const fromTab = this.route.snapshot.queryParamMap.get('from');
+    // Deep link from the Customers page: ?activity=1 scrolls to + pulses the
+    // case Activity card (so the customer's latest activity is in view).
+    const focusActivity = this.route.snapshot.queryParamMap.get('activity') === '1';
 
     this.caseService.get(id).subscribe({
       next: (c) => {
@@ -155,6 +277,8 @@ export class CaseDetailComponent implements OnInit {
     });
     this.callLogService.listByCase(id).subscribe((logs) => this.logs.set(logs));
     this.caseService.agents().subscribe((list) => this.agents.set(list));
+    // Full email log powers the Emails card (filtered client-side by CaseId).
+    this.emailLogService.getAll().subscribe((list) => this.emails.set(list));
   // Load the comment thread.
   this.caseService.getComments(id).subscribe((list) => {
     this.comments.set(list);
@@ -267,6 +391,29 @@ export class CaseDetailComponent implements OnInit {
 
     // Poll for new comments every 5 seconds so messages appear in real-time.
     this.startCommentsPolling(id);
+
+    // Deep link from the Customers page: scroll to + pulse the Activity card.
+    if (focusActivity) {
+      const pulseActivity = (attempts = 20) => {
+        const card = document.getElementById('activity-card');
+        if (!card) {
+          if (attempts > 0) setTimeout(() => pulseActivity(attempts - 1), 200);
+          return;
+        }
+        const scrollContainer = document.querySelector('.content');
+        if (scrollContainer && card) {
+          const cardRect = card.getBoundingClientRect();
+          const containerRect = scrollContainer.getBoundingClientRect();
+          const top = cardRect.top - containerRect.top + scrollContainer.scrollTop;
+          scrollContainer.scrollTo({ top: Math.max(0, top - 16), behavior: 'smooth' });
+        }
+        setTimeout(() => {
+          card.classList.add('act-pulse');
+          card.addEventListener('animationend', () => card.classList.remove('act-pulse'), { once: true });
+        }, 250);
+      };
+      setTimeout(pulseActivity, 500);
+    }
 
     // Reset the chat-scroll position when navigating away, so the next visit
     // starts from the top (instead of being stuck at the bottom).
@@ -492,5 +639,10 @@ export class CaseDetailComponent implements OnInit {
   /** Formats a UTC date string for display. */
   formatDate(value: string): string {
     return new Date(value).toLocaleString();
+  }
+
+  /** Human-readable label for a notification/email type. */
+  typeLabel(type: string): string {
+    return EMAIL_TYPE_LABELS[type] ?? type;
   }
 }

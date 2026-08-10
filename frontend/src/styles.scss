@@ -443,10 +443,33 @@ body {
    The form components render flush against the dialog edges, so add padding
    around the dialog surface and a little extra below the header. */
 .mat-mdc-dialog-container .mdc-dialog__surface {
+  background: var(--cs-surface);
+  border: 1px solid var(--cs-border);
   border-radius: var(--cs-radius);
   overflow: hidden;
   padding: 1.5rem 1.75rem;
 }
+
+/* Primary (indigo) buttons: Angular Material's default "primary" is the Azure
+   palette, which clashes with the app's indigo-violet accent. Route every
+   filled primary button (page actions like "New Case"/"New customer" and the
+   dialog's Create/Submit) through --cs-accent so they stay on-brand in both
+   light and dark themes. */
+.mat-mdc-raised-button.mat-primary,
+.mat-mdc-unelevated-button.mat-primary,
+.mat-mdc-flat-button.mat-primary {
+  --mdc-filled-button-container-color: var(--cs-accent);
+  --mdc-protected-button-container-color: var(--cs-accent);
+  --mdc-filled-button-label-text-color: #fff;
+  --mdc-protected-button-label-text-color: #fff;
+}
+.mat-mdc-raised-button.mat-primary:hover,
+.mat-mdc-unelevated-button.mat-primary:hover,
+.mat-mdc-flat-button.mat-primary:hover {
+  --mdc-filled-button-container-color: var(--cs-accent-hover);
+  --mdc-protected-button-container-color: var(--cs-accent-hover);
+}
+
 /* The modal-head + form live inside the dialog content; nudge the header
    away from the top edge and add space before the action row. */
 .mat-mdc-dialog-container .modal-head {
