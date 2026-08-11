@@ -2,6 +2,100 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 47 — Invite email: wrong link + "invalid token" on resend] (2026-08-11)
+**Status:** ✅ COMPLETE (93/93 backend tests green + `npm run build` green)
+
+### Problem (from user report)
+Admin resends a `CustomerInvite` email. Inbox shows `http://localhost:4200` where the operator placed
+`{{portalLink}}`, and the real `…/customer/accept-invite?token=…` link is appended at the BOTTOM. Clicking
+that bottom link lands on `Invite unavailable — invalid, expired, or already used.`
+
+### Root cause (two distinct bugs)
+1. **Wrong link placement.** `EmailNotificationSender.BuildTokenMapAsync` resolved `{{portalLink}}` to the
+bare `_frontendBaseUrl` (homepage) for ALL types. The operator had edited the DB template to use
+`{{portalLink}}` expecting the activation deep link. Then `EnsureActionLink` saw the body did NOT contain
+the full activation URL (only the homepage) and appended the real link at the bottom → the exact symptom.
+The seed templates already correctly use `{{actionLink}}`, but the frontend token picker
+(`email-list.component.ts TEMPLATE_TOKENS`) never offered `{{actionLink}}`, so the operator had no way to
+pick the right token.
+2. **"Invalid token" on resend.** `NotificationService.ResendEmailAsync` copied the original notification
+row verbatim, including its `Link` (the token from first send). Resending an invite/reset therefore
+re-sent a stale/expired/already-used token; clicking it failed `ValidateInviteAsync`. Copy-resend is right
+for case/overdue emails but wrong for account-invite/-reset.
+
+### Changes
+- `EmailNotificationSender.cs` — new `ResolvePortalLink(type, link, baseUrl)` static: for
+`CustomerInvite`/`CustomerPasswordReset`/`StaffPasswordReset` it resolves `{{portalLink}}` to the
+per-recipient deep link (`notification.Link`); homepage otherwise. `BuildTokenMapAsync` uses it. This fixes
+existing DB templates with NO reseed, and `EnsureActionLink` sees the link present → no bottom append.
+- `EmailNotificationSender.cs` — `IsAccountActivationType` helper added to back the above.
+- `ICustomerAuthService.cs` + `CustomerAuthService.cs` — new `ResendInviteByEmailAsync(email)` and
+`RequestPasswordResetByEmailAsync(email)` that regenerate a FRESH token (reuse `GenerateAndSendInviteAsync`)
+instead of echoing the stored Link. Throw a clear error if no customer matches the email.
+- `NotificationService.cs` — `ResendEmailAsync` now injects `ICustomerAuthService` and branches: account-invite
+/-reset route to the fresh-token regen path; all other types copy-and-resend verbatim (unchanged).
+- `email-list.component.ts` — added `{{actionLink}}` to the `TEMPLATE_TOKENS` picker so operators can choose
+the correct deep-link token going forward.
+- `SeedData.cs` — doc comment updated: `{{portalLink}}` = homepage for case emails / deep link for
+account-invite-reset; `{{actionLink}}` = deep link for all types (prefer it in invite/reset templates).
+- Tests: `EmailTemplateRenderingTests.cs` (+3: `ResolvePortalLink_*` + `AccountInvite_PortalLinkRendersFullLink_Once`);
+`NotificationServiceTests.cs` (+3 resend regression tests: invite/reset route to fresh token, CaseOverdue copied verbatim).
+`FakeCustomerAuthService` + `NotificationServiceTests` ctor updated for the new interface/ctor.
+
+### Verification (actual)
+- `dotnet build CustomerServiceApi.sln` → **Build succeeded, 0 Errors** (14 pre-existing xUnit1031 warnings).
+- `dotnet test CustomerServiceApi.sln` → **Failed: 0, Passed: 93**.
+- `npm run build` → green (frontend change is one token-array entry).
+
+### Notes
+- Existing DBs are fixed by the `portalLink` resolution change — no migration/reseed needed.
+- Recommended operator follow-up (optional, not blocking): edit the `CustomerInvite` DB template to use
+`{{actionLink}}` (now available in the picker) instead of `{{portalLink}}`; both render identically after
+this fix, `{{actionLink}}` is the clearer intent.
+
+## [Phase 46 — Activation/reset emails were sent without their link] (2026-08-10)
+**Status:** ✅ COMPLETE (77/77 backend tests green + live end-to-end signup verified against a running API)
+
+### Problem (from user report)
+Customer signup showed "Check your email — we've sent an activation link", the email arrived, but it contained **no link**. There was no way to finish account creation.
+
+### Root cause (NOT a missing page)
+The activation page and route already existed (`customer/accept-invite` → `AcceptInviteComponent`, `app.routes.ts:63`), and `CustomerAuthService.GenerateAndSendInviteAsync` did build `{FrontendBaseUrl}/customer/accept-invite?token=…` — into `notification.Message`.
+
+But `EmailNotificationSender.BuildContentAsync` renders the editable DB `EmailTemplate` for the notification type and **discards `notification.Message` entirely**. The seeded `CustomerInvite` template had no link token, so the link was silently deleted between generation and delivery. The token was still written to the DB — only the email lost it.
+
+Same class of bug affected `CustomerPasswordReset` and `StaffPasswordReset` (`AuthService.cs` likewise put its reset link only in `Message`). Fixed as a class, not just the reported path.
+
+### Changes
+- `CustomerAuthService.cs` — invite/reset notification now sets `Link = link` (the existing `Notification.Link` column; no schema change).
+- `AuthService.cs` — staff reset notification now sets `Link = resetLink`.
+- `EmailNotificationSender.cs` — new `{{actionLink}}` token in `BuildTokenMapAsync`; new `EnsureActionLink(body, link)` safety net applied in `BuildContentAsync` that appends the URL when the rendered body doesn't already contain it (idempotent, no duplicate). This is what makes **existing databases work with no reseed or migration** — their templates predate the token.
+- `SeedData.cs` — `CustomerInvite`, `CustomerPasswordReset`, `StaffPasswordReset` templates now include explicit "click the link" copy + `{{actionLink}}` + expiry line.
+- `EmailNotificationSender.cs` — **sibling bug found while auditing the same class:** `{{caseSubject}}` was always resolved via `ExtractCaseSubject`, which pulls the first quoted span out of a `Case #n "subject"` machine string. But `AdminManual` messages are free text an admin typed, so an email like `Your refund of "PHP 1,500" has been approved and will arrive in 3 days.` was delivered as just `PHP 1,500` — the rest silently deleted. New `ResolveCaseSubject(type, message)` passes `AdminManual` through verbatim and leaves machine types on the old path.
+- `EmailNotificationSender.cs` — **third gap, found only because the user pushed back on a resent email.** The initial fix set `Link` on *newly created* invites only, so pre-existing rows (and `ResendEmailAsync`, which copies them) still had `Link = NULL` and went out linkless — the reported bug, after it was declared fixed. Added `ResolveActionLink(notification)`: prefers the `Link` column, else scrapes the first URL out of `Message` via `ExtractFirstUrl`. Legacy rows and resends now work with **no data migration**.
+- `EmailNotificationSender.cs` — **"Hello ," bug.** Invite/reset emails carry no `CaseId`, so the case-based token block could never fill `{{customerName}}` and every account email greeted the reader with an empty name. Added a recipient-address fallback that looks the person up in `Customers` (or `Users` for staff). Required injecting `IRepository<Customer>` + `IRepository<User>` (generic `IRepository<T>` was already registered, so no `Program.cs` change).
+- `EmailTemplateRenderingTests.cs` — 14 new tests total, including `LegacyInvite_WithOldDbTemplate_StillRendersNameAndLink`, which reproduces the reported failure end-to-end using the **verbatim old template read out of the live DB**.
+
+### Verification (actual, not claimed)
+- `dotnet build` → **Build succeeded, 0 Errors**. The 11 `xUnit1031` warnings are pre-existing in `NotificationServiceTests.cs` (confirmed via `-t:Rebuild`); zero originate from this change.
+- `dotnet test` → **Failed: 0, Passed: 87**.
+- **Mutation-checked four times** — a green test proves nothing until it has been seen to fail:
+  - Strip `{{actionLink}}` from the `CustomerInvite` seed template → `SeedTemplate_CarriesActionLink` fails.
+  - Revert `ResolveCaseSubject` to unconditional extraction → `AdminManual_KeepsFullMessageWhenItContainsQuotes` fails.
+  - Kill the `Message` fallback in `ResolveActionLink` → 2 fail, incl. the legacy-invite reproduction.
+  - Force `ExtractFirstUrl` to return null → 3 fail.
+  - All restored and re-verified green at 87/87.
+- **Live, against the running API:** restarted on `:5274`, `POST /api/emails/196/resend` (the user's actual failing legacy row, `Link=NULL`) → `200`, real SMTP send logged to `emails.log`. The DB's `CustomerInvite` template is deliberately still the OLD linkless one, so the fallback path is what ran — the real-world case, not a synthetic one.
+- `POST /api/customer-auth/register` → `204`; new row carries a populated `Link`.
+- `GET /api/customer-auth/validate-invite?token=…` → `{"valid":true,"customerName":"Link Test User"}`, proving the emailed URL lands on a working activation page.
+
+### Note on the "two different texts" the user reported
+Not a second email and not invented copy: **one row, two renderers.** The admin UI displays `Notification.Message` (which has always contained the link); the email renders the DB `EmailTemplate` and discards `Message`. That divergence *was* the bug, and the user's screenshot of the mismatch is the cleanest possible evidence of it.
+
+### Cleanup before finishing
+`ExtractFirstUrl` was first written as hand-rolled `IndexOf`/`AsSpan` index juggling — replaced with a single compiled `https?://\S+` regex. Behaviour-preserving (87/87 before and after) and mutation-verified afterwards.
+
+
 ## [Phase 45j — Case Detail: date-input dark-mode calendar icon + sizing + date-filter spacing] (2026-08-10)
 **Status:** ✅ COMPLETE (`npm run build` green + live dark-mode browser verification)
 

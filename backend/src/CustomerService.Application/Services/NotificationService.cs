@@ -31,6 +31,7 @@ public class NotificationService : INotificationService
     private readonly INotificationSender _sender;
     private readonly NotificationOptions _options;
     private readonly ILogger<NotificationService> _logger;
+    private readonly ICustomerAuthService _customerAuth;
 
     /// <summary>Initializes a new <see cref="NotificationService"/>.</summary>
     /// <param name="cases">Case repository.</param>
@@ -38,18 +39,21 @@ public class NotificationService : INotificationService
     /// <param name="sender">Composite notification sender (routes by channel).</param>
     /// <param name="options">Notification options (enabled channels).</param>
     /// <param name="logger">Logger.</param>
+    /// <param name="customerAuth">Customer auth service (regenerates fresh invite/reset tokens on resend).</param>
     public NotificationService(
         IRepository<Case> cases,
         IRepository<Notification> notifications,
         INotificationSender sender,
         NotificationOptions options,
-        ILogger<NotificationService> logger)
+        ILogger<NotificationService> logger,
+        ICustomerAuthService customerAuth)
     {
         _cases = cases;
         _notifications = notifications;
         _sender = sender;
         _options = options;
         _logger = logger;
+        _customerAuth = customerAuth;
     }
 
     /// <inheritdoc/>
@@ -396,8 +400,48 @@ public class NotificationService : INotificationService
             return null;
         }
 
-        // Copy the original into a brand-new notification so the re-send is
-        // de-duplicated independently and the log shows a distinct send event.
+        // Account-activation / password-reset emails carry a one-time token in
+        // their Link. Copying the original row verbatim would re-send the SAME
+        // (now stale/expired/already-used) token, so the recipient clicks through
+        // to "Invite unavailable". For these types we regenerate a FRESH token via
+        // the customer-auth flow and let it send a brand-new notification (which
+        // the sender persists and returns the new row for). Staff resets reuse the
+        // parallel AuthService path.
+        switch (original.Type)
+        {
+            case NotificationType.CustomerInvite:
+                await _customerAuth.ResendInviteByEmailAsync(original.Recipient!);
+                break;
+            case NotificationType.CustomerPasswordReset:
+                await _customerAuth.RequestPasswordResetByEmailAsync(original.Recipient!);
+                break;
+            default:
+                // All other types (case/overdue/resolved/admin emails) have no
+                // one-time token, so a faithful copy-and-resend is correct.
+                await ResendCopyAsync(original);
+                break;
+        }
+
+        // The freshly-sent row is the most recent notification for this recipient.
+        // (AuthService.SendAsync and the copy path both persist, so this resolves
+        // whichever path ran.)
+        var persisted = await _notifications.Query()
+            .OrderByDescending(n => n.CreatedAtUtc)
+            .FirstOrDefaultAsync(n =>
+                n.Channel == NotificationChannel.Email &&
+                n.Recipient == original.Recipient);
+
+        return persisted is null ? NotificationDto.FromEntity(original) : NotificationDto.FromEntity(persisted);
+    }
+
+    /// <summary>
+    /// Copies an original notification row into a fresh one and re-delivers it
+    /// (used by <see cref="ResendEmailAsync"/> for non-token email types). The
+    /// re-send is de-duplicated independently and the log shows a distinct send
+    /// event.
+    /// </summary>
+    private async Task ResendCopyAsync(Notification original)
+    {
         var copy = new Notification
         {
             Title = original.Title,
@@ -411,18 +455,6 @@ public class NotificationService : INotificationService
             Link = original.Link,
         };
 
-        // SendAsync persists the copy and delivers it via the configured sender.
         await _sender.SendAsync(copy);
-
-        // Re-fetch the persisted copy so the returned DTO carries the new Id.
-        var persisted = await _notifications.Query()
-            .OrderByDescending(n => n.CreatedAtUtc)
-            .FirstOrDefaultAsync(n =>
-                n.Channel == NotificationChannel.Email &&
-                n.Title == copy.Title &&
-                n.Recipient == copy.Recipient &&
-                n.CreatedAtUtc == copy.CreatedAtUtc);
-
-        return persisted is null ? NotificationDto.FromEntity(copy) : NotificationDto.FromEntity(persisted);
     }
 }

@@ -129,6 +129,9 @@ public class AuthService : IAuthService
             Channel = NotificationChannel.Email,
             Type = NotificationType.StaffPasswordReset,
             Recipient = user.Email,
+            // Carried on Link (not just Message) so the template renderer can
+            // emit it via the {{actionLink}} token — see EmailNotificationSender.
+            Link = resetLink,
         };
 
         try

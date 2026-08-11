@@ -139,6 +139,42 @@ public class CustomerAuthService : ICustomerAuthService
             NotificationType.CustomerPasswordReset);
     }
 
+    /// <inheritdoc/>
+    public async Task<string> ResendInviteByEmailAsync(string email)
+    {
+        var customer = await ResolveCustomerByEmailAsync(email)
+            ?? throw new InvalidOperationException("No customer is registered with that email address.");
+        return await GenerateAndSendInviteAsync(
+            customer,
+            "Customer portal invitation",
+            "You've been invited to set up your secure customer portal account. "
+                + "Click the link below to choose a password and activate your account:",
+            NotificationType.CustomerInvite);
+    }
+
+    /// <inheritdoc/>
+    public async Task RequestPasswordResetByEmailAsync(string email)
+    {
+        var customer = await ResolveCustomerByEmailAsync(email)
+            ?? throw new InvalidOperationException("No customer is registered with that email address.");
+        await GenerateAndSendInviteAsync(
+            customer,
+            "Reset your customer portal password",
+            "We received a request to reset your customer portal password. "
+                + "Click the link below to choose a new password:",
+            NotificationType.CustomerPasswordReset);
+    }
+
+    /// <summary>Looks a customer up by email (case-insensitive, trimmed).</summary>
+    private async Task<Customer?> ResolveCustomerByEmailAsync(string email)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+            return null;
+        var normalized = email.Trim().ToLowerInvariant();
+        return await _customers.Query()
+            .FirstOrDefaultAsync(c => c.Email == normalized);
+    }
+
     /// <summary>
     /// Shared invite logic used by both <see cref="SendInviteAsync"/> (staff
     /// triggered), <see cref="RegisterAsync"/> (self-service signup), and
@@ -196,6 +232,11 @@ public class CustomerAuthService : ICustomerAuthService
             Status = NotificationStatus.Unread,
             CreatedAtUtc = DateTime.UtcNow,
             Recipient = customer.Email,
+            // The activation/reset URL must survive template rendering: the
+            // email sender renders the editable DB template and discards
+            // Message, so the link travels on Link and is exposed to templates
+            // as the {{actionLink}} token.
+            Link = link,
         };
         await _sender.SendAsync(notification);
 

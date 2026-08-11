@@ -156,7 +156,12 @@ public static class SeedData
     /// previously hard-coded <c>EmailNotificationSender.BuildContent</c> into
     /// editable, token-based templates. Tokens: {{customerName}},
     /// {{customerEmail}}, {{caseId}}, {{caseSubject}}, {{caseStatus}},
-    /// {{agentName}}, {{agentEmail}}, {{portalLink}}.
+    /// {{agentName}}, {{agentEmail}}, {{portalLink}}, {{actionLink}}.
+    /// {{portalLink}} = portal homepage for case/overdue/resolved emails, but the
+    /// per-recipient activation/reset deep link for CustomerInvite /
+    /// CustomerPasswordReset / StaffPasswordReset (see EmailNotificationSender).
+    /// {{actionLink}} = the per-recipient activation/reset deep link for ALL
+    /// types; prefer it over {{portalLink}} in account-invite/reset templates.
     /// </summary>
     public static List<EmailTemplate> EmailTemplates() => new()
     {
@@ -185,6 +190,9 @@ public static class SeedData
             Subject = "You've been invited to the Customer Portal",
             Body = "Hello {{customerName}},\n\n" +
                    "You've been invited to the Customer Portal.\n\n" +
+                   "Click the link below to choose a password and activate your account:\n\n" +
+                   "{{actionLink}}\n\n" +
+                   "This link expires in 48 hours.\n\n" +
                    "If you weren't expecting this invitation, you can safely ignore this email.\n\n" +
                    "Thank you,\nCustomer Service Team",
         },
@@ -194,6 +202,9 @@ public static class SeedData
             Subject = "Password Reset — Customer Portal",
             Body = "Hello {{customerName}},\n\n" +
                    "We received a request to reset your Customer Portal password.\n\n" +
+                   "Click the link below to choose a new password:\n\n" +
+                   "{{actionLink}}\n\n" +
+                   "This link expires in 48 hours.\n\n" +
                    "If you didn't request a password reset, you can safely ignore this email.\n\n" +
                    "Thank you,\nCustomer Service Team",
         },
@@ -203,6 +214,9 @@ public static class SeedData
             Subject = "Password Reset — Staff Account",
             Body = "Hello {{agentName}},\n\n" +
                    "We received a request to reset your staff account password.\n\n" +
+                   "Click the link below to set a new password:\n\n" +
+                   "{{actionLink}}\n\n" +
+                   "This link expires in 48 hours.\n\n" +
                    "If you didn't request a password reset, you can safely ignore this email.\n\n" +
                    "Thank you,\nCustomer Service Dashboard",
         },

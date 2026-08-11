@@ -38,4 +38,10 @@ public class FakeCustomerAuthService : ICustomerAuthService
 
     public Task RequestPasswordResetAsync(int customerId) =>
         System.Threading.Tasks.Task.CompletedTask;
+
+    public Task<string> ResendInviteByEmailAsync(string email) =>
+        System.Threading.Tasks.Task.FromResult("fake-token");
+
+    public Task RequestPasswordResetByEmailAsync(string email) =>
+        System.Threading.Tasks.Task.CompletedTask;
 }

@@ -22,7 +22,8 @@ public class NotificationServiceTests
         var sender = new FakeSender(notes);
         var options = new NotificationOptions { Channels = channels ?? new() { NotificationChannel.InApp } };
         var logger = Microsoft.Extensions.Logging.Abstractions.NullLogger<NotificationService>.Instance;
-        var svc = new NotificationService(cases, notes, sender, options, logger);
+        var customerAuth = new FakeCustomerAuthService();
+        var svc = new NotificationService(cases, notes, sender, options, logger, customerAuth);
         return (svc, cases, notes, sender);
     }
 
@@ -258,5 +259,112 @@ public class NotificationServiceTests
         var sent = Assert.Single(sender.Sent);
         Assert.Equal(NotificationChannel.Sms, sent.Channel);
         Assert.Equal("+15551234567", sent.Recipient);
+    }
+
+    // ── Resend: account-invite / reset must regenerate a fresh token (not copy the stale Link) ──
+
+    /// <summary>
+    /// Records the email passed to the customer-auth resend/reset-by-email paths
+    /// so tests can assert ResendEmailAsync routes account emails there instead
+    /// of copying the original (stale-token) notification row.
+    /// </summary>
+    private sealed class RecordingCustomerAuth : ICustomerAuthService
+    {
+        public string? ResentInviteEmail;
+        public string? ResetEmail;
+
+        public Task<string> SendInviteAsync(int customerId) => throw new System.NotImplementedException();
+        public Task RegisterAsync(RegisterCustomerDto dto) => throw new System.NotImplementedException();
+        public Task<ValidateInviteResponse> ValidateInviteAsync(string token) => throw new System.NotImplementedException();
+        public Task AcceptInviteAsync(AcceptInviteRequest request) => throw new System.NotImplementedException();
+        public Task<CustomerLoginResponse?> LoginAsync(CustomerLoginRequest request) => throw new System.NotImplementedException();
+        public Task<CustomerProfileDto> GetProfileAsync(int customerId) => throw new System.NotImplementedException();
+        public Task UpdateProfileAsync(int customerId, UpdateCustomerProfileDto dto) => System.Threading.Tasks.Task.CompletedTask;
+        public Task RequestPasswordResetAsync(int customerId) => System.Threading.Tasks.Task.CompletedTask;
+        public Task<string> ResendInviteByEmailAsync(string email) { ResentInviteEmail = email; return System.Threading.Tasks.Task.FromResult("fresh-token"); }
+        public Task RequestPasswordResetByEmailAsync(string email) { ResetEmail = email; return System.Threading.Tasks.Task.CompletedTask; }
+    }
+
+    private static NotificationService BuildWith(RecordingCustomerAuth auth, out FakeRepository<Notification> notes)
+    {
+        var cases = new FakeRepository<Case>();
+        notes = new FakeRepository<Notification>();
+        var sender = new FakeSender(notes);
+        var options = new NotificationOptions { Channels = new() { NotificationChannel.Email } };
+        var logger = Microsoft.Extensions.Logging.Abstractions.NullLogger<NotificationService>.Instance;
+        return new NotificationService(cases, notes, sender, options, logger, auth);
+    }
+
+    [Fact]
+    public async Task Resend_CustomerInvite_RoutesToFreshToken_NotStaleLink()
+    {
+        var auth = new RecordingCustomerAuth();
+        var svc = BuildWith(auth, out var notes);
+        var stale = new Notification
+        {
+            Id = 100,
+            Channel = NotificationChannel.Email,
+            Type = NotificationType.CustomerInvite,
+            Recipient = "linktest@example-notreal.test",
+            Title = "You've been invited to the Customer Portal",
+            Link = "http://localhost:4200/customer/accept-invite?token=STALETOKEN",
+        };
+        notes.AddAsync(stale).Wait();
+
+        var dto = await svc.ResendEmailAsync(100);
+
+        // The resend must regenerate a fresh token via customer-auth, NOT echo
+        // the stale Link back through as a plain copy.
+        Assert.Equal("linktest@example-notreal.test", auth.ResentInviteEmail);
+        Assert.NotNull(dto);
+        Assert.NotEqual("STALETOKEN", dto!.Link ?? string.Empty);
+    }
+
+    [Fact]
+    public async Task Resend_CustomerPasswordReset_RoutesToFreshToken()
+    {
+        var auth = new RecordingCustomerAuth();
+        var svc = BuildWith(auth, out var notes);
+        var stale = new Notification
+        {
+            Id = 101,
+            Channel = NotificationChannel.Email,
+            Type = NotificationType.CustomerPasswordReset,
+            Recipient = "reset@example.com",
+            Title = "Password Reset — Customer Portal",
+            Link = "http://localhost:4200/customer/accept-invite?token=OLDTOKEN",
+        };
+        notes.AddAsync(stale).Wait();
+
+        var dto = await svc.ResendEmailAsync(101);
+
+        Assert.Equal("reset@example.com", auth.ResetEmail);
+        Assert.NotNull(dto);
+    }
+
+    [Fact]
+    public async Task Resend_CaseOverdue_CopiesOriginalVerbatim()
+    {
+        // Non-token email types must still be copied faithfully (no customer-auth call).
+        var auth = new RecordingCustomerAuth();
+        var svc = BuildWith(auth, out var notes);
+        var original = new Notification
+        {
+            Id = 102,
+            Channel = NotificationChannel.Email,
+            Type = NotificationType.CaseOverdue,
+            Recipient = "agent@example.com",
+            Title = "Case #21 is overdue: Bulk discount not applied",
+            Message = "A follow-up on case #21 is overdue.",
+            Link = "https://example.com/dashboard/21", // non-token link preserved
+        };
+        notes.AddAsync(original).Wait();
+
+        var dto = await svc.ResendEmailAsync(102);
+
+        Assert.Null(auth.ResentInviteEmail);
+        Assert.NotNull(dto);
+        Assert.Equal("https://example.com/dashboard/21", dto!.Link);
+        Assert.Equal("A follow-up on case #21 is overdue.", dto.Message);
     }
 }

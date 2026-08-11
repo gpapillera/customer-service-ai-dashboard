@@ -50,7 +50,7 @@ public interface ICustomerAuthService
     Task UpdateProfileAsync(int customerId, UpdateCustomerProfileDto dto);
 
     /// <summary>
-    /// Requests a password reset for the signed-in customer. Regenerates the
+    /// <summary>Requests a password reset for the signed-in customer. Regenerates the
     /// SAME invite token / expiry fields already used by the invite flow and
     /// emails a reset link — reusing the existing accept-invite endpoint to
     /// actually set the new password. The id is supplied by the caller (from
@@ -59,4 +59,23 @@ public interface ICustomerAuthService
     /// </summary>
     /// <param name="customerId">Customer id (from the JWT claim).</param>
     Task RequestPasswordResetAsync(int customerId);
+
+    /// <summary>
+    /// Re-sends a customer-portal invite by EMAIL, regenerating a FRESH invite
+    /// token (not re-using the stored Link). Used by the email-log Resend path,
+    /// which only has the original notification's recipient address — copying
+    /// that row verbatim would re-send a stale/expired/used token. Throws a
+    /// clear error when no customer matches the email.
+    /// </summary>
+    /// <param name="email">Recipient email of the customer to re-invite.</param>
+    /// <returns>The newly generated invite token.</returns>
+    Task<string> ResendInviteByEmailAsync(string email);
+
+    /// <summary>
+    /// Sends a customer password-reset link by EMAIL, regenerating a FRESH token.
+    /// Used by the email-log Resend path for <see cref="NotificationType.CustomerPasswordReset"/>
+    /// rows. Throws a clear error when no customer matches the email.
+    /// </summary>
+    /// <param name="email">Recipient email of the customer to reset for.</param>
+    Task RequestPasswordResetByEmailAsync(string email);
 }

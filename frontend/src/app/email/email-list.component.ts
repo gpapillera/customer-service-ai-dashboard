@@ -400,6 +400,7 @@ export class EmailListComponent implements OnInit, OnDestroy {
     '{{agentName}}',
     '{{agentEmail}}',
     '{{portalLink}}',
+    '{{actionLink}}',
   ];
 
   /** True when the config panel is open. */

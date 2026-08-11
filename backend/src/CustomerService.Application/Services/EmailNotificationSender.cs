@@ -1,5 +1,6 @@
 using System.Net.Sockets;
 using System.Linq;
+using System.Text.RegularExpressions;
 using CustomerService.Application.Interfaces;
 using CustomerService.Application.Options;
 using CustomerService.Domain.Entities;
@@ -34,6 +35,8 @@ public class EmailNotificationSender : INotificationSender
     private readonly EmailOptions _emailOptions;
     private readonly IRepository<Notification> _notifications;
     private readonly IRepository<Case> _cases;
+    private readonly IRepository<Customer> _customers;
+    private readonly IRepository<User> _users;
     private readonly IHostEnvironment _environment;
     private readonly IEmailConfigService _emailConfig;
     private readonly string _frontendBaseUrl;
@@ -44,6 +47,8 @@ public class EmailNotificationSender : INotificationSender
     /// <param name="emailOptions">SMTP / sender configuration.</param>
     /// <param name="notifications">Notification repository (persists a row so de-dup is uniform across channels).</param>
     /// <param name="cases">Case repository (loads customer/agent for token personalization).</param>
+    /// <param name="customers">Customer repository (name lookup for account emails with no case).</param>
+    /// <param name="users">Staff user repository (name lookup for staff account emails).</param>
     /// <param name="environment">Host environment.</param>
     /// <param name="emailConfig">Email configuration (allowed domains + test address).</param>
     /// <param name="configuration">App configuration (for FrontendBaseUrl token).</param>
@@ -53,6 +58,8 @@ public class EmailNotificationSender : INotificationSender
         EmailOptions emailOptions,
         IRepository<Notification> notifications,
         IRepository<Case> cases,
+        IRepository<Customer> customers,
+        IRepository<User> users,
         IHostEnvironment environment,
         IEmailConfigService emailConfig,
         IConfiguration configuration)
@@ -62,6 +69,8 @@ public class EmailNotificationSender : INotificationSender
         _emailOptions = emailOptions;
         _notifications = notifications;
         _cases = cases;
+        _customers = customers;
+        _users = users;
         _environment = environment;
         _emailConfig = emailConfig;
         _frontendBaseUrl = configuration["FrontendBaseUrl"] ?? "http://localhost:4200";
@@ -212,7 +221,85 @@ public class EmailNotificationSender : INotificationSender
         }
 
         var tokens = await BuildTokenMapAsync(notification);
-        return (RenderTemplate(template.Subject, tokens), RenderTemplate(template.Body, tokens));
+        var subject = RenderTemplate(template.Subject, tokens);
+        var body = EnsureActionLink(RenderTemplate(template.Body, tokens), ResolveActionLink(notification));
+        return (subject, body);
+    }
+
+    /// <summary>
+    /// Resolves the action URL for a notification. Prefers the explicit
+    /// <see cref="Notification.Link"/> column, but falls back to the first URL
+    /// found in <see cref="Notification.Message"/>. The fallback matters for
+    /// rows created before <c>Link</c> was populated (and for any caller that
+    /// still only puts the URL in the message): the sender renders the DB
+    /// template and discards <c>Message</c>, so without this the link is lost.
+    /// </summary>
+    /// <param name="notification">The notification being sent.</param>
+    /// <returns>The action URL, or null when there is none.</returns>
+    public static string? ResolveActionLink(Notification notification) =>
+        !string.IsNullOrWhiteSpace(notification.Link)
+            ? notification.Link
+            : ExtractFirstUrl(notification.Message);
+
+    /// <summary>
+    /// Returns the first http/https URL in <paramref name="text"/>, or null.
+    /// Trailing sentence punctuation is not part of a URL and is trimmed.
+    /// </summary>
+    /// <param name="text">Text to scan.</param>
+    /// <returns>The first URL found, or null.</returns>
+    public static string? ExtractFirstUrl(string? text)
+    {
+        var match = UrlPattern.Match(text ?? string.Empty);
+        return match.Success ? match.Value.TrimEnd('.', ',', ')', '>', '"', '\'', ';', ':') : null;
+    }
+
+    private static readonly Regex UrlPattern =
+        new(@"(https?://\S+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    /// <summary>
+    /// True for notification types whose entire purpose is to deliver a
+    /// clickable activation / password-reset URL to a specific recipient
+    /// (<see cref="NotificationType.CustomerInvite"/>,
+    /// <see cref="NotificationType.CustomerPasswordReset"/>,
+    /// <see cref="NotificationType.StaffPasswordReset"/>). For these the
+    /// <c>{{portalLink}}</c> token resolves to that deep link (not the portal
+    /// homepage) — see <see cref="BuildTokenMapAsync"/>.
+    /// </summary>
+    private static bool IsAccountActivationType(NotificationType type) =>
+        type is NotificationType.CustomerInvite
+            or NotificationType.CustomerPasswordReset
+            or NotificationType.StaffPasswordReset;
+
+    /// <summary>
+    /// Resolves the value substituted for the <c>{{portalLink}}</c> token.
+    /// For account-activation / password-reset notifications it is the
+    /// per-recipient deep link (the invite/reset URL); otherwise it is the
+    /// portal homepage base URL. Falls back to the base URL when an
+    /// activation notification has no <paramref name="link"/>.
+    /// </summary>
+    /// <param name="type">Notification type.</param>
+    /// <param name="link">The per-recipient action URL, if any.</param>
+    /// <param name="baseUrl">Configured frontend base URL (homepage).</param>
+    /// <returns>The <c>{{portalLink}}</c> value.</returns>
+    public static string ResolvePortalLink(NotificationType type, string? link, string baseUrl) =>
+        IsAccountActivationType(type) ? (link ?? baseUrl) : baseUrl;
+
+    /// <summary>
+    /// Guarantees an action URL (activation / password-reset link) reaches the
+    /// reader. Templates are operator-editable and pre-existing databases were
+    /// seeded before <c>{{actionLink}}</c> existed, so a template can easily
+    /// omit it — and a "set your password" email without its link is useless.
+    /// When the notification carries a <see cref="Notification.Link"/> that the
+    /// rendered body does not already contain, the link is appended.
+    /// </summary>
+    /// <param name="body">The rendered body.</param>
+    /// <param name="link">The action URL, if any.</param>
+    /// <returns>The body, with the link appended when it was missing.</returns>
+    public static string EnsureActionLink(string body, string? link)
+    {
+        if (string.IsNullOrWhiteSpace(link) || body.Contains(link, StringComparison.OrdinalIgnoreCase))
+            return body;
+        return $"{body.TrimEnd()}\n\n{link}";
     }
 
     /// <summary>
@@ -222,12 +309,22 @@ public class EmailNotificationSender : INotificationSender
     /// </summary>
     private async Task<IReadOnlyDictionary<string, string>> BuildTokenMapAsync(Notification notification)
     {
-        var caseSubject = ExtractCaseSubject(notification.Message);
+        var caseSubject = ResolveCaseSubject(notification.Type, notification.Message);
+        // {{portalLink}} resolves to the portal HOMEPAGE for case/overdue/resolved
+        // emails, but for account-activation / password-reset emails it resolves to
+        // the per-recipient deep link (notification.Link) — the invite/reset URL IS
+        // "the portal" for that recipient. This keeps operator templates that use
+        // {{portalLink}} correct WITHOUT a reseed, and lets the EnsureActionLink
+        // safety net see the link is already present (no duplicate appended).
+        var portalLink = ResolvePortalLink(notification.Type, notification.Link, _frontendBaseUrl);
+
         var tokens = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             ["caseId"] = notification.CaseId?.ToString() ?? string.Empty,
             ["caseSubject"] = caseSubject,
-            ["portalLink"] = _frontendBaseUrl,
+            ["portalLink"] = portalLink,
+            // Activation / password-reset URL for this specific notification.
+            ["actionLink"] = notification.Link ?? string.Empty,
             ["customerName"] = string.Empty,
             ["customerEmail"] = string.Empty,
             ["caseStatus"] = string.Empty,
@@ -257,6 +354,29 @@ public class EmailNotificationSender : INotificationSender
             }
         }
 
+        // Account emails (invite / password reset) have no CaseId, so the block
+        // above cannot fill the name and templates render "Hello ,". Fall back
+        // to looking the person up by the recipient address.
+        if (string.IsNullOrEmpty(tokens["customerName"]) && !string.IsNullOrWhiteSpace(notification.Recipient))
+        {
+            var email = notification.Recipient.Trim().ToLower();
+            var customer = await _customers.Query().FirstOrDefaultAsync(c => c.Email == email);
+            if (customer is not null)
+            {
+                tokens["customerName"] = customer.Name;
+                tokens["customerEmail"] = customer.Email;
+            }
+            else
+            {
+                var user = await _users.Query().FirstOrDefaultAsync(u => u.Email == email);
+                if (user is not null)
+                {
+                    tokens["agentName"] = user.FullName;
+                    tokens["agentEmail"] = user.Email;
+                }
+            }
+        }
+
         return tokens;
     }
 
@@ -277,6 +397,19 @@ public class EmailNotificationSender : INotificationSender
             + $"Thank you,\nCustomer Service Team";
         return (subject, body);
     }
+
+    /// <summary>
+    /// Resolves the <c>{{caseSubject}}</c> token. Machine-generated messages
+    /// use the <c>Case #n "subject"</c> shape, so the quoted part is extracted.
+    /// <see cref="NotificationType.AdminManual"/> is free text an admin typed —
+    /// extraction there would silently discard everything outside the first
+    /// quoted pair, so it is passed through verbatim.
+    /// </summary>
+    /// <param name="type">The notification type.</param>
+    /// <param name="message">The stored message text.</param>
+    /// <returns>The subject text for token substitution.</returns>
+    public static string ResolveCaseSubject(NotificationType type, string message) =>
+        type == NotificationType.AdminManual ? message : ExtractCaseSubject(message);
 
     /// <summary>
     /// Extracts the human-readable case subject from the stored message text
