@@ -39,6 +39,9 @@ public class CustomerAccount
     /// </summary>
     public bool IsActive { get; set; }
 
+    /// <summary>UTC timestamp when the invite was accepted and a password was set (account activated). Null until activated.</summary>
+    public DateTime? ActivatedAtUtc { get; set; }
+
     /// <summary>UTC timestamp when the account record was created.</summary>
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 }

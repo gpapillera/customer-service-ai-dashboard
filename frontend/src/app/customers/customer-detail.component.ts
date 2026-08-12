@@ -1,9 +1,14 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, DestroyRef, HostListener, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { FormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatSelectModule } from '@angular/material/select';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatDialog } from '@angular/material/dialog';
 import { RevealDirective } from '../shared/reveal.directive';
@@ -12,12 +17,29 @@ import { CustomerService } from './customer.service';
 import { CustomerFormComponent } from './customer-form.component';
 import { CaseFormComponent, CaseFormDialogData } from '../cases/case-form.component';
 import { ConfirmDialogComponent, ConfirmDialogData } from '../shared/confirm-dialog.component';
-import { Customer, Case } from '../shared/models';
+import { Customer, Case, Notification, CustomerActivityItem } from '../shared/models';
 import { AuthService } from '../auth/auth.service';
+import {
+  DatePreset, DATE_PRESETS, DATE_PRESET_LABELS, filterByDatePreset, datePresetNeedsInput,
+} from '../shared/date-filter';
+
+/** Human-readable labels for notification/email types (mirrors case-detail). */
+const EMAIL_TYPE_LABELS: Record<string, string> = {
+  CaseOverdue: 'Overdue reminder',
+  CaseResolved: 'Resolved confirmation',
+  CustomerInvite: 'Customer invite',
+  CustomerPasswordReset: 'Customer password reset',
+  NewCustomerMessage: 'New customer message',
+  StaffPasswordReset: 'Staff password reset',
+  AdminManual: 'Manual email',
+};
 
 /**
- * Customer detail view: profile info plus the customer's case history.
- * "Edit" opens the customer form as a modal and refreshes the view in place.
+ * Customer detail view: profile info plus the customer's case history and a
+ * case-detail-style Emails / Activity side panel. The panel merges case-level
+ * events (logs, comments, case emails) with account-level events (invites,
+ * password resets, activation) so a customer with no cases still shows their
+ * real recent activity.
  */
 @Component({
   selector: 'app-customer-detail',
@@ -25,9 +47,14 @@ import { AuthService } from '../auth/auth.service';
   imports: [
     CommonModule,
     RouterLink,
+    FormsModule,
     MatCardModule,
     MatButtonModule,
     MatIconModule,
+    MatInputModule,
+    MatFormFieldModule,
+    MatSelectModule,
+    MatMenuModule,
     MatProgressSpinnerModule,
     RevealDirective,
     CsIconComponent,
@@ -40,17 +67,77 @@ export class CustomerDetailComponent implements OnInit {
   private readonly dialog = inject(MatDialog);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
   readonly auth = inject(AuthService);
 
   readonly customer = signal<Customer | null>(null);
   readonly cases = signal<Case[]>([]);
   readonly loading = signal(true);
 
+  // ── Emails / Activity side panel (mirrors the case detail page) ──
+  /** Full email log for this customer (account + case), newest first. */
+  readonly emails = signal<Notification[]>([]);
+  /** Full merged timeline for this customer (case + account), newest first. */
+  readonly activity = signal<CustomerActivityItem[]>([]);
+  readonly panelOpen = signal(false);
+  readonly panelMode = signal<'email' | 'activity'>('activity');
+  readonly searchVisible = signal(false);
+  readonly dateVisible = signal(false);
+  readonly emailSearch = signal('');
+  readonly activitySearch = signal('');
+  readonly emailDatePreset = signal<DatePreset>('all');
+  readonly emailDateFrom = signal('');
+  readonly emailDateTo = signal('');
+  readonly emailDateSingle = signal('');
+  readonly activityDatePreset = signal<DatePreset>('all');
+  readonly activityDateFrom = signal('');
+  readonly activityDateTo = signal('');
+  readonly activityDateSingle = signal('');
+  readonly closing = signal(false);
+
+  readonly filteredEmails = computed(() => {
+    let list = this.emails();
+    const term = this.emailSearch().toLowerCase().trim();
+    if (term) {
+      list = list.filter((e) =>
+        (e.title ?? '').toLowerCase().includes(term) ||
+        (e.message ?? '').toLowerCase().includes(term) ||
+        (e.recipient ?? '').toLowerCase().includes(term),
+      );
+    }
+    if (this.emailDatePreset() !== 'all') {
+      list = filterByDatePreset(list, this.emailDatePreset(), (e) => e.createdAtUtc,
+        this.emailDateFrom(), this.emailDateTo(), this.emailDateSingle());
+    }
+    return list;
+  });
+
+  readonly filteredActivity = computed(() => {
+    let list = this.activity();
+    const term = this.activitySearch().toLowerCase().trim();
+    if (term) {
+      list = list.filter((a) =>
+        (a.label ?? '').toLowerCase().includes(term) ||
+        (a.detail ?? '').toLowerCase().includes(term) ||
+        (a.who ?? '').toLowerCase().includes(term),
+      );
+    }
+    if (this.activityDatePreset() !== 'all') {
+      list = filterByDatePreset(list, this.activityDatePreset(), (a) => a.atUtc,
+        this.activityDateFrom(), this.activityDateTo(), this.activityDateSingle());
+    }
+    return list;
+  });
+
+  readonly datePresets = DATE_PRESETS;
+  readonly datePresetLabels = DATE_PRESET_LABELS;
+  datePresetNeedsInput = datePresetNeedsInput;
+
   ngOnInit(): void {
     this.load();
   }
 
-  /** Loads the customer and their case history. */
+  /** Loads the customer, their case history, and the email/activity feeds. */
   private load(): void {
     const id = Number(this.route.snapshot.paramMap.get('id'));
     this.loading.set(true);
@@ -62,6 +149,14 @@ export class CustomerDetailComponent implements OnInit {
       error: () => this.loading.set(false),
     });
     this.loadCases();
+    this.loadPanelData();
+  }
+
+  /** Loads the email + activity feeds for the panel (independent of the profile load). */
+  private loadPanelData(): void {
+    const id = Number(this.route.snapshot.paramMap.get('id'));
+    this.service.customerEmails(id).subscribe((list) => this.emails.set(list));
+    this.service.customerActivity(id).subscribe((list) => this.activity.set(list));
   }
 
   /** Opens the new-case modal directly on this page, locked to this customer. */
@@ -109,6 +204,7 @@ export class CustomerDetailComponent implements OnInit {
   priorityClass(p: string): string {
     return 'priority-' + p.toLowerCase();
   }
+
   /** Deletes the customer after a confirmation dialog. */
   deleteCustomer(): void {
     const c = this.customer();
@@ -138,8 +234,106 @@ export class CustomerDetailComponent implements OnInit {
     });
   }
 
+  // ── Panel machinery (mirrors the case detail page) ──
+
+  togglePanel(): void {
+    if (this.panelOpen()) {
+      this.closePanel();
+    } else {
+      this.closing.set(false);
+      this.panelOpen.set(true);
+    }
+  }
+
+  closePanel(): void {
+    if (!this.panelOpen() || this.closing()) return;
+    this.closing.set(true);
+  }
+
+  onPanelAnimationEnd(event?: AnimationEvent): void {
+    if (event && event.animationName !== 'panel-slide-out') return;
+    if (!this.closing()) return;
+    this.closing.set(false);
+    this.panelOpen.set(false);
+  }
+
+  setPanelMode(mode: 'email' | 'activity'): void {
+    this.panelMode.set(mode);
+  }
+
+  toggleSearch(): void {
+    this.searchVisible.update((v) => !v);
+  }
+
+  toggleDate(): void {
+    this.dateVisible.update((v) => !v);
+  }
+
+  resetFilters(): void {
+    this.emailSearch.set('');
+    this.emailDatePreset.set('all');
+    this.emailDateFrom.set('');
+    this.emailDateTo.set('');
+    this.emailDateSingle.set('');
+    this.activitySearch.set('');
+    this.activityDatePreset.set('all');
+    this.activityDateFrom.set('');
+    this.activityDateTo.set('');
+    this.activityDateSingle.set('');
+    this.searchVisible.set(false);
+    this.dateVisible.set(false);
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    if (!this.panelOpen()) return;
+    const target = event.target as HTMLElement | null;
+    if (
+      target?.closest('#history-panel') ||
+      target?.closest('.history-toggle') ||
+      target?.closest('.cdk-overlay-container')
+    ) {
+      return;
+    }
+    this.closePanel();
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    if (this.panelOpen()) this.closePanel();
+  }
+
+  /** Human label for an email type. */
+  typeLabel(type: string): string {
+    return EMAIL_TYPE_LABELS[type] ?? type;
+  }
+
+  /** Picks the Material icon for an activity kind (case + account events). */
+  activityIcon(kind: CustomerActivityItem['kind']): string {
+    switch (kind) {
+      case 'opened': return 'check_circle';
+      case 'updated': return 'schedule';
+      case 'resolved': return 'task_alt';
+      case 'log': return 'phone';
+      case 'comment': return 'forum';
+      case 'email': return 'mail';
+      case 'account_invite': return 'mail';
+      case 'account_reset': return 'lock_reset';
+      case 'account_activated': return 'verified_user';
+      default: return 'circle';
+    }
+  }
+
   formatDate(value?: string): string {
     if (!value) return '—';
     return new Date(value).toLocaleDateString();
+  }
+
+  /** Formats a UTC date as "MMM DD, HH:MM AM/PM" (panel timestamps). */
+  formatDateTime(value?: string): string {
+    if (!value) return '—';
+    const d = new Date(value);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) +
+      ', ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   }
 }

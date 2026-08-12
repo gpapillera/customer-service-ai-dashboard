@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Customer, Case, CreateCustomer } from '../shared/models';
+import { Customer, Case, CreateCustomer, Notification, CustomerActivityItem } from '../shared/models';
 
 /**
  * Talks to the Customers API (list, search, create, update, delete).
@@ -40,6 +40,22 @@ export class CustomerService {
    */
   customerCases(id: number): Observable<Case[]> {
     return this.http.get<Case[]>(`${this.baseUrl}/${id}/cases`);
+  }
+
+  /**
+   * Gets every email sent to a customer (account invites/resets/manual + case
+   * emails), newest first. Reuses the same Agent scoping as the detail page.
+   */
+  customerEmails(id: number): Observable<Notification[]> {
+    return this.http.get<Notification[]>(`${this.baseUrl}/${id}/emails`);
+  }
+
+  /**
+   * Gets the merged case + account activity timeline for a customer, newest
+   * first. Includes account events even when the customer has no cases.
+   */
+  customerActivity(id: number): Observable<CustomerActivityItem[]> {
+    return this.http.get<CustomerActivityItem[]>(`${this.baseUrl}/${id}/activity`);
   }
 
   /** Creates a customer. */

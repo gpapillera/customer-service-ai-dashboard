@@ -211,6 +211,20 @@ export interface Conversation {
   unreadCount: number;
 }
 
+/** A single entry in the customer's merged activity timeline (case + account events). */
+export interface CustomerActivityItem {
+  id: number;
+  /** opened | updated | resolved | log | comment | email (case) | account_invite | account_reset | account_activated */
+  kind: 'opened' | 'updated' | 'resolved' | 'log' | 'comment' | 'email'
+    | 'account_invite' | 'account_reset' | 'account_activated';
+  label: string;
+  detail: string;
+  atUtc: string;
+  /** Related case id for case-level events (deep-link target); null for account-only events. */
+  caseId?: number | null;
+  who?: string | null;
+}
+
 /** Payload for a customer to create a case. */
 export interface CreateCustomerCase {
   subject: string;

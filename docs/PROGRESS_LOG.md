@@ -2,6 +2,41 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 48 — Customer Detail: Emails/Activity panel + account-activity fix] (2026-08-13)
+**Status:** ✅ COMPLETE (93/93 backend tests green + `dotnet build` clean + `npm run build` green)
+
+### Problem (from user report)
+- Customer detail page had no header (title + description) and no Emails/Activity button like the Case Detail page.
+- The customer **card** footer ("recent activity") was blank ("Since {created}") for accounts with no cases (e.g. "Link Test User", "Glen Papillera") even though they had received invite / password-reset emails and had account activity.
+
+### Root cause
+`CustomerService.ComputeLastActivity` scanned ONLY `c.Cases`. Account emails (invite/password-reset/manual) are created in `CustomerAuthService.GenerateAndSendInviteAsync` as `Notification` rows with `CaseId == null` and `Recipient == customer.Email`, so they were never considered for `LastActivityDescription`. A caseless account therefore had no last-activity → card showed "Since {date}".
+
+### Changes
+- `CustomerAccount.cs` — added `ActivatedAtUtc` (nullable) to record account-activation time.
+- `CustomerAuthService.cs` — set `ActivatedAtUtc = UtcNow` on invite acceptance.
+- `Program.cs` — added `EnsureAccountActivatedAtColumn` (idempotent `ALTER TABLE`, mirrors the existing `EnsureCaseDisplayIdColumn` pattern) so the new column is added to existing SQLite/SQL Server DBs without EF migrations.
+- `CustomerActivityDto.cs` (new) — `CustomerActivityItemDto` (merged timeline row).
+- `CustomerService.cs`:
+  - Injected `IRepository<Notification>`.
+  - `ComputeLastActivity` now also folds in account emails (invite/reset/manual addressed to the customer) and account activation, so `LastActivityDescription` reflects real account activity even with zero cases.
+  - New `GetCustomerEmailsAsync` (account + case emails, newest first) and `GetCustomerActivityAsync` (merged case + account timeline, newest first, account events `caseId=null`).
+  - List/Search now batch-load relevant notifications once (no N+1) and map each customer in memory.
+  - Bug fix: notification membership predicates use a materialized `HashSet<int>` of case ids (EF cannot translate an in-graph `c.Cases.Any(...)` inside `IQueryable.Where`).
+- `ICustomerService.cs` — two new methods.
+- `CustomersController.cs` — `GET /api/customers/{id}/emails` and `GET /api/customers/{id}/activity` (reuse `GetByIdAsync` Agent scoping; 404/403 consistent).
+- `tests/CustomerService.Tests/CustomerServiceTests.cs` — test helper passes the new `notifications` repo.
+- `frontend` `models.ts` — `CustomerActivityItem` interface.
+- `frontend` `customer.service.ts` — `customerEmails(id)`, `customerActivity(id)`.
+- `frontend` `customer-detail.component.*` — added case-detail-style page header (title+description left, history-toggle right) and a right-side Emails/Activity panel (mirrors case-detail, **including the date filter**). Panel defaults to **Activity** so the reported gap is visible immediately. Activity rows with a `caseId` deep-link to that case (`/cases/{id}?activity=1`); account-only rows are non-links.
+
+### Verification
+- `dotnet test` 93/93 green; `dotnet build` + `npm run build` clean.
+- API (live, admin): caseless accounts **Glen Papillera (12)** and **Link Test User (13)** now return `lastActivityDescription="Invite sent"` with real timestamps (card footer fixed).
+- `GET /api/customers/13/activity` → 5 merged account events newest-first; `/emails` → 5 invite emails. `GET /api/customers/1/activity` (has cases) → 16 merged case+account events. Both endpoints HTTP 200.
+- **Browser smoke test (headless, logged in as admin):** Customers list shows the two caseless accounts with a real "Invite sent · Aug …" footer (was blank). Customer Detail page renders the case-detail-style header (title+description left, toggle button right) and the right-side Emails/Activity panel (absolute overlay, z-index 20, 380px, no body horizontal overflow — same slide-over as case-detail). Panel defaults to **Activity** and lists the merged invite timeline; the **Emails** tab lists the invites; the **date filter** dropdown works (selecting "Today" correctly empties the Aug 10–12 entries → "No activity matches your search", resetting to "All time" restores them). No layout defects and no runtime console errors.
+- NOTE: per repo convention the visual click-through is a manual check; it was performed here via headless browser and passed.
+
 ## [Phase 47 — Invite email: wrong link + "invalid token" on resend] (2026-08-11)
 **Status:** ✅ COMPLETE (93/93 backend tests green + `npm run build` green)
 

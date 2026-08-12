@@ -14,14 +14,17 @@ public class CustomerService : ICustomerService
 {
     private readonly IRepository<Customer> _customers;
     private readonly IRepository<Case> _cases;
+    private readonly IRepository<Notification> _notifications;
 
     /// <summary>Initializes a new <see cref="CustomerService"/>.</summary>
     /// <param name="customers">Customer repository.</param>
     /// <param name="cases">Case repository (for counts).</param>
-    public CustomerService(IRepository<Customer> customers, IRepository<Case> cases)
+    /// <param name="notifications">Notification repository (account + case emails for activity).</param>
+    public CustomerService(IRepository<Customer> customers, IRepository<Case> cases, IRepository<Notification> notifications)
     {
         _customers = customers;
         _cases = cases;
+        _notifications = notifications;
     }
 
     /// <summary>
@@ -30,97 +33,237 @@ public class CustomerService : ICustomerService
     /// and the id of the case that produced the activity (so the UI can deep-link
     /// from the customer card to the right case's history even when a customer has
     /// more than one case).
+    ///
+    /// Account-level events (invite / password-reset emails and account activation)
+    /// are folded in too, because a customer with no cases can still have real
+    /// recent activity — without this the customer card footer shows only "Since …".
     /// </summary>
-    private static (DateTime? atUtc, string? description, int? caseId) ComputeLastActivity(Customer c)
+    private static (DateTime? atUtc, string? description, int? caseId) ComputeLastActivity(
+        Customer c, IReadOnlyList<Notification> accountNotifications)
     {
         DateTime? latest = null;
         string? desc = null;
         int? caseId = null;
 
-        if (c.Cases is null) return (null, null, null);
+        if (c.Cases is not null)
+        {
+            foreach (var cs in c.Cases)
+            {
+                // Case creation
+                if (cs.CreatedAtUtc > (latest ?? DateTime.MinValue))
+                {
+                    latest = cs.CreatedAtUtc;
+                    desc = $"Opened case #{cs.Id}";
+                    caseId = cs.Id;
+                }
+
+                // Case update (status change)
+                if (cs.UpdatedAtUtc.HasValue && cs.UpdatedAtUtc > (latest ?? DateTime.MinValue))
+                {
+                    latest = cs.UpdatedAtUtc.Value;
+                    desc = cs.Status switch
+                    {
+                        CaseStatus.Resolved => $"Resolved case #{cs.Id}",
+                        CaseStatus.Closed => $"Closed case #{cs.Id}",
+                        _ => $"Updated case #{cs.Id}",
+                    };
+                    caseId = cs.Id;
+                }
+
+                // Resolution timestamp (separate from UpdatedAtUtc for resolved/closed)
+                if (cs.ResolvedAtUtc.HasValue && cs.ResolvedAtUtc > (latest ?? DateTime.MinValue))
+                {
+                    latest = cs.ResolvedAtUtc.Value;
+                    desc = cs.Status switch
+                    {
+                        CaseStatus.Closed => $"Closed case #{cs.Id}",
+                        _ => $"Resolved case #{cs.Id}",
+                    };
+                    caseId = cs.Id;
+                }
+
+                // Call logs
+                if (cs.CallLogs is not null)
+                {
+                    foreach (var log in cs.CallLogs)
+                    {
+                        if (log.CreatedAtUtc > (latest ?? DateTime.MinValue))
+                        {
+                            latest = log.CreatedAtUtc;
+                            desc = "Updated call log";
+                            caseId = cs.Id;
+                        }
+                    }
+                }
+
+                // Comments
+                if (cs.Comments is not null)
+                {
+                    foreach (var comment in cs.Comments)
+                    {
+                        if (comment.CreatedAtUtc > (latest ?? DateTime.MinValue))
+                        {
+                            latest = comment.CreatedAtUtc;
+                            desc = comment.AuthorUserId != null ? "Messaged customer" : "Customer replied";
+                            caseId = cs.Id;
+                        }
+                    }
+                }
+
+                // Notifications — only count actual email sends (AdminManual or Email channel),
+                // not internal in-app alerts (overdue reminders etc.).
+                if (cs.Notifications is not null)
+                {
+                    foreach (var n in cs.Notifications)
+                    {
+                        if (n.Channel != NotificationChannel.Email && n.Type != NotificationType.AdminManual)
+                            continue;
+                        if (n.CreatedAtUtc > (latest ?? DateTime.MinValue))
+                        {
+                            latest = n.CreatedAtUtc;
+                            desc = "Sent email";
+                            caseId = cs.Id;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Account-level emails: invites, password resets, and any manual/email-channel
+        // notification addressed to this customer (Recipient == customer.Email, CaseId null).
+        foreach (var n in accountNotifications)
+        {
+            if (n.CreatedAtUtc > (latest ?? DateTime.MinValue))
+            {
+                latest = n.CreatedAtUtc;
+                desc = n.Type switch
+                {
+                    NotificationType.CustomerInvite => "Invite sent",
+                    NotificationType.CustomerPasswordReset => "Password reset sent",
+                    NotificationType.AdminManual => "Email sent",
+                    _ => "Email sent",
+                };
+                caseId = n.CaseId; // null for account-only emails
+            }
+        }
+
+        // Account activation.
+        if (c.Account?.ActivatedAtUtc is { } activated && activated > (latest ?? DateTime.MinValue))
+        {
+            latest = activated;
+            desc = "Account activated";
+            caseId = null;
+        }
+
+        return (latest, desc, caseId);
+    }
+
+    /// <summary>
+    /// Builds the merged case-level activity timeline for a customer (case
+    /// creation, status changes, resolution, call logs, comments, case emails).
+    /// Account-level events are added separately by <see cref="GetCustomerActivityAsync"/>.
+    /// </summary>
+    private static List<CustomerActivityItemDto> BuildCaseActivityItems(Customer c)
+    {
+        var items = new List<CustomerActivityItemDto>();
+        if (c.Cases is null) return items;
 
         foreach (var cs in c.Cases)
         {
-            // Case creation
-            if (cs.CreatedAtUtc > latest || latest is null)
+            items.Add(new CustomerActivityItemDto
             {
-                latest = cs.CreatedAtUtc;
-                desc = $"Opened case #{cs.Id}";
-                caseId = cs.Id;
-            }
+                Id = cs.Id,
+                Kind = "opened",
+                Label = "Opened",
+                Detail = "Case created",
+                AtUtc = cs.CreatedAtUtc,
+                CaseId = cs.Id,
+            });
 
-            // Case update (status change)
-            if (cs.UpdatedAtUtc.HasValue && (cs.UpdatedAtUtc > latest || latest is null))
+            if (cs.UpdatedAtUtc.HasValue)
             {
-                latest = cs.UpdatedAtUtc.Value;
-                desc = cs.Status switch
+                var statusLabel = cs.Status == CaseStatus.New ? cs.Status.ToString() : $"moved to {cs.Status}";
+                items.Add(new CustomerActivityItemDto
                 {
-                    CaseStatus.Resolved => $"Resolved case #{cs.Id}",
-                    CaseStatus.Closed => $"Closed case #{cs.Id}",
-                    _ => $"Updated case #{cs.Id}",
-                };
-                caseId = cs.Id;
+                    Id = cs.Id * 100 + 1,
+                    Kind = "updated",
+                    Label = "Updated",
+                    Detail = $"Status {statusLabel}",
+                    AtUtc = cs.UpdatedAtUtc.Value,
+                    CaseId = cs.Id,
+                });
             }
 
-            // Resolution timestamp (separate from UpdatedAtUtc for resolved/closed)
-            if (cs.ResolvedAtUtc.HasValue && (cs.ResolvedAtUtc > latest || latest is null))
+            if (cs.ResolvedAtUtc.HasValue)
             {
-                latest = cs.ResolvedAtUtc.Value;
-                desc = cs.Status switch
+                items.Add(new CustomerActivityItemDto
                 {
-                    CaseStatus.Closed => $"Closed case #{cs.Id}",
-                    _ => $"Resolved case #{cs.Id}",
-                };
-                caseId = cs.Id;
+                    Id = cs.Id * 100 + 2,
+                    Kind = cs.Status == CaseStatus.Closed ? "resolved" : "resolved",
+                    Label = cs.Status == CaseStatus.Closed ? "Closed" : "Resolved",
+                    Detail = cs.Status == CaseStatus.Closed ? $"Case #{cs.Id} closed" : $"Case #{cs.Id} resolved",
+                    AtUtc = cs.ResolvedAtUtc.Value,
+                    CaseId = cs.Id,
+                });
             }
 
-            // Call logs
             if (cs.CallLogs is not null)
             {
                 foreach (var log in cs.CallLogs)
                 {
-                    if (log.CreatedAtUtc > latest || latest is null)
+                    items.Add(new CustomerActivityItemDto
                     {
-                        latest = log.CreatedAtUtc;
-                        desc = "Updated call log";
-                        caseId = cs.Id;
-                    }
+                        Id = log.Id,
+                        Kind = "log",
+                        Label = log.Direction.ToString(),
+                        Detail = log.Notes,
+                        AtUtc = log.CreatedAtUtc,
+                        CaseId = cs.Id,
+                    });
                 }
             }
 
-            // Comments
             if (cs.Comments is not null)
             {
                 foreach (var comment in cs.Comments)
                 {
-                    if (comment.CreatedAtUtc > latest || latest is null)
+                    var isStaff = comment.AuthorUserId != null;
+                    var who = isStaff ? "Staff" : "Customer";
+                    var what = isStaff ? "Staff comment" : "Customer message";
+                    items.Add(new CustomerActivityItemDto
                     {
-                        latest = comment.CreatedAtUtc;
-                        desc = comment.AuthorUserId != null ? "Messaged customer" : "Customer replied";
-                        caseId = cs.Id;
-                    }
+                        Id = comment.Id,
+                        Kind = "comment",
+                        Label = what,
+                        Detail = comment.Body,
+                        AtUtc = comment.CreatedAtUtc,
+                        CaseId = cs.Id,
+                        Who = who,
+                    });
                 }
             }
 
-            // Notifications — only count actual email sends (AdminManual or Email channel),
-            // not internal in-app alerts (overdue reminders etc.).
             if (cs.Notifications is not null)
             {
                 foreach (var n in cs.Notifications)
                 {
                     if (n.Channel != NotificationChannel.Email && n.Type != NotificationType.AdminManual)
                         continue;
-                    if (n.CreatedAtUtc > latest || latest is null)
+                    items.Add(new CustomerActivityItemDto
                     {
-                        latest = n.CreatedAtUtc;
-                        desc = "Sent email";
-                        caseId = cs.Id;
-                    }
+                        Id = n.Id,
+                        Kind = "email",
+                        Label = "Email sent",
+                        Detail = n.Title ?? n.Message,
+                        AtUtc = n.CreatedAtUtc,
+                        CaseId = cs.Id,
+                        Who = n.Recipient,
+                    });
                 }
             }
         }
 
-        return (latest, desc, caseId);
+        return items;
     }
 
     /// <inheritdoc/>
@@ -147,10 +290,9 @@ public class CustomerService : ICustomerService
         // Has-account filter (Phase 24f)
         if (hasAccount.HasValue)
         {
-            if (hasAccount.Value)
-                q = q.Where(c => c.Account != null);
-            else
-                q = q.Where(c => c.Account == null);
+            q = hasAccount.Value
+                ? q.Where(c => c.Account != null)
+                : q.Where(c => c.Account == null);
         }
 
         // Sorting (Phase 24f)
@@ -158,8 +300,8 @@ public class CustomerService : ICustomerService
         if (string.Equals(sortBy, "activity", StringComparison.OrdinalIgnoreCase))
         {
             q = desc
-                ? q.OrderByDescending(c => c.Cases.Max(cs => (DateTime?)cs.CreatedAtUtc) ?? c.CreatedAtUtc)
-                : q.OrderBy(c => c.Cases.Max(cs => (DateTime?)cs.CreatedAtUtc) ?? c.CreatedAtUtc);
+                ? q.OrderByDescending(c => c.Cases!.Max(cs => (DateTime?)cs.CreatedAtUtc) ?? c.CreatedAtUtc)
+                : q.OrderBy(c => c.Cases!.Max(cs => (DateTime?)cs.CreatedAtUtc) ?? c.CreatedAtUtc);
         }
         else
         {
@@ -176,7 +318,25 @@ public class CustomerService : ICustomerService
             .Include(c => c.Cases).ThenInclude(cs => cs.Notifications)
             .ToListAsync();
 
-        var result = loaded.Select(c => ToDto(c)).ToList();
+        // Batch-load all relevant notifications once (avoids per-customer N+1):
+        // any notification addressed to a loaded customer's email, or tied to a
+        // loaded case. Case notifications are already in the graph; this also
+        // pulls account-only emails (CaseId null, Recipient == customer.Email).
+        var custEmails = loaded.Select(c => c.Email).ToHashSet();
+        var caseIds = loaded.SelectMany(c => c.Cases ?? new List<Case>()).Select(cs => cs.Id).ToHashSet();
+        var allNotes = await _notifications.Query()
+            .Where(n => (n.Recipient != null && custEmails.Contains(n.Recipient))
+                     || (n.CaseId != null && caseIds.Contains(n.CaseId.Value)))
+            .ToListAsync();
+
+        var result = loaded.Select(c =>
+        {
+            var acctNotes = allNotes.Where(n =>
+                n.Recipient == c.Email ||
+                (n.CaseId != null && (c.Cases ?? new List<Case>()).Any(cs => cs.Id == n.CaseId.Value)))
+                .ToList();
+            return ToDto(c, acctNotes);
+        }).ToList();
 
         // Re-sort by computed last-activity when sortBy=activity (in-memory after computing).
         if (string.Equals(sortBy, "activity", StringComparison.OrdinalIgnoreCase))
@@ -213,7 +373,13 @@ public class CustomerService : ICustomerService
             }
         }
 
-        return ToDto(c);
+        var caseIds = (c.Cases ?? new List<Case>()).Select(cs => cs.Id).ToHashSet();
+        var acctNotes = await _notifications.Query()
+            .Where(n => n.Recipient == c.Email ||
+                        (n.CaseId != null && caseIds.Contains(n.CaseId.Value)))
+            .ToListAsync();
+
+        return ToDto(c, acctNotes);
     }
 
     /// <summary>
@@ -273,10 +439,9 @@ public class CustomerService : ICustomerService
         // Has-account filter (Phase 24f)
         if (hasAccount.HasValue)
         {
-            if (hasAccount.Value)
-                q = q.Where(c => c.Account != null);
-            else
-                q = q.Where(c => c.Account == null);
+            q = hasAccount.Value
+                ? q.Where(c => c.Account != null)
+                : q.Where(c => c.Account == null);
         }
 
         // Sorting (Phase 24f)
@@ -284,8 +449,8 @@ public class CustomerService : ICustomerService
         if (string.Equals(sortBy, "activity", StringComparison.OrdinalIgnoreCase))
         {
             q = desc
-                ? q.OrderByDescending(c => c.Cases.Max(cs => (DateTime?)cs.CreatedAtUtc) ?? c.CreatedAtUtc)
-                : q.OrderBy(c => c.Cases.Max(cs => (DateTime?)cs.CreatedAtUtc) ?? c.CreatedAtUtc);
+                ? q.OrderByDescending(c => c.Cases!.Max(cs => (DateTime?)cs.CreatedAtUtc) ?? c.CreatedAtUtc)
+                : q.OrderBy(c => c.Cases!.Max(cs => (DateTime?)cs.CreatedAtUtc) ?? c.CreatedAtUtc);
         }
         else
         {
@@ -302,7 +467,22 @@ public class CustomerService : ICustomerService
             .Include(c => c.Cases).ThenInclude(cs => cs.Notifications)
             .ToListAsync();
 
-        var result = loaded.Select(c => ToDto(c)).ToList();
+        // Batch-load all relevant notifications once (avoids per-customer N+1).
+        var custEmails = loaded.Select(c => c.Email).ToHashSet();
+        var caseIds = loaded.SelectMany(c => c.Cases ?? new List<Case>()).Select(cs => cs.Id).ToHashSet();
+        var allNotes = await _notifications.Query()
+            .Where(n => (n.Recipient != null && custEmails.Contains(n.Recipient))
+                     || (n.CaseId != null && caseIds.Contains(n.CaseId.Value)))
+            .ToListAsync();
+
+        var result = loaded.Select(c =>
+        {
+            var acctNotes = allNotes.Where(n =>
+                n.Recipient == c.Email ||
+                (n.CaseId != null && (c.Cases ?? new List<Case>()).Any(cs => cs.Id == n.CaseId.Value)))
+                .ToList();
+            return ToDto(c, acctNotes);
+        }).ToList();
 
         // Re-sort by computed last-activity when sortBy=activity (in-memory after computing).
         if (string.Equals(sortBy, "activity", StringComparison.OrdinalIgnoreCase))
@@ -332,7 +512,7 @@ public class CustomerService : ICustomerService
         customer.CustomerDisplayId = $"C-{customer.Id:D5}";
         _customers.Update(customer);
         await _customers.SaveChangesAsync();
-        return ToDto(customer);
+        return ToDto(customer, new List<Notification>());
     }
 
     /// <inheritdoc/>
@@ -384,9 +564,155 @@ public class CustomerService : ICustomerService
         await _customers.SaveChangesAsync();
     }
 
-    private static CustomerDto ToDto(Customer c)
+    /// <summary>
+    /// Returns every email sent to this customer: account-level invites/resets/
+    /// manual emails (Recipient == customer.Email, CaseId null) plus any case
+    /// emails (CaseId belongs to this customer). Newest first.
+    /// </summary>
+    public async Task<IReadOnlyList<NotificationDto>> GetCustomerEmailsAsync(int customerId, string? callerRole = null, string? callerUserId = null)
     {
-        var (lastActivityAt, lastActivityDesc, lastActivityCaseId) = ComputeLastActivity(c);
+        var c = await _customers.GetByIdAsync(customerId)
+            ?? throw new KeyNotFoundException($"Customer {customerId} not found.");
+
+        // Agent scoping (Phase 6): must share a case with this customer.
+        var isAgent = string.Equals(callerRole, nameof(UserRole.Agent), StringComparison.OrdinalIgnoreCase);
+        if (isAgent && !string.IsNullOrEmpty(callerUserId))
+        {
+            var sharesCase = await _cases.Query()
+                .AnyAsync(x => x.CustomerId == customerId && x.AssignedToUserId == callerUserId);
+            if (!sharesCase)
+            {
+                throw new ForbiddenException("You can only view customers you share a case with.");
+            }
+        }
+
+        var caseIds = (c.Cases ?? new List<Case>()).Select(cs => cs.Id).ToHashSet();
+        var notes = await _notifications.Query()
+            .Where(n => n.Recipient == c.Email ||
+                        (n.CaseId != null && caseIds.Contains(n.CaseId.Value)))
+            .OrderByDescending(n => n.CreatedAtUtc)
+            .ToListAsync();
+
+        return notes.Select(NotificationDto.FromEntity).ToList();
+    }
+
+    /// <summary>
+    /// Returns the merged case + account activity timeline for a customer,
+    /// newest first. Account events (invite / reset / activation) are included
+    /// even when the customer has no cases.
+    /// </summary>
+    public async Task<IReadOnlyList<CustomerActivityItemDto>> GetCustomerActivityAsync(int customerId, string? callerRole = null, string? callerUserId = null)
+    {
+        var c = await _customers.Query()
+            .Include(x => x.Account)
+            .Include(x => x.Cases).ThenInclude(cs => cs.CallLogs)
+            .Include(x => x.Cases).ThenInclude(cs => cs.Comments)
+            .Include(x => x.Cases).ThenInclude(cs => cs.Notifications)
+            .FirstOrDefaultAsync(x => x.Id == customerId)
+            ?? throw new KeyNotFoundException($"Customer {customerId} not found.");
+
+        // Agent scoping (Phase 6): must share a case with this customer.
+        var isAgent = string.Equals(callerRole, nameof(UserRole.Agent), StringComparison.OrdinalIgnoreCase);
+        if (isAgent && !string.IsNullOrEmpty(callerUserId))
+        {
+            var sharesCase = await _cases.Query()
+                .AnyAsync(x => x.CustomerId == customerId && x.AssignedToUserId == callerUserId);
+            if (!sharesCase)
+            {
+                throw new ForbiddenException("You can only view customers you share a case with.");
+            }
+        }
+
+        var items = BuildCaseActivityItems(c);
+
+        // Account-level emails (invite / reset / manual; CaseId null + Recipient == email).
+        // Materialize the case-id set so the query translates (n.CaseId is nullable
+        // and can't be compared to the in-graph Cases collection client-side).
+        var caseIds = (c.Cases ?? new List<Case>()).Select(cs => cs.Id).ToHashSet();
+        if (c.Cases is not null && caseIds.Count > 0)
+        {
+            var accountNotes = await _notifications.Query()
+                .Where(n => n.Recipient == c.Email && (n.CaseId == null || !caseIds.Contains(n.CaseId.Value)))
+                .ToListAsync();
+            foreach (var n in accountNotes)
+            {
+                items.Add(new CustomerActivityItemDto
+                {
+                    Id = n.Id,
+                    Kind = n.Type switch
+                    {
+                        NotificationType.CustomerInvite => "account_invite",
+                        NotificationType.CustomerPasswordReset => "account_reset",
+                        _ => "email",
+                    },
+                    Label = n.Type switch
+                    {
+                        NotificationType.CustomerInvite => "Invite sent",
+                        NotificationType.CustomerPasswordReset => "Password reset sent",
+                        NotificationType.AdminManual => "Email sent",
+                        _ => "Email sent",
+                    },
+                    Detail = n.Title ?? n.Message,
+                    AtUtc = n.CreatedAtUtc,
+                    CaseId = null,
+                    Who = n.Recipient,
+                });
+            }
+        }
+        else
+        {
+            // No cases: every notification for this recipient is account-level.
+            var accountNotes = await _notifications.Query()
+                .Where(n => n.Recipient == c.Email)
+                .ToListAsync();
+            foreach (var n in accountNotes)
+            {
+                items.Add(new CustomerActivityItemDto
+                {
+                    Id = n.Id,
+                    Kind = n.Type switch
+                    {
+                        NotificationType.CustomerInvite => "account_invite",
+                        NotificationType.CustomerPasswordReset => "account_reset",
+                        _ => "email",
+                    },
+                    Label = n.Type switch
+                    {
+                        NotificationType.CustomerInvite => "Invite sent",
+                        NotificationType.CustomerPasswordReset => "Password reset sent",
+                        NotificationType.AdminManual => "Email sent",
+                        _ => "Email sent",
+                    },
+                    Detail = n.Title ?? n.Message,
+                    AtUtc = n.CreatedAtUtc,
+                    CaseId = null,
+                    Who = n.Recipient,
+                });
+            }
+        }
+
+        // Account activation.
+        if (c.Account?.ActivatedAtUtc is { } activated)
+        {
+            items.Add(new CustomerActivityItemDto
+            {
+                Id = -1,
+                Kind = "account_activated",
+                Label = "Account activated",
+                Detail = "Portal account activated",
+                AtUtc = activated,
+                CaseId = null,
+            });
+        }
+
+        return items
+            .OrderByDescending(i => i.AtUtc)
+            .ToList();
+    }
+
+    private static CustomerDto ToDto(Customer c, IReadOnlyList<Notification> accountNotifications)
+    {
+        var (lastActivityAt, lastActivityDesc, lastActivityCaseId) = ComputeLastActivity(c, accountNotifications);
         return new()
         {
             Id = c.Id,

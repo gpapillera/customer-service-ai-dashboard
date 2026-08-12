@@ -34,6 +34,20 @@ public interface ICustomerService
     /// <returns>The customer's cases visible to the caller.</returns>
     Task<IReadOnlyList<CaseDto>> GetCustomerCaseHistoryAsync(int customerId, string? callerRole = null, string? callerUserId = null);
 
+    /// <summary>Returns every email sent to a customer (account invites/resets/manual + case emails), newest first.</summary>
+    /// <param name="customerId">Customer id.</param>
+    /// <param name="callerRole">Role of the calling user (Agent is scoped to customers they share a case with).</param>
+    /// <param name="callerUserId">Id of the calling user (used to scope an Agent's view).</param>
+    /// <returns>The customer's emails visible to the caller.</returns>
+    Task<IReadOnlyList<NotificationDto>> GetCustomerEmailsAsync(int customerId, string? callerRole = null, string? callerUserId = null);
+
+    /// <summary>Returns the merged case + account activity timeline for a customer, newest first (includes account events even with no cases).</summary>
+    /// <param name="customerId">Customer id.</param>
+    /// <param name="callerRole">Role of the calling user (Agent is scoped to customers they share a case with).</param>
+    /// <param name="callerUserId">Id of the calling user (used to scope an Agent's view).</param>
+    /// <returns>The customer's activity timeline visible to the caller.</returns>
+    Task<IReadOnlyList<CustomerActivityItemDto>> GetCustomerActivityAsync(int customerId, string? callerRole = null, string? callerUserId = null);
+
     /// <summary>Creates a customer.</summary>
     /// <param name="dto">Create payload.</param>
     /// <returns>The created <see cref="CustomerDto"/>.</returns>

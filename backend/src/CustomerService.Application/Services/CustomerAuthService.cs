@@ -286,6 +286,7 @@ public class CustomerAuthService : ICustomerAuthService
 
         account.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
         account.IsActive = true;
+        account.ActivatedAtUtc = DateTime.UtcNow;
         account.InviteTokenUsed = true;
         _accounts.Update(account);
         await _accounts.SaveChangesAsync();

@@ -100,6 +100,38 @@ public class CustomersController : ControllerBase
         return Ok(cases);
     }
 
+    /// <summary>Returns every email sent to a customer (account invites/resets/manual + case emails), newest first.</summary>
+    /// <param name="id">Customer id.</param>
+    [HttpGet("{id:int}/emails")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<IReadOnlyList<NotificationDto>>> GetCustomerEmails(int id)
+    {
+        var callerUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var callerRole = User.FindFirst(ClaimTypes.Role)?.Value;
+        var customer = await _service.GetByIdAsync(id, callerRole, callerUserId);
+        if (customer is null) return NotFound();
+        var emails = await _service.GetCustomerEmailsAsync(id, callerRole, callerUserId);
+        return Ok(emails);
+    }
+
+    /// <summary>Returns the merged case + account activity timeline for a customer, newest first.</summary>
+    /// <param name="id">Customer id.</param>
+    [HttpGet("{id:int}/activity")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<IReadOnlyList<CustomerActivityItemDto>>> GetCustomerActivity(int id)
+    {
+        var callerUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var callerRole = User.FindFirst(ClaimTypes.Role)?.Value;
+        var customer = await _service.GetByIdAsync(id, callerRole, callerUserId);
+        if (customer is null) return NotFound();
+        var activity = await _service.GetCustomerActivityAsync(id, callerRole, callerUserId);
+        return Ok(activity);
+    }
+
     /// <summary>Creates a customer.</summary>
     /// <param name="dto">Create payload.</param>
     /// <returns>The created customer.</returns>

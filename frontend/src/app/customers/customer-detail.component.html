@@ -1,3 +1,17 @@
+<div class="page-header">
+  <div class="page-brand">
+    <span class="page-brand-logo"><cs-icon name="person"></cs-icon></span>
+    <div class="page-brand-text">
+      <h1>Customer Detail</h1>
+      <p>{{ customer() ? (customer()!.name + (customer()!.customerDisplayId ? ' · ' + customer()!.customerDisplayId : '')) : 'Loading…' }}</p>
+    </div>
+  </div>
+  <button mat-icon-button class="history-toggle" (click)="togglePanel()"
+          title="Show emails & activity" aria-label="Toggle email and activity panel">
+    <cs-icon name="history"></cs-icon>
+  </button>
+</div>
+
 <a class="back" routerLink="/customers">
   <cs-icon name="arrow_back"></cs-icon> Back to Customers
 </a>
@@ -78,4 +92,165 @@
       </mat-card>
     </div>
   }
+}
+
+@if (panelOpen()) {
+  <aside class="side-panel" id="history-panel"
+    [class.mode-email]="panelMode() === 'email'" [class.mode-activity]="panelMode() === 'activity'"
+    [class.closing]="closing()" (animationend)="onPanelAnimationEnd()">
+    <div class="panel-top">
+      <span class="panel-title">{{ panelMode() === 'email' ? 'Emails' : 'Activity' }}</span>
+      <div class="panel-modes">
+        <button type="button" class="mode-btn" [class.active]="panelMode() === 'email'"
+                (click)="setPanelMode('email')" title="Emails">
+          <cs-icon name="mail"></cs-icon>
+        </button>
+        <button type="button" class="mode-btn" [class.active]="panelMode() === 'activity'"
+                (click)="setPanelMode('activity')" title="Activity history">
+          <cs-icon name="history"></cs-icon>
+        </button>
+      </div>
+      <div class="panel-tools">
+        <button type="button" class="tool-btn" [class.active]="searchVisible()"
+                (click)="toggleSearch()" title="Search" aria-label="Toggle search">
+          <cs-icon name="search"></cs-icon>
+        </button>
+        <button type="button" class="tool-btn" [class.active]="dateVisible()"
+                (click)="toggleDate()" title="Filter by date" aria-label="Toggle date filter">
+          <cs-icon name="calendar_month"></cs-icon>
+        </button>
+        <button type="button" class="tool-btn reset-btn" (click)="resetFilters()"
+                title="Reset filters" aria-label="Reset filters">
+          <cs-icon name="close"></cs-icon>
+        </button>
+      </div>
+    </div>
+
+    @if (searchVisible()) {
+      @if (panelMode() === 'email') {
+        <div class="panel-search">
+          <mat-form-field appearance="outline" class="card-search">
+            <cs-icon name="search" matPrefix class="prefix-icon"></cs-icon>
+            <input matInput placeholder="Search emails…"
+                   [ngModel]="emailSearch()" (ngModelChange)="emailSearch.set($event)" />
+          </mat-form-field>
+        </div>
+      } @else {
+        <div class="panel-search">
+          <mat-form-field appearance="outline" class="card-search">
+            <cs-icon name="search" matPrefix class="prefix-icon"></cs-icon>
+            <input matInput placeholder="Search activity…"
+                   [ngModel]="activitySearch()" (ngModelChange)="activitySearch.set($event)" />
+          </mat-form-field>
+        </div>
+      }
+    }
+
+    @if (dateVisible()) {
+      @if (panelMode() === 'email') {
+        <div class="panel-date">
+          <mat-form-field appearance="outline" class="date-preset">
+            <mat-label>Date</mat-label>
+            <mat-select [value]="emailDatePreset()" (selectionChange)="emailDatePreset.set($event.value)">
+              @for (p of datePresets; track p) { <mat-option [value]="p">{{ datePresetLabels[p] }}</mat-option> }
+            </mat-select>
+          </mat-form-field>
+          @if (datePresetNeedsInput(emailDatePreset())) {
+            <div class="date-inputs">
+              @if (emailDatePreset() === 'custom') {
+                <input type="date" class="date-input"
+                  [ngModel]="emailDateFrom()" (ngModelChange)="emailDateFrom.set($event)" aria-label="From date" />
+                <input type="date" class="date-input"
+                  [ngModel]="emailDateTo()" (ngModelChange)="emailDateTo.set($event)" aria-label="To date" />
+              } @else {
+                <input type="date" class="date-input"
+                  [ngModel]="emailDateSingle()" (ngModelChange)="emailDateSingle.set($event)" aria-label="Single date" />
+              }
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="panel-date">
+          <mat-form-field appearance="outline" class="date-preset">
+            <mat-label>Date</mat-label>
+            <mat-select [value]="activityDatePreset()" (selectionChange)="activityDatePreset.set($event.value)">
+              @for (p of datePresets; track p) { <mat-option [value]="p">{{ datePresetLabels[p] }}</mat-option> }
+            </mat-select>
+          </mat-form-field>
+          @if (datePresetNeedsInput(activityDatePreset())) {
+            <div class="date-inputs">
+              @if (activityDatePreset() === 'custom') {
+                <input type="date" class="date-input"
+                  [ngModel]="activityDateFrom()" (ngModelChange)="activityDateFrom.set($event)" aria-label="From date" />
+                <input type="date" class="date-input"
+                  [ngModel]="activityDateTo()" (ngModelChange)="activityDateTo.set($event)" aria-label="To date" />
+              } @else {
+                <input type="date" class="date-input"
+                  [ngModel]="activityDateSingle()" (ngModelChange)="activityDateSingle.set($event)" aria-label="Single date" />
+              }
+            </div>
+          }
+        </div>
+      }
+    }
+
+    <div class="panel-body">
+      @if (panelMode() === 'email') {
+        @if (filteredEmails().length === 0) {
+          <p class="muted small empty-note">{{ emails().length === 0 ? 'No emails for this customer yet.' : 'No emails match your search.' }}</p>
+        } @else {
+          <div class="mini-list stagger">
+            @for (e of filteredEmails(); track e.id) {
+              <div class="email-row">
+                <div class="row-head">
+                  <span class="tl-kind kind-email"><cs-icon name="mail"></cs-icon>{{ typeLabel(e.type) }}</span>
+                  <span class="muted tl-time">{{ formatDateTime(e.createdAtUtc) }}</span>
+                </div>
+                <div class="row-title">{{ e.title }}</div>
+                @if (e.recipient) { <div class="muted small row-sub"><cs-icon name="send"></cs-icon>{{ e.recipient }}</div> }
+              </div>
+            }
+          </div>
+        }
+      } @else {
+        @if (filteredActivity().length === 0) {
+          <p class="muted small empty-note">No activity matches your search.</p>
+        } @else {
+          <div class="mini-list stagger">
+            @for (a of filteredActivity(); track a.id) {
+              @if (a.caseId) {
+                <a class="tl-row" [routerLink]="['/cases', a.caseId]" [queryParams]="{ activity: 1 }">
+                  <span class="tl-icon" [class]="'kind-' + a.kind">
+                    <cs-icon [name]="activityIcon(a.kind)"></cs-icon>
+                  </span>
+                  <div class="tl-body">
+                    <div class="tl-head">
+                      <span class="tl-kind" [class]="'kind-' + a.kind">{{ a.label }}</span>
+                      <span class="muted tl-time">{{ formatDateTime(a.atUtc) }}</span>
+                    </div>
+                    <div class="tl-detail">{{ a.detail }}</div>
+                    @if (a.who) { <div class="tl-who">{{ a.who }}</div> }
+                  </div>
+                </a>
+              } @else {
+                <div class="tl-row">
+                  <span class="tl-icon" [class]="'kind-' + a.kind">
+                    <cs-icon [name]="activityIcon(a.kind)"></cs-icon>
+                  </span>
+                  <div class="tl-body">
+                    <div class="tl-head">
+                      <span class="tl-kind" [class]="'kind-' + a.kind">{{ a.label }}</span>
+                      <span class="muted tl-time">{{ formatDateTime(a.atUtc) }}</span>
+                    </div>
+                    <div class="tl-detail">{{ a.detail }}</div>
+                    @if (a.who) { <div class="tl-who">{{ a.who }}</div> }
+                  </div>
+                </div>
+              }
+            }
+          </div>
+        }
+      }
+    </div>
+  </aside>
 }

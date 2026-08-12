@@ -18,7 +18,8 @@ public class CustomerServiceTests
     {
         customers = new FakeRepository<Customer>();
         cases = new FakeRepository<Case>();
-        return new CustomerService.Application.Services.CustomerService(customers, cases);
+        var notifications = new FakeRepository<Notification>();
+        return new CustomerService.Application.Services.CustomerService(customers, cases, notifications);
     }
 
     private static Customer SeedCustomer(FakeRepository<Customer> repo, int id, string name = "Cust")
