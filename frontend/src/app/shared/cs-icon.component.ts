@@ -40,6 +40,14 @@ import {
   KeyRound,
   Pencil,
   Check,
+  Lock,
+  MailOpen,
+  ExternalLink,
+  UserX,
+  Circle,
+  CircleCheck,
+  BadgeCheck,
+  ShieldCheck,
   MessageSquare,
   Send,
   UserCheck,
@@ -50,6 +58,7 @@ import {
   Moon,
   History,
   Calendar,
+  User,
 } from 'lucide-angular/src/icons';
 
 /**
@@ -102,6 +111,19 @@ const ICON_MAP: Record<string, LucideIconData> = {
   moon: Moon,
   history: History,
   calendar_month: Calendar,
+  person: User,
+  lock: Lock,
+  key_round: KeyRound,
+  pencil: Pencil,
+  check: Check,
+  x: X,
+  mail_open: MailOpen,
+  external_link: ExternalLink,
+  person_remove: UserX,
+  task_alt: CircleCheck,
+  lock_reset: KeyRound,
+  verified_user: BadgeCheck,
+  circle: Circle,
 };
 
 @Component({

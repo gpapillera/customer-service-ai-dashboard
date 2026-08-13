@@ -172,6 +172,7 @@ public class CasesController : ControllerBase
     [HttpPost("{id:int}/comments")]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<CaseCommentDto>> PostComment(int id, [FromBody] CreateCaseCommentDto dto)
     {
@@ -181,9 +182,13 @@ public class CasesController : ControllerBase
         }
         var authorUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
             ?? throw new UnauthorizedAccessException("Missing user id claim.");
+        // Server-side Agent scoping (Phase 6): an Agent may only reply to cases
+        // assigned to them. Unassigned/other-agent cases are forbidden — this
+        // mirrors the read-only banner the case detail page shows for Agents.
+        var callerRole = User.FindFirst(ClaimTypes.Role)?.Value;
         try
         {
-            var created = await _comments.AddStaffCommentAsync(id, authorUserId, dto.Body);
+            var created = await _comments.AddStaffCommentAsync(id, authorUserId, dto.Body, callerRole, authorUserId);
             return CreatedAtAction(nameof(GetComments), new { id }, created);
         }
         catch (KeyNotFoundException)

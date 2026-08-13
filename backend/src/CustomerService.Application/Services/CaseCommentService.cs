@@ -1,5 +1,6 @@
 using CustomerService.Application.Dtos;
 using CustomerService.Application.Interfaces;
+using CustomerService.Domain;
 using CustomerService.Domain.Entities;
 using CustomerService.Domain.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -52,16 +53,31 @@ public class CaseCommentService : ICaseCommentService
     }
 
     /// <inheritdoc/>
-    public async Task<CaseCommentDto> AddStaffCommentAsync(int caseId, string authorUserId, string body)
+    public async Task<CaseCommentDto> AddStaffCommentAsync(int caseId, string authorUserId, string body,
+        string? callerRole = null, string? callerUserId = null)
     {
         if (string.IsNullOrWhiteSpace(body))
         {
             throw new ArgumentException("Comment body must not be empty.", nameof(body));
         }
-        if (await _cases.GetByIdAsync(caseId) is null)
+        var c = await _cases.GetByIdAsync(caseId);
+        if (c is null)
         {
             throw new KeyNotFoundException($"Case {caseId} not found.");
         }
+
+        // SERVER-SIDE AGENT SCOPING (Phase 6, mirrors CallLogService): an Agent
+        // may only post to a case assigned to them. Unassigned/other-agent cases
+        // are forbidden even though the case exists — the read-only banner on the
+        // case detail page means exactly this, and a frontend guard alone is not
+        // enough (a crafted request could bypass it). Admin is unaffected.
+        if (string.Equals(callerRole, nameof(UserRole.Agent), StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrEmpty(callerUserId)
+            && c.AssignedToUserId != callerUserId)
+        {
+            throw new ForbiddenException("You can only reply to cases assigned to you.");
+        }
+
         if (await _users.GetByIdAsync(authorUserId) is null)
         {
             throw new KeyNotFoundException($"User {authorUserId} not found.");

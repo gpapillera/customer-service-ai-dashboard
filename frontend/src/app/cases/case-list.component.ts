@@ -9,10 +9,13 @@ import {
   OnInit,
   inject,
   signal,
+  effect,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { interval } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -28,6 +31,7 @@ import { CaseService } from './case.service';
 import { CaseFormComponent } from './case-form.component';
 import { Case } from '../shared/models';
 import { CATEGORIES } from '../shared/categories';
+import { RealtimeService } from '../shared/realtime.service';
 import { DatePreset, DATE_PRESETS, formatDatePreset, filterByDatePreset, positionHeaderDropdown } from '../shared/date-filter';
 import { SearchFilterToolbarComponent } from './search-filter-toolbar/search-filter-toolbar.component';
 import { LayoutComponent } from '../shared/layout/layout.component';
@@ -71,7 +75,8 @@ export class CaseListComponent implements OnInit, OnDestroy {
   /** True only during an explicit sidenav toggle, so the logo animates then. */
   readonly brandAnimate = inject(LayoutComponent).brandAnimate;
   private readonly routeLoading = inject(RouteLoadingService);
-
+  /** Real-time assignment push (SSE). Drives instant refresh on assignment change. */
+  private readonly realtime = inject(RealtimeService);
   readonly cases = signal<Case[]>([]);
   /** Internal data-fetch state. */
   private readonly dataLoading = signal(true);
@@ -81,6 +86,22 @@ export class CaseListComponent implements OnInit, OnDestroy {
   /** Status / priority option lists for the table header filter dropdowns. */
   readonly statuses = ['New', 'InProgress', 'Escalated', 'Resolved', 'Closed'];
   readonly priorities = ['Low', 'Medium', 'High'];
+  /** Silent auto-refresh so an assignment/reassignment shows up without a manual
+      reload (an admin assigning a case to this agent is otherwise invisible until
+      navigation). Mirrors the customer "My Cases" 30s poll. Only active on the
+      normal filtered list path — the customer-detail deep-link branch filters by
+      customerId and is left alone by the poll. */
+  private readonly pollActive = signal(false);
+  private readonly pollTimer = interval(10_000)
+    .pipe(takeUntilDestroyed())
+    .subscribe(() => { if (this.pollActive()) this.silentRefresh(); });
+  /** Instant refresh: when the SSE push reports a case-assignment change, re-fetch
+      the list immediately (≤1 network round-trip — no 30s wait). The 30s poll above
+      remains as a fallback if the stream ever drops. */
+  private readonly rtEffect = effect(() => {
+    this.realtime.caseEvent(); // subscribe
+    if (this.pollActive()) this.silentRefresh();
+  });
 
   /** Initial search value (for query-param pre-fill). */
   toolbarSearch = '';
@@ -212,7 +233,8 @@ export class CaseListComponent implements OnInit, OnDestroy {
     if (assignedToMe) this.filters.update((f) => ({ ...f, assignedToMe: true }));
 
     this.load();
-
+    this.pollActive.set(true);
+    this.realtime.start(); // open the SSE push (instant assignment reflection)
     // Open the create/edit modal when reached via /cases/new or /cases/:id/edit.
     const id = this.route.snapshot.paramMap.get('id');
     if (this.route.snapshot.url.some((s) => s.path === 'new') || id) {
@@ -238,9 +260,24 @@ export class CaseListComponent implements OnInit, OnDestroy {
   /** Reloads cases using the current filter state. */
   load(): void {
     this.dataLoading.set(true);
+    this.fetchAndApply();
+  }
+
+  /**
+   * Silent refresh used by the 30s poll — re-fetches with the current filter
+   * state but does NOT toggle the loading spinner (so the table doesn't flash
+   * every interval). Errors are swallowed so one failed tick doesn't break the
+   * list or the ongoing poll.
+   */
+  private silentRefresh(): void {
+    this.fetchAndApply(true);
+  }
+
+  /** Fetches cases using the current filter state and applies client-side
+      filters (Open pseudo-status, AI-only, search, date preset). When
+      `silent` is true, loading state is left untouched. */
+  private fetchAndApply(silent = false): void {
     const f = this.filters();
-    // "Open" is a pseudo-status (only New / InProgress / Escalated) — fetch all and
-    // filter client-side; aligns with the dashboard OpenCases definition.
     const serverStatus = this.isOpenFilter() ? undefined : f.status || undefined;
     this.service
       .list({
@@ -280,12 +317,16 @@ export class CaseListComponent implements OnInit, OnDestroy {
             );
           }
           this.cases.set(filtered);
-          this.dataLoading.set(false);
-          this.placeHeaderDropdownAfterLoad();
+          if (!silent) {
+            this.dataLoading.set(false);
+            this.placeHeaderDropdownAfterLoad();
+          }
         },
         error: () => {
-          this.dataLoading.set(false);
-          this.placeHeaderDropdownAfterLoad();
+          if (!silent) {
+            this.dataLoading.set(false);
+            this.placeHeaderDropdownAfterLoad();
+          }
         },
       });
   }

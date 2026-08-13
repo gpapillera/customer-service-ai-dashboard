@@ -1,4 +1,4 @@
-import { Component, computed, inject, OnInit, OnDestroy, signal, HostListener, ElementRef, ViewChild } from '@angular/core';
+import { Component, computed, inject, OnInit, OnDestroy, signal, HostListener, ElementRef, ViewChild, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -12,6 +12,7 @@ import { CsIconComponent } from '../shared/cs-icon.component';
 import { KbdNavDirective } from '../shared/keyboard-nav.directive';
 import { NavBadgeService } from '../shared/nav-badge.service';
 import { CaseService } from './case.service';
+import { RealtimeService } from '../shared/realtime.service';
 import { Conversation } from '../shared/models';
 import { LayoutComponent } from '../shared/layout/layout.component';
 
@@ -43,6 +44,14 @@ export class AdminConversationsComponent implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly navBadgeService = inject(NavBadgeService);
   private readonly elementRef = inject(ElementRef);
+  /** Real-time assignment push (SSE). */
+  private readonly realtime = inject(RealtimeService);
+  /** Instant refresh: when an assignment changes (incl. unassign → "Unassigned"
+      label), re-fetch the global Conversations list immediately. */
+  private readonly rtEffect = effect(() => {
+    this.realtime.caseEvent();
+    this.refresh();
+  });
 
   /** Sidenav open state — brand logo hidden when open. */
   readonly sidenavOpen = inject(LayoutComponent).opened;

@@ -18,6 +18,7 @@ import { LayoutComponent } from '../shared/layout/layout.component';
 import { AuthService } from '../auth/auth.service';
 import { ThemeService } from '../shared/theme.service';
 import { DashboardSettingsService } from '../shared/dashboard-settings.service';
+import { RealtimeService } from '../shared/realtime.service';
 
 /**
  * Dashboard: 6 KPI cards, weekly trend line, priority donut, horizontal
@@ -72,6 +73,15 @@ export class DashboardComponent implements OnInit, AfterViewInit {
 
   /** Whether the current user is an Agent (vs Admin). */
   readonly isAgent = computed(() => this.auth.getRole() === 'Agent');
+
+  /** Real-time assignment push (SSE). */
+  private readonly realtime = inject(RealtimeService);
+  /** When an assignment changes anywhere, re-fetch the dashboard so KPI counts
+      (e.g. an agent's "My Cases") update instantly rather than on next visit. */
+  private readonly rtEffect = effect(() => {
+    this.realtime.caseEvent(); // subscribe to the push
+    this.load();
+  });
 
   /** Per-agent workload data (admin-only — populated from /api/users/agent-workload). */
   readonly agentWorkload = signal<AgentWorkload[]>([]);
@@ -150,6 +160,12 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   };
 
   ngOnInit(): void {
+    this.load();
+  }
+
+  /** Loads the dashboard payload and binds charts/KPIs. Re-run on a realtime
+      assignment push so an agent's "My Cases" counts update instantly. */
+  private load(): void {
     this.service.get().subscribe({
       next: (d) => {
         this.data.set(d);

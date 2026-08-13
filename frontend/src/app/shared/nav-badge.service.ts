@@ -1,9 +1,10 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, inject, signal, effect } from '@angular/core';
 import { Router, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CaseService } from '../cases/case.service';
 import { AuthService } from '../auth/auth.service';
+import { RealtimeService } from './realtime.service';
 
 /**
  * Tracks "new item" badge counts for the sidenav navigation links.
@@ -22,6 +23,8 @@ export class NavBadgeService {
   private readonly caseService = inject(CaseService);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  /** Real-time assignment push (SSE) — refreshes badges the instant an assignment changes. */
+  private readonly realtime = inject(RealtimeService);
 
   /** Badge count keyed by route path (e.g. '/dashboard', '/messages'). */
   readonly badges = signal<Record<string, number>>({});
@@ -57,6 +60,14 @@ export class NavBadgeService {
     if (typeof window !== 'undefined' && typeof window.addEventListener !== 'undefined') {
       window.addEventListener('cs:comment-posted', () => this.refresh());
     }
+
+    // Real-time: when an assignment changes anywhere, refresh badges instantly
+    // (e.g. an agent's Messages/Cases sidebar counts update the moment a case
+    // is assigned/unassigned — no wait for the 10s poll).
+    effect(() => {
+      this.realtime.caseEvent();
+      this.refresh();
+    });
 
     // The per-section "last visited" timestamps are scoped by user id (see
     // keyFor), so each account tracks its own "new since I last looked" state.

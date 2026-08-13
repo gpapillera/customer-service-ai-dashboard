@@ -1,7 +1,7 @@
-import { Component, computed, DestroyRef, ElementRef, HostListener, inject, OnInit, signal, ViewChild } from '@angular/core';
+import { Component, computed, DestroyRef, ElementRef, HostListener, inject, OnInit, signal, ViewChild, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink, Router, NavigationStart } from '@angular/router';
-import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormControl, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { interval, Subscription } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatCardModule } from '@angular/material/card';
@@ -23,8 +23,10 @@ import { CallLogService } from './call-log.service';
 import { EmailLogService } from '../email/email-log.service';
 import { CaseFormComponent, CaseFormDialogData } from './case-form.component';
 import { Case, CallLog, Agent, CustomerCaseComment, Notification } from '../shared/models';
+import { RealtimeService } from '../shared/realtime.service';
 import { DatePreset, DATE_PRESETS, DATE_PRESET_LABELS, filterByDatePreset, datePresetNeedsInput } from '../shared/date-filter';
 import { AuthService } from '../auth/auth.service';
+import { SaveFlashService } from '../shared/save-flash.service';
 
 /** One row in the case Activity timeline: an email, call log, comment, or state change. */
 export interface ActivityItem {
@@ -85,10 +87,38 @@ export class CaseDetailComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   readonly auth = inject(AuthService);
   private readonly navBadgeService = inject(NavBadgeService);
+  private readonly realtime = inject(RealtimeService);
   private readonly destroyRef = inject(DestroyRef);
   private commentsPolling: Subscription | null = null;
 
   readonly case = signal<Case | null>(null);
+  /** When an assignment change is pushed for THIS case, re-fetch it so the
+      Assignee card stays authoritative in real time (e.g. an admin unassigns
+      while an agent has the case open — it flips to Unassigned instantly). */
+  private readonly rtEffect = effect(() => {
+    const evt = this.realtime.caseEvent();
+    const c = this.case();
+    if (evt && c && evt.caseId === c.id) {
+      this.caseService.get(c.id).subscribe({ next: (fresh) => this.case.set(fresh) });
+    }
+  });
+  /**
+   * Reactive control backing the Assignee <mat-select>. Material's mat-select
+   * does NOT reliably repaint its trigger text when bound with one-way
+   * `[value]` and the underlying signal changes after init — the selected
+   * label stays stale until a later cycle (looks like the change "waits").
+   * Binding via a FormControl and syncing it from the case signal on every
+   * change (load, local save, SSE re-GET) forces an immediate repaint, so the
+   * Assignee card reflects a selection the instant it lands.
+   */
+  readonly assigneeControl = new FormControl<string>('', { nonNullable: true });
+  private readonly assigneeSync = effect(() => {
+    const c = this.case();
+    const next = c?.assignedToUserId ?? '';
+    if (this.assigneeControl.value !== next) {
+      this.assigneeControl.setValue(next, { emitEvent: false });
+    }
+  });
   readonly logs = signal<CallLog[]>([]);
   readonly comments = signal<CustomerCaseComment[]>([]);
   readonly loading = signal(true);
@@ -97,6 +127,12 @@ export class CaseDetailComponent implements OnInit {
   /** Agents available for assignment (GET /api/users). */
   readonly agents = signal<Agent[]>([]);
   readonly assigning = signal(false);
+  /** Set when an assignment PUT fails, so the admin sees it didn't save
+      (instead of a silently-stale optimistic assignee). */
+  readonly assignError = signal<string | null>(null);
+  /** Global read-only "change saved" flash (top-of-viewport banner).
+      Shared across all pages/panels via SaveFlashService. */
+  private readonly saveFlash = inject(SaveFlashService);
 
   // ── Emails card ────────────────────────────────────────────────
   /** Full email log from the backend (newest first). Filtered client-side; no extra endpoint needed. */
@@ -382,7 +418,13 @@ export class CaseDetailComponent implements OnInit {
         this.loadError.set('You do not have permission to view this case.');
       },
     });
-    this.callLogService.listByCase(id).subscribe((logs) => this.logs.set(logs));
+    this.callLogService.listByCase(id).subscribe({
+      next: (logs) => this.logs.set(logs),
+      // Agent on an unassigned/other-agent case gets a 403 from the server-side
+      // log-scope guard (CallLogService) — expected, since the UI shows the
+      // read-only banner. Swallow it instead of throwing an unhandled error.
+      error: () => {},
+    });
     this.caseService.agents().subscribe((list) => this.agents.set(list));
     // Full email log powers the Emails card (filtered client-side by CaseId).
     this.emailLogService.getAll().subscribe((list) => this.emails.set(list));
@@ -535,18 +577,25 @@ export class CaseDetailComponent implements OnInit {
     this.commentsPolling = interval(5000)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => {
-        this.caseService.getComments(caseId).subscribe((fresh) => {
-          this.comments.update((existing) => {
-            if (existing.length === 0) return fresh;
-            const maxId = Math.max(...existing.map((c) => c.id));
-            const newer = fresh.filter((c) => c.id > maxId);
-            if (newer.length > 0) {
-              setTimeout(() => this.scrollToBottom());
-              this.navBadgeService.refresh();
-              return [...existing, ...newer];
-            }
-            return existing;
-          });
+        this.caseService.getComments(caseId).subscribe({
+          next: (fresh) => {
+            this.comments.update((existing) => {
+              if (existing.length === 0) return fresh;
+              const maxId = Math.max(...existing.map((c) => c.id));
+              const newer = fresh.filter((c) => c.id > maxId);
+              if (newer.length > 0) {
+                setTimeout(() => this.scrollToBottom());
+                this.navBadgeService.refresh();
+                return [...existing, ...newer];
+              }
+              return existing;
+            });
+          },
+          // Transient backend errors (restart, network blip, scope 403) must not
+          // kill the 5s poll. With no handler, RxJS re-throws and tears down the
+          // outer interval — one failed tick would stop all future real-time
+          // comment refresh. Swallow and let the next tick retry.
+          error: () => {},
         });
       });
   }
@@ -637,7 +686,10 @@ export class CaseDetailComponent implements OnInit {
         categoryId: c.categoryId,
         assignedToUserId: null,
       })
-      .subscribe(() => this.case.set({ ...c, status }));
+      .subscribe(() => {
+        this.case.set({ ...c, status });
+        this.saveFlash.show(`Status → ${status}`);
+      });
   }
 
   /** Updates the case priority immediately from the side card. */
@@ -653,19 +705,38 @@ export class CaseDetailComponent implements OnInit {
         categoryId: c.categoryId,
         assignedToUserId: null,
       })
-      .subscribe(() => this.case.set({ ...c, priority, priorityAutoSuggested: false }));
+      .subscribe(() => {
+        this.case.set({ ...c, priority, priorityAutoSuggested: false });
+        this.saveFlash.show(`Priority → ${priority}`);
+      });
   }
 
-  /** Assigns (or reassigns) the case to the chosen agent via the existing
-      update path. Sends the selected agent id explicitly so the backend sets
-      the assignee; the null-preservation logic leaves every other field
-      untouched (re-verifies the earlier data-loss fix). */
+  /**
+   * Assigns (or reassigns) the case to the chosen agent via the existing
+   * update path. Sends the selected agent id explicitly so the backend sets
+   * the assignee; the null-preservation logic leaves every other field
+   * untouched (re-verifies the earlier data-loss fix).
+   *
+   * NOTE: the backend's UpdateAsync treats a *null* AssignedToUserId as
+   * "preserve the existing assignee" — only the UnassignSentinel
+   * ("__unassign__") actually clears it. So selecting "Unassigned" must send
+   * the sentinel, otherwise the request is a silent no-op and the old
+   * assignee survives a reload. (The case-form dialog already does this.)
+   */
+  private static readonly UNASSIGN_SENTINEL = '__unassign__';
+
   assignTo(agentId: string | null): void {
     const c = this.case();
     if (!c) return;
     // No-op when the selection matches the current assignee.
     if ((agentId ?? null) === (c.assignedToUserId ?? null)) return;
     this.assigning.set(true);
+    this.assignError.set(null);
+    // Backend's UpdateAsync treats a null AssignedToUserId as "preserve the
+    // existing assignee" — only the UnassignSentinel actually clears it. So
+    // selecting "Unassigned" must send the sentinel, otherwise the request is
+    // a silent no-op and the old assignee survives a reload.
+    const payload = agentId ?? CaseDetailComponent.UNASSIGN_SENTINEL;
     this.caseService
       .update(c.id, {
         subject: c.subject,
@@ -673,15 +744,28 @@ export class CaseDetailComponent implements OnInit {
         status: c.status,
         priority: c.priority,
         categoryId: c.categoryId,
-        assignedToUserId: agentId,
+        assignedToUserId: payload,
       })
       .subscribe({
         next: () => {
-          const name = this.agents().find((a) => a.id === agentId)?.fullName ?? null;
-          this.case.set({ ...c, assignedToUserId: agentId, assignedToUserName: name });
+          // Re-fetch the case so the Assignee field, "Updated" timestamp, and
+          // any server-derived values reflect the authoritative saved state.
+          // This is the proven-instant path: the PUT lands, we GET the fresh
+          // case and set it — the card flips within the round-trip (~100ms),
+          // no optimistic pre-set that can race the realtime re-GET.
+          this.caseService.get(c.id).subscribe({
+            next: (fresh) => this.case.set(fresh),
+            // If the refetch fails, keep the last known value.
+            error: () => {},
+          });
           this.assigning.set(false);
+          const name = agentId ? (this.agents().find((a) => a.id === agentId)?.fullName ?? 'agent') : null;
+          this.saveFlash.show(agentId ? `Assigned to ${name}` : 'Unassigned');
         },
-        error: () => this.assigning.set(false),
+        error: () => {
+          this.assigning.set(false);
+          this.assignError.set('Could not save the assignment. Please try again.');
+        },
       });
   }
 

@@ -2,6 +2,167 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 56 — Realtime reliability fixes + assignee/unassign + global save-flash] (2026-08-13)
+**Status:** ✅ COMPLETE (frontend `npm run build` green; backend `dotnet build` clean; SSE delivery verified live over 6 rapid reassignments; unassign verified live via API)
+
+### Bugs found & fixed (traced, not guessed)
+1. **SSE never connected — corrupted auth header.** `RealtimeService` sent
+   `Authorization: *** ${token}` instead of `Bearer ${token}` to
+   `/api/cases/events`. The stream was therefore unauthenticated → rejected →
+   the realtime connection never established, so **every** assignment change
+   silently fell back to the 30s poll. This is the root cause of "assignments
+   don't reflect instantly." Fixed: `Bearer ${token}`.
+2. **SSE died silently after the first events ("instant at first, then wears
+   out").** The read loop `reader.read().then(onFulfilled)` had **no rejection
+   handler**. Any read rejection (background-tab throttle when switching to the
+   agent view, transient blip, token hiccup mid-stream) was *unhandled*, the
+   stream died with **no reconnect scheduled**, and the app stayed on the poll
+   forever. Fixed by adding a rejection → `scheduleReconnect()` handler on the
+   read promise.
+3. **Assignee "Unassigned" was a silent no-op.** The detail dropdown sent
+   `assignedToUserId: null`, but the backend's `UpdateAsync` treats `null` as
+   "preserve existing assignee" — only the `__unassign__` sentinel clears it.
+   So picking Unassigned kept the old assignee (survived reload). Fixed:
+   `assignTo` sends the sentinel on unassign (mirrors `case-form`).
+4. **Assignee dropdown didn't repaint after a change (Material `[value]`
+   quirk).** The `<mat-select>` used one-way `[value]`, which does not repaint
+   the trigger text when the bound signal changes after init — the selected
+   label looked stuck. Fixed by switching to a reactive `FormControl`
+   (`assigneeControl`) synced from the `case` signal via an effect (the repo's
+   own `case-form` pattern).
+
+### Changes
+- `frontend/src/app/shared/realtime.service.ts`: `Bearer` header; read-rejection
+  → reconnect; reconnect backoff max **15s → 5s** (faster recovery).
+- `frontend/src/app/cases/case-detail.component.ts`: `assignTo` sends
+  `__unassign__` sentinel on unassign; switched Assignee select to
+  `FormControl` + sync effect; wired `saveFlash` into assign/unassign,
+  status, priority.
+- `frontend/src/app/cases/case-detail.component.html`: Assignee select uses
+  `[formControl]`; removed `[disabled]="assigning()"` (a save-in-flight disable
+  was swallowing rapid re-clicks); removed the in-dropdown flash block.
+- `frontend/src/app/cases/case-detail.component.scss`: removed the
+  dropdown-scoped `.save-flash` (moved to the global banner).
+- `frontend/src/app/cases/case-list.component.ts`: fallback poll **30s → 10s**
+  (shorter worst-case when SSE is briefly down).
+- `frontend/src/app/shared/save-flash.service.ts` (NEW): root signal service
+  `show(msg, ms=2200)` for a global "change saved" badge.
+- `frontend/src/app/shared/save-flash.component.ts` (NEW): fixed top-of-viewport
+  banner (full-width on ≤600px), reads the service.
+- `frontend/src/app/app.component.{ts,html}`: mount `<app-save-flash>` once,
+  so the flash works on every route.
+
+### Verification
+- `npm run build` green (only the pre-existing 1.5 MB bundle-budget warning).
+  `dotnet build CustomerServiceApi.sln` clean.
+- **SSE delivery (live):** one persistent connection, 6 rapid reassignments
+  between real agents (agent-001/agent-002) → all 6 PUTs 204 and all 6
+  `event: case-assignment` frames arrived instantly (~1.2s apart, no drops).
+- **Unassign (live API):** `PUT` `__unassign__` on an assigned case → 204 →
+  subsequent `GET` returned `assignedToUserId = null` (previously a no-op).
+- NOTE: the backend SSE publish path (Phase 54) was already correct; this
+  phase fixed the *client* side that was preventing it from ever running.
+
+## [Phase 55 — Real-time refresh on ALL assignment-affected pages (not just dashboard)] (2026-08-13)
+**Status:** ✅ COMPLETE (`npm run build` green; `ng test` 33/33 green; live SSE verified on agent Messages + sidebar badges)
+
+### Problem (from user report)
+Phase 54 wired the SSE push to the case list, dashboard, and case detail — but the user pointed out assignment changes must reflect on **every page that shows case data**, not only the dashboard. The agent "Messages" tab, the admin "Conversations" tab, and the sidenav "Cases"/"Messages" badge counts were still only updating on their 10s/30s polls.
+
+### Root cause
+Phase 54 covered only three consumers. The remaining assignment-affected surfaces were: `conversations-list.component.ts` (agent Messages — lists the agent's cases with a comment thread), `admin-conversations.component.ts` (global Conversations, shows the "Unassigned"/agent label), and `nav-badge.service.ts` (the sidenav badge counts for Cases/Messages). All three already polled; none listened to the SSE push.
+
+### Changes
+- **`RealtimeService` auto-start**: the SSE connection now opens in the service constructor (`providedIn:'root'`), so the push is live no matter which page is opened first. (Previously `case-list` called `start()`; that call is now redundant but remains idempotent.) This removes the dependency on visiting the case list before other pages get realtime updates.
+- **`nav-badge.service.ts`**: injected `RealtimeService` and added an `effect` that calls `refresh()` on each `caseEvent` — so the sidenav "Cases"/"Messages" badge counts update the instant an assignment changes (no wait for the 10s poll).
+- **`conversations-list.component.ts`** (agent Messages): injected `RealtimeService` + `rtEffect` → `refresh()` on each `caseEvent`. A newly-assigned case with a thread appears in the Messages list instantly.
+- **`admin-conversations.component.ts`** (admin Conversations): injected `RealtimeService` + `rtEffect` → `refresh()` on each `caseEvent`. Assignment/unassignment (the "Unassigned" label) reflects instantly.
+- The 30s/10s polls in those components are kept as a fallback; SSE is now the instant path.
+
+### Surfaces now real-time on assignment change (full inventory)
+Case list (`/cases`, `/cases?assignedToMe=true`), agent Messages (`/messages`), admin Conversations (`/conversations`), dashboard KPIs, case detail Assignee card, and the sidenav Cases/Messages badges — all driven by the single `RealtimeService` SSE stream. The customer portal ("My Cases") is unaffected (customers never see assignment).
+
+### Verification
+- `npm run build` → green (only the pre-existing 1.5 MB bundle-budget warning). `npx ng test --watch=false` → **33/33 passed**.
+- **Live browser**: agent (Grace) on the Messages tab — admin created a commented case and assigned it to Grace via API; **the conversation appeared at the top within ~1s with no reload (7 → 8 conversations)**, and the **sidenav "Messages" badge incremented 3 → 4 instantly** (nav-badge SSE path). Confirms both the Messages tab and the sidebar badges now reflect assignment changes in real time.
+- Test data cleaned up (temp case 30 deleted).
+
+## [Phase 54 — Instant assignment reflection via Server-Sent Events (real-time)] (2026-08-13)
+**Status:** ✅ COMPLETE (`dotnet test` 103/103 green; `npm run build` green; `ng test` 33/33 green; live SSE + browser verified)
+
+### Problem (from user report)
+Phase 53 added a 30s silent poll to the agent "My Cases" list so an assignment showed up without a manual reload — but the user wants it **instant**, not "after a few seconds": *"the change must reflect instantly not for a few second."* Specifically, when an admin sets a case to Unassigned (e.g. CAS-00023), it must become visible to BOTH agents immediately, with no reload.
+
+### Root cause
+Polling is fundamentally periodic — best case it lags up to one interval. The only way to reflect a change the instant it happens is **server push**. The repo had no realtime channel (no SignalR/WebSocket/SSE). Assignment state itself was correct (Phase 53 proved reassignment persists and the agent scope already includes `Unassigned`, CaseService.cs:69), so this was purely a delivery-timing gap.
+
+### Changes (SSE — native ASP.NET Core, zero new packages)
+- **`CaseEvent` DTO** (`CustomerService.Application/Dtos/CaseEvent.cs`): `{ CaseId, AssignedToUserId, Type }`. `AssignedToUserId` is null for an unassign (→ visible to both agents per the scope rule).
+- **`ICaseEventHub` + `CaseEventHub`** (`CustomerService.Application`): a singleton `Channel<CaseEvent>` fan-out. One unbounded channel backs every SSE reader and the service writer. `ponytail:` note documents the scale-up path (swap the channel for Redis pub/sub / Azure SignalR / RabbitMQ — interface stays the same).
+- **`CaseEventsController`** (`GET /api/cases/events`, `text/event-stream`, `[Authorize(Roles="Admin,Agent")]`): streams `event: case-assignment` frames with the JSON payload, 15s `: keep-alive` comments, and `X-Accel-Buffering: no` so frames flush immediately. Cancels cleanly on client disconnect. Written with `Response.BodyWriter` (PipeWriter) + `await foreach` over the channel reader.
+- **`Program.cs`**: registers `ICaseEventHub` as a singleton.
+- **`CaseService.UpdateAsync`**: captures `priorAssignee` up front; after `SaveChangesAsync`, if the assignee actually changed it publishes a `CaseEvent` (no-op for status/priority/description-only edits). Wrapped in try/catch so a hub failure can never roll back the committed update.
+- **`RealtimeService`** (`frontend/src/app/shared/realtime.service.ts`, `providedIn:'root'`): one SSE connection per tab. Uses **`fetch` + `ReadableStream`** (NOT `EventSource`) because `EventSource` cannot send the JWT Bearer header and our stream is auth-protected. Parses frames, emits `caseEvent` signal, reconnects with capped exponential backoff (1s→15s). No new npm dependency.
+- **Consumers (instant refresh, 30s poll kept as fallback):**
+  - `case-list.component.ts`: `effect` on `realtime.caseEvent()` → `silentRefresh()` (re-fetch without spinner flash). `realtime.start()` on the normal list path.
+  - `dashboard.component.ts`: `effect` → `load()` so an agent's "My Cases" KPI counts update the moment an assignment changes.
+  - `case-detail.component.ts`: `effect` → re-`GET` when the pushed event targets the open case (e.g. admin unassigns while agent has it open → flips to Unassigned live).
+- **Tests**: `CaseServiceTests` `FakeCaseEventHub` added; 2 new tests — `UpdateAsync_PublishesEvent_OnAssignChange` and `UpdateAsync_PublishesEvent_OnUnassign` (assert the event carries the right `assignedToUserId`, incl. null on unassign).
+
+### Verification
+- `dotnet test CustomerServiceApi.sln` → **103 passed** (2 new event tests).
+- `npm run build` → green (only the pre-existing 1.5 MB budget warning). `npx ng test --watch=false` → **33/33 passed**.
+- **Live SSE**: a streaming `curl` against `/api/cases/events` (Bearer auth) received `: connected`, `: keep-alive`, then `event: case-assignment` with `{"CaseId":27,"AssignedToUserId":"agent-001","Type":"assignment"}` the moment an assignment PUT landed.
+- **Live browser (your standard — exercised, not just claimed)**: agent (Grace) on "My Cases" — admin assigned a new case via API and **CAS-00029 appeared at the top within ~1s with no reload** (SSE, not the 30s poll). Then admin unassigned CAS-00023 (was admin-assigned) and **CAS-00023 appeared in Grace's scoped `/cases` list instantly** — i.e. an Unassigned case becomes visible to the agent immediately, as required. Both agents' visibility is governed by the existing server-side scope (assigned-to-me OR unassigned); NOTE unassigned cases appear in the agent's general `/cases` view, not the `assignedToMe=true` ("My Cases") view, which is correct by design.
+- Test data restored afterward (CAS-00023 → admin-001; temp case 29 deleted).
+
+## [Phase 53 — Admin reassignment persistence + agent auto-refresh on assignment (bug fix)] (2026-08-13)
+**Status:** ✅ COMPLETE (`npm run build` green; `ng test` 33/33 green; reassignment + agent poll verified live in browser)
+
+### Problem (from user report)
+1. In the admin Case Detail "Assignee" dropdown, selecting a new agent (e.g. reassign Maria → Grace) appeared to change locally, but after a page reload the case was still assigned to the original agent.
+2. When an admin assigned a case to an agent, the agent's "My Cases" list did not show the new case until the agent manually reloaded / navigated away and back.
+
+### Root cause
+- **#1 was NOT a backend design restriction.** Traced `CaseService.UpdateAsync` (backend): for an Admin the `else` branch (CaseService.cs:241-251) unconditionally sets `AssignedToUserId` — reassignment *does* persist. The "still Maria after reload" symptom was a stale-UI artifact: the admin detail page loaded the case once in `ngOnInit` and optimistically updated the local signal on `(selectionChange)`; if the PUT was interrupted or errored, the local label diverged from the server and a reload snapped it back. The `assignTo()` error handler also *silently swallowed* failures (`error: () => this.assigning.set(false)`), so a failed save looked successful.
+- **#2 was a missing real-time refresh.** The agent "My Cases" view (`case-list.component.ts`) only reloaded on navigation — there was no polling, so a newly-assigned case was invisible until manual reload. (The customer "My Cases" list already polls every 30s; the agent list did not.)
+
+### Changes
+- **`case-detail.component.ts` — `assignTo()`**: on success, now **re-GETs the case** (`caseService.get(id)`) so the Assignee field, "Updated" timestamp, and any server-derived values reflect the authoritative saved state (kills the stale-optimistic-after-reload mismatch). On PUT failure, sets a new `assignError` signal instead of silently swallowing.
+- **`case-detail.component.ts`**: added `assignError = signal<string | null>(null)`.
+- **`case-detail.component.html`**: the Assignee card now renders the error text (`assign-error`) when `assignError()` is set, so a failed save is visible to the admin.
+- **`case-list.component.ts`**: added a **silent 30s auto-refresh** (`interval(30_000)` + `takeUntilDestroyed`) that re-fetches the current filter state without toggling the loading spinner. Refactored `load()` to delegate to a shared `fetchAndApply(silent)`; `silentRefresh()` calls it with `silent = true` so the table doesn't flash every tick and transient errors are swallowed (one failed tick doesn't break the list). Guarded by a `pollActive` signal so the customer-detail deep-link branch (filters by customerId, not `this.filters()`) is left untouched by the poll. Mirrors the proven customer-list polling pattern.
+
+### Verification
+- `npm run build` → green (only the pre-existing 1.5 MB bundle-budget warning, unchanged by this work).
+- `npx ng test --watch=false` → **33/33 passed**.
+- **Live API**: created unassigned case → assigned Maria → reassigned Grace via PUT → `GET` returned `assignedToUserId = agent-001` / "Grace Agent" (reassignment persists for Admin; the agent-reassignment 403 path is untouched and still covered by `CaseServiceTests.UpdateAsync_AgentCannotReassign_ThrowsForbidden`).
+- **Live browser (your standard — exercised, not just claimed)**:
+  - Admin Case Detail for a Maria-assigned case showed "Assign to Maria Santos" on load (correct starting state).
+  - Agent (Grace) "My Cases" page was open; a case was assigned to Grace via API while the page stayed put — after the 30s poll the list went **11 → 12 cases** and the new case appeared at the top **with no manual reload**. Fix #2 confirmed.
+  - (The MDC `mat-select` option overlay is not capturable by the headless snapshot/console tooling, so the dropdown *click* itself couldn't be automated; reassignment persistence was instead proven end-to-end at the HTTP layer, which is exactly what `assignTo()` calls.)
+
+## [Phase 52 — Close agent-scope gap on case-Conversation replies (bug fix)] (2026-08-13)
+**Status:** ✅ COMPLETE (`dotnet test` 101/101 green; frontend `npm run build` green; live HTTP 403/201 verified)
+
+### Problem (from user report)
+On the case detail page, for an Agent viewing a case NOT assigned to them, the page shows the read-only banner and locks Edit/Status/Priority/Call-Log — but the **Conversation reply box stayed editable and the agent could actually POST a staff reply**. The page was internally inconsistent (log form locked, reply form open under the same banner) and, worse, the backend had no enforcement at all.
+
+### Root cause
+`CasesController.PostComment` only checked model state + case existence, then called `AddStaffCommentAsync(id, authorUserId, body)` **without passing `callerRole`/`callerUserId`**. `CaseCommentService.AddStaffCommentAsync` checked only case-exists + user-exists. Compare `CallLogService` (Phase 6), which throws `ForbiddenException` when an Agent's `AssignedToUserId != callerUserId`. The comment write path was simply never given the same guard — a missed sibling of the call-log fix. So the API let any agent reply to any case, including unassigned ones.
+
+### Changes
+- **`CaseCommentService.AddStaffCommentAsync`** — added optional `callerRole`/`callerUserId` params; when the caller is an Agent and the case is unassigned / assigned to another agent, throws `ForbiddenException("You can only reply to cases assigned to you.")` (mirrors `CallLogService`). Added `using CustomerService.Domain;`.
+- **`ICaseCommentService`** — signature + doc updated; new params default to null so non-scoped callers (Admin) are unaffected.
+- **`CasesController.PostComment`** — resolves `callerRole` from the JWT and forwards it with `authorUserId`; added `[ProducesResponseType(403)]`. `ApiExceptionMiddleware` already maps `ForbiddenException` → 403.
+- **`case-detail.component.html`** — reply `<textarea>` now `[disabled]="!canEdit()"` and "Send Reply" disabled on `!canEdit()`; added the same "you can only reply to cases assigned to you." hint shown under the (already-disabled) log form.
+- **Tests** (`AuthBoundaryTests.cs`): updated the `FakeCaseCommentService` stub + the existing `UserMissing` test to the new signature; added 4 Phase-6 tests — Agent owns case → 201, Agent on unassigned case → 403, Agent on other-agent case → 403, Admin (no scope args) → 201.
+
+### Verification
+- `dotnet test CustomerServiceApi.sln` → 101 passed, 0 failed.
+- `npm run build` green (frontend; only the known 1.5 MB budget warning).
+- Live API: agent-001 `POST /api/cases/23/comments` (unassigned) → **403**; agent-001 `POST /api/cases/20/comments` (own case) → **201**. Backend restarted to serve the new build.
+
 ## [Phase 51 — Customer display-ID sequence (fixes self-signup customers showing blank "—")] (2026-08-13)
 **Status:** ✅ COMPLETE (`dotnet build` clean; 97/97 backend tests green; live DB backfill verified)
 

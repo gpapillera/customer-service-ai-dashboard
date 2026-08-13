@@ -4,6 +4,7 @@ using CustomerService.Api.Controllers;
 using CustomerService.Application.Dtos;
 using CustomerService.Application.Interfaces;
 using CustomerService.Application.Services;
+using CustomerService.Domain;
 using CustomerService.Domain.Entities;
 using CustomerService.Domain.Interfaces;
 using CustomerService.Tests.Fakes;
@@ -370,8 +371,60 @@ public class AuthBoundaryTests
         var svc = BuildCommentService(out var cases, out var comments, out var users, out _);
         await (cases as IRepository<Case>).AddAsync(new Case { Id = 1, CustomerId = 1, Subject = "S" });
 
-        await Assert.ThrowsAsync<KeyNotFoundException>(() => svc.AddStaffCommentAsync(1, "ghost", "hi"));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => svc.AddStaffCommentAsync(1, "ghost", "hi", null, null));
         Assert.Empty(comments.Query());
+    }
+
+    // ── Phase 6: Agent scoping on staff replies (mirrors CallLogService) ──
+
+    [Fact]
+    public async Task AddStaffCommentAsync_Allows_WhenAgentOwnsCase()
+    {
+        var svc = BuildCommentService(out var cases, out var comments, out var users, out _);
+        await (cases as IRepository<Case>).AddAsync(new Case { Id = 1, CustomerId = 1, Subject = "S", AssignedToUserId = "agent-1" });
+        await (users as IRepository<User>).AddAsync(new User { Id = "agent-1", FullName = "Grace Agent" });
+
+        var dto = await svc.AddStaffCommentAsync(1, "agent-1", "Looking into this", "Agent", "agent-1");
+
+        Assert.Equal("Grace Agent", dto.AuthorDisplayName);
+        Assert.Single(comments.Query());
+    }
+
+    [Fact]
+    public async Task AddStaffCommentAsync_Forbidden_WhenAgentUnassignedCase()
+    {
+        var svc = BuildCommentService(out var cases, out var comments, out var users, out _);
+        await (cases as IRepository<Case>).AddAsync(new Case { Id = 16, CustomerId = 1, Subject = "S" }); // no assignee
+        await (users as IRepository<User>).AddAsync(new User { Id = "agent-1", FullName = "Grace Agent" });
+
+        await Assert.ThrowsAsync<ForbiddenException>(() => svc.AddStaffCommentAsync(16, "agent-1", "hi", "Agent", "agent-1"));
+        Assert.Empty(comments.Query()); // service never persisted
+    }
+
+    [Fact]
+    public async Task AddStaffCommentAsync_Forbidden_WhenCaseAssignedToOtherAgent()
+    {
+        var svc = BuildCommentService(out var cases, out var comments, out var users, out _);
+        await (cases as IRepository<Case>).AddAsync(new Case { Id = 5, CustomerId = 1, Subject = "S", AssignedToUserId = "agent-002" });
+        await (users as IRepository<User>).AddAsync(new User { Id = "agent-1", FullName = "Grace Agent" });
+
+        await Assert.ThrowsAsync<ForbiddenException>(() => svc.AddStaffCommentAsync(5, "agent-1", "hi", "Agent", "agent-1"));
+        Assert.Empty(comments.Query());
+    }
+
+    [Fact]
+    public async Task AddStaffCommentAsync_Allows_WhenNoScopeArgsPassed_AdminUnaffected()
+    {
+        // Backwards-compatible: callers that don't pass scope (e.g. Admin path
+        // with no role) keep the pre-guard behavior.
+        var svc = BuildCommentService(out var cases, out var comments, out var users, out _);
+        await (cases as IRepository<Case>).AddAsync(new Case { Id = 1, CustomerId = 1, Subject = "S" });
+        await (users as IRepository<User>).AddAsync(new User { Id = "agent-1", FullName = "Grace Agent" });
+
+        var dto = await svc.AddStaffCommentAsync(1, "agent-1", "Admin can post anywhere", null, null);
+
+        Assert.Single(comments.Query());
+        Assert.Equal("Grace Agent", dto.AuthorDisplayName);
     }
 
     // ---------------------------------------------------------------------
@@ -391,7 +444,8 @@ public class AuthBoundaryTests
         public Task<IReadOnlyList<CaseCommentDto>?> GetCommentsAsync(int caseId)
             => Task.FromResult<IReadOnlyList<CaseCommentDto>?>(Array.Empty<CaseCommentDto>());
 
-        public Task<CaseCommentDto> AddStaffCommentAsync(int caseId, string authorUserId, string body)
+        public Task<CaseCommentDto> AddStaffCommentAsync(int caseId, string authorUserId, string body,
+            string? callerRole = null, string? callerUserId = null)
             => Task.FromResult(new CaseCommentDto { Id = 1, AuthorDisplayName = authorUserId, IsStaff = true, Body = body });
 
         public Task<CaseCommentDto> AddCustomerCommentAsync(int caseId, int authorCustomerId, string body)

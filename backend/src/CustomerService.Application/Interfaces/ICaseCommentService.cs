@@ -18,13 +18,17 @@ public interface ICaseCommentService
 
     /// <summary>
     /// Posts a comment authored by a STAFF user. Enforces that exactly one
-    /// author is set (staff here). Throws if the case does not exist or the
-    /// body is empty/whitespace.
+    /// author is set (staff here). Throws if the case does not exist, the body
+    /// is empty/whitespace, or (for an Agent caller) the case is not assigned to
+    /// them (Phase 6 server-side scoping, mirroring CallLogService).
     /// </summary>
     /// <param name="caseId">Case id.</param>
     /// <param name="authorUserId">Staff user id (from the JWT).</param>
     /// <param name="body">Comment body.</param>
-    Task<CaseCommentDto> AddStaffCommentAsync(int caseId, string authorUserId, string body);
+    /// <param name="callerRole">Role of the calling user (used for Agent scoping).</param>
+    /// <param name="callerUserId">Id of the calling user (used for Agent scoping).</param>
+    Task<CaseCommentDto> AddStaffCommentAsync(int caseId, string authorUserId, string body,
+        string? callerRole = null, string? callerUserId = null);
 
     /// <summary>
     /// Posts a comment authored by a CUSTOMER. Enforces that exactly one author

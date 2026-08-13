@@ -181,13 +181,17 @@
                   <mat-label>Reply</mat-label>
                   <textarea matInput formControlName="body" rows="2"
                     placeholder="Type your reply to the customer…"
+                    [disabled]="!canEdit()"
                     (keydown)="onTextareaKeydown($event, 'comment')"></textarea>
                 </mat-form-field>
                 <button mat-flat-button color="primary" type="submit"
-                  [disabled]="commentForm.invalid || savingComment()">
+                  [disabled]="!canEdit() || commentForm.invalid || savingComment()">
                   <cs-icon name="send"></cs-icon> Send Reply
                 </button>
               </form>
+              @if (!canEdit()) {
+                <p class="muted small comment-readonly">You can only reply to cases assigned to you.</p>
+              }
             </div>
           </mat-card-content>
         </mat-card>
@@ -255,15 +259,17 @@
               <mat-form-field appearance="outline" class="assignee-field">
                 <mat-label>Assign to</mat-label>
                 <mat-select
-                  [value]="c.assignedToUserId ?? ''"
+                  [formControl]="assigneeControl"
                   (selectionChange)="assignTo($event.value || null)"
-                  [disabled]="assigning()"
                 >
                   <mat-option value="">Unassigned</mat-option>
                   @for (agent of agents(); track agent.id) {
                     <mat-option [value]="agent.id">{{ agent.fullName }}</mat-option>
                   }
                 </mat-select>
+                @if (assignError()) {
+                  <p class="muted small assign-error">{{ assignError() }}</p>
+                }
               </mat-form-field>
             </mat-card-content>
           </mat-card>

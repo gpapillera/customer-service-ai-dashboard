@@ -38,7 +38,8 @@ public class CaseService : ICaseService
         IRepository<CaseComment> comments,
         IRepository<ConversationReadState> readStates,
         IPriorityPredictor predictor,
-        INotificationService notifications)
+        INotificationService notifications,
+        ICaseEventHub events)
     {
         _cases = cases;
         _customers = customers;
@@ -47,7 +48,10 @@ public class CaseService : ICaseService
         _readStates = readStates;
         _predictor = predictor;
         _notifications = notifications;
+        _events = events;
     }
+
+    private readonly ICaseEventHub _events;
 
     /// <inheritdoc/>
     public async Task<IReadOnlyList<CaseDto>> GetAllAsync(
@@ -192,6 +196,10 @@ public class CaseService : ICaseService
 
         var isAgent = string.Equals(callerRole, nameof(UserRole.Agent), StringComparison.OrdinalIgnoreCase);
 
+        // Capture the prior assignee so we can detect an assignment change and
+        // broadcast it over SSE for instant UI reflection (no 30s poll lag).
+        var priorAssignee = caseEntity.AssignedToUserId;
+
         // AGENT WRITE SCOPING (Phase 6). Agents may only modify a case that is
         // assigned to them. Unassigned cases are visible but read-only; cases
         // assigned to another agent are neither visible nor writable.
@@ -272,6 +280,23 @@ public class CaseService : ICaseService
         }
         _cases.Update(caseEntity);
         await _cases.SaveChangesAsync();
+
+        // Broadcast an assignment change (assign/reassign/unassign) over SSE so
+        // the agent/admin UI reflects it instantly. Skip when the assignee is
+        // unchanged — most updates (status, priority, description) don't affect
+        // assignment and shouldn't spam the stream. Fire-and-forget: a hub
+        // failure must never roll back the committed update.
+        if (!string.Equals(priorAssignee, caseEntity.AssignedToUserId, StringComparison.Ordinal))
+        {
+            try
+            {
+                await _events.PublishAsync(new CaseEvent(caseEntity.Id, caseEntity.AssignedToUserId, "assignment"));
+            }
+            catch
+            {
+                // Swallow — realtime is best-effort.
+            }
+        }
 
         // EVENT-BASED trigger: when a case transitions INTO Resolved/Closed,
         // notify the customer by email (Email channel only, when enabled).
