@@ -15,16 +15,23 @@ public class CustomerService : ICustomerService
     private readonly IRepository<Customer> _customers;
     private readonly IRepository<Case> _cases;
     private readonly IRepository<Notification> _notifications;
+    private readonly ICustomerDisplayIdGenerator _displayIdGenerator;
 
     /// <summary>Initializes a new <see cref="CustomerService"/>.</summary>
     /// <param name="customers">Customer repository.</param>
     /// <param name="cases">Case repository (for counts).</param>
     /// <param name="notifications">Notification repository (account + case emails for activity).</param>
-    public CustomerService(IRepository<Customer> customers, IRepository<Case> cases, IRepository<Notification> notifications)
+    /// <param name="displayIdGenerator">Monotonic sequence for customer display IDs (C-NNNNN).</param>
+    public CustomerService(
+        IRepository<Customer> customers,
+        IRepository<Case> cases,
+        IRepository<Notification> notifications,
+        ICustomerDisplayIdGenerator displayIdGenerator)
     {
         _customers = customers;
         _cases = cases;
         _notifications = notifications;
+        _displayIdGenerator = displayIdGenerator;
     }
 
     /// <summary>
@@ -507,10 +514,10 @@ public class CustomerService : ICustomerService
             Address = dto.Address,
         };
         await _customers.AddAsync(customer);
-        await _customers.SaveChangesAsync();
-        // Generate a human-readable display ID after the entity is saved (Id is now set).
-        customer.CustomerDisplayId = $"C-{customer.Id:D5}";
-        _customers.Update(customer);
+        // Assign a human-readable display ID from the shared monotonic sequence.
+        // Done up front (not derived from the row Id) so the value is unique even
+        // if a customer is later deleted — the generator never reuses a number.
+        customer.CustomerDisplayId = _displayIdGenerator.Next();
         await _customers.SaveChangesAsync();
         return ToDto(customer, new List<Notification>());
     }

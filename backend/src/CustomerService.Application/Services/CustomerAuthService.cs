@@ -26,18 +26,21 @@ public class CustomerAuthService : ICustomerAuthService
     private readonly IRepository<CustomerAccount> _accounts;
     private readonly INotificationSender _sender;
     private readonly IConfiguration _config;
+    private readonly ICustomerDisplayIdGenerator _displayIdGenerator;
 
     /// <summary>Initializes a new <see cref="CustomerAuthService"/>.</summary>
     public CustomerAuthService(
         IRepository<Customer> customers,
         IRepository<CustomerAccount> accounts,
         INotificationSender sender,
-        IConfiguration config)
+        IConfiguration config,
+        ICustomerDisplayIdGenerator displayIdGenerator)
     {
         _customers = customers;
         _accounts = accounts;
         _sender = sender;
         _config = config;
+        _displayIdGenerator = displayIdGenerator;
     }
 
     /// <inheritdoc/>
@@ -78,6 +81,10 @@ public class CustomerAuthService : ICustomerAuthService
             Address = string.IsNullOrWhiteSpace(dto.Address) ? null : dto.Address.Trim(),
         };
         await _customers.AddAsync(customer);
+        // Assign a human-readable display ID from the shared monotonic sequence.
+        // Now matches the admin create path so self-signup customers also get a
+        // display ID instead of a blank "—" in the UI.
+        customer.CustomerDisplayId = _displayIdGenerator.Next();
         await _customers.SaveChangesAsync();
 
         // Reuse the EXACT SAME invite-generation + email-sending logic used by

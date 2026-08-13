@@ -2,6 +2,27 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 51 — Customer display-ID sequence (fixes self-signup customers showing blank "—")] (2026-08-13)
+**Status:** ✅ COMPLETE (`dotnet build` clean; 97/97 backend tests green; live DB backfill verified)
+
+### Problem (from user report)
+Two customers created via the self-service signup path — "Glen Papillera" (user) and "Link Test User" (agent) — showed no customer ID in the UI (rendered as `—`). The integer primary key (`Id` 12 / 13) was always present; the missing value was the human-readable `CustomerDisplayId` (`C-NNNNN`).
+
+### Root cause
+`CustomerDisplayId` was only ever assigned in two places: `SeedData.cs` (hardcoded `C-00001..C-00011`) and `CustomerService.CreateAsync` (the admin create path), which derived it as `C-{Id:D5}` *after* the row was saved. The self-signup path `CustomerAuthService.RegisterAsync` created the `Customer` but never set `CustomerDisplayId`, so every signup customer came out with a NULL display ID. Two distinct creation paths, only one stamped the ID.
+
+### Changes
+- **New `ICustomerDisplayIdGenerator` + `CustomerDisplayIdGenerator`** (Application layer): an in-process, thread-safe (lock-guarded) monotonic sequence producing `C-NNNNN`. Unlike deriving from the row `Id`, the sequence is seeded at startup from the highest existing suffix and only ever increments — so it never reuses a number freed by a deleted customer and never collides with an existing row. Replaces the `C-{Id}` hack.
+- **`CustomerService.CreateAsync`** — now takes the generator and assigns `customer.CustomerDisplayId = _displayIdGenerator.Next()` *before* the single save (no more second `Update` round-trip).
+- **`CustomerAuthService.RegisterAsync`** — now takes the generator and assigns the display ID after adding the customer, mirroring the admin path so signups get a real ID.
+- **`Program.cs` — new `EnsureCustomerDisplayIds`** (idempotent, provider-agnostic via EF): seeds the singleton generator from ALL existing rows, then fills only NULL/empty `CustomerDisplayId` values in `Id` order. Wired into `SeedDatabase` after `SeedDataInitializer.Initialize`. Generator registered as a singleton.
+- **Tests**: `CustomerServiceTests` `BuildService` updated to supply the generator; new `CustomerDisplayIdGeneratorTests` (4 cases: increment, seed-continues-above-max, ignores nulls/foreign formats, concurrent uniqueness).
+
+### Verification
+- `dotnet build CustomerServiceApi.sln` clean (0 errors). `dotnet test` → 97/97 green.
+- Live SQLite backfill confirmed: Id 12 → `C-00012`, Id 13 → `C-00013`; seed rows 1–11 untouched; NULL/empty count = 0. Sequence continued above the existing max (`C-00011`) rather than reusing or colliding.
+- NOTE: the previously-running API on `:5274` (pid 16501) was the **old binary**; it must be restarted to serve the new code. The DB backfill is durable regardless.
+
 ## [Phase 50 — Harden per-user shared state (overdue read-set scoping + logout-clear order)] (2026-08-13)
 **Status:** ✅ COMPLETE (`npm run build` green; live browser verification passed)
 

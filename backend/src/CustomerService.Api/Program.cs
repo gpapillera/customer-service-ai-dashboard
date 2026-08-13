@@ -76,6 +76,10 @@ public class Program
         builder.Services.AddScoped<IAuthService, AuthService>();
         builder.Services.AddScoped<ICustomerAuthService, CustomerAuthService>();
         builder.Services.AddScoped<IDashboardService, DashboardService>();
+        // Monotonic sequence generator for customer display IDs (C-NNNNN). Singleton
+        // so the counter is shared/consistent across the process; seeded from the
+        // existing rows in SeedDatabase() before any request can call Next().
+        builder.Services.AddSingleton<ICustomerDisplayIdGenerator, CustomerDisplayIdGenerator>();
 
         builder.Services.AddScoped<InAppNotificationSender>();
         builder.Services.AddScoped<EmailNotificationSender>();
@@ -217,6 +221,12 @@ public class Program
         EnsureCaseDisplayIdColumn(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
         EnsureAccountActivatedAtColumn(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
         SeedDataInitializer.Initialize(ctx);
+        // Backfill any customer missing a display ID (e.g. rows created by the
+        // self-signup path before this sequence existed) and seed the singleton
+        // generator so subsequent creates continue above the highest existing
+        // value. Idempotent: only NULL display IDs are filled.
+        var displayIdGenerator = scope.ServiceProvider.GetRequiredService<ICustomerDisplayIdGenerator>();
+        EnsureCustomerDisplayIds(ctx, displayIdGenerator, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
     }
 
     /// <summary>
@@ -773,6 +783,50 @@ public class Program
         catch (Exception ex)
         {
             Console.WriteLine($"WARN: could not ensure {table}.{column} column: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Backfills any <c>Customer</c> row with a missing (NULL/empty) display ID
+    /// using the shared monotonic sequence, and seeds that sequence from the
+    /// highest existing suffix so future creates continue above it. This covers
+    /// rows created before the display-ID sequence existed (e.g. the self-signup
+    /// path) without clobbering rows that already have a value. Idempotent: only
+    /// NULL display IDs are assigned, and they are assigned in Id order so the
+    /// result is deterministic across runs.
+    /// </summary>
+    private static async Task EnsureCustomerDisplayIds(
+        AppDbContext ctx, ICustomerDisplayIdGenerator displayIdGenerator, string? provider)
+    {
+        try
+        {
+            var customers = await ctx.Customers
+                .OrderBy(c => c.Id)
+                .ToListAsync();
+
+            // Seed the sequence from ALL rows (including ones we won't touch) so
+            // the next emitted value sits above the highest existing suffix and
+            // never collides with or reuses an existing display ID.
+            displayIdGenerator.SeedFrom(customers.Select(c => c.CustomerDisplayId));
+
+            var missing = customers
+                .Where(c => string.IsNullOrWhiteSpace(c.CustomerDisplayId))
+                .ToList();
+            if (missing.Count == 0)
+            {
+                return;
+            }
+
+            foreach (var customer in missing)
+            {
+                customer.CustomerDisplayId = displayIdGenerator.Next();
+            }
+            await ctx.SaveChangesAsync();
+            Console.WriteLine($"INFO: backfilled {missing.Count} customer display ID(s).");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"WARN: could not backfill customer display IDs: {ex.Message}");
         }
     }
 

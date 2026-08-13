@@ -1,4 +1,5 @@
 using CustomerService.Application.Dtos;
+using CustomerService.Application.Interfaces;
 using CustomerService.Application.Services;
 using CustomerService.Domain;
 using CustomerService.Domain.Entities;
@@ -19,7 +20,8 @@ public class CustomerServiceTests
         customers = new FakeRepository<Customer>();
         cases = new FakeRepository<Case>();
         var notifications = new FakeRepository<Notification>();
-        return new CustomerService.Application.Services.CustomerService(customers, cases, notifications);
+        var displayIds = new CustomerDisplayIdGenerator();
+        return new CustomerService.Application.Services.CustomerService(customers, cases, notifications, displayIds);
     }
 
     private static Customer SeedCustomer(FakeRepository<Customer> repo, int id, string name = "Cust")
