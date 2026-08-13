@@ -2,6 +2,55 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 50 — Harden per-user shared state (overdue read-set scoping + logout-clear order)] (2026-08-13)
+**Status:** ✅ COMPLETE (`npm run build` green; live browser verification passed)
+
+### Context (follow-up to Phase 49)
+Phase 49 fixed the Cases sidenav red dot bleeding across accounts. As part of that audit, one more piece of per-user state in storage was flagged: `NotificationStateService` stored the overdue "mark all read" acknowledgement set under an **unscoped** sessionStorage key `cs_read_overdue_ids` — the same class of cross-account leak, just currently walled off by the SPA's forced-logout user switch.
+
+### Root causes
+1. `notification-state.service.ts` — `READ_KEY = 'cs_read_overdue_ids'` not scoped by user. If anyone later adds in-place account switching (no logout), Grace's "mark all read" would carry to admin.
+2. `auth.service.ts` `logout()` removed `cs_user` BEFORE calling `notifications.reset()`. `reset()` resolves the key from `cs_user`, so with the user already gone it fell back to the legacy unscoped key — leaving the scoped key (`cs_read_overdue_ids_agent-001`) **orphaned** in sessionStorage (a real leak of the previous user's acknowledgements).
+
+### Changes
+- `notification-state.service.ts`:
+  - Added `USER_KEY = 'cs_user'` (read directly from sessionStorage to avoid a circular DI edge — `AuthService` already injects `NotificationStateService`).
+  - New `keyFor()` → `cs_read_overdue_ids_{userId}`, falls back to the legacy unscoped key when no user is signed in (so a legacy value still resolves until first logout).
+  - `loadReadIds()` / `saveReadIds()` now use `keyFor()`.
+  - `reset()` now removes the CURRENT user's key (was wiping the whole set + legacy key).
+  - Doc comment updated SESSION-SCOPED → USER-SCOPED.
+- `auth.service.ts`:
+  - `logout()` now calls `this.notifications.reset()` BEFORE removing `cs_user`/`cs_token`, so `reset()` can resolve the scoped key and remove it.
+
+### Verification
+- `npm run build` green (only the pre-existing 1.59 MB bundle-budget warning; non-fatal per AGENTS.md). `tsc --noEmit` clean.
+- Live browser (headless): logged in as Grace (agent), opened the Follow-up bell, "Mark all read" → `sessionStorage['cs_read_overdue_ids_agent-001']` = 8 case ids; legacy `cs_read_overdue_ids` = null (no bleed). Logged out → `cs_read_overdue_ids_agent-001` is now **null** (the logout-order fix removed the scoped key; previously it lingered orphaned). Each account keeps its own overdue acknowledgement set; Grace's read state does not affect admin's/maria's bell.
+- NOTE: demo JWTs are short-lived; mid-session 401s during testing were token expiry, confirmed via `curl` with fresh tokens.
+
+## [Phase 49 — Fix: Cases sidenav red dot bleeds across accounts] (2026-08-13)
+**Status:** ✅ COMPLETE (`npm run build` green; live browser cross-account verification passed)
+
+### Problem (from user report)
+- Adding a new case (e.g. "Link Test User") lit a red dot on the **Cases** sidenav tab.
+- Clicking Cases as Grace (agent) dismissed the dot — but it ALSO disappeared for admin and maria, i.e. dismissing it for one user cleared it for every account on the same browser.
+
+### Root cause
+`frontend/src/app/shared/nav-badge.service.ts` tracks "new since last visit" per sidenav section using `localStorage` keyed ONLY by path (`cs_nav_badge_/cases`). All accounts on one browser share that single key, so any user's visit (which writes `Date.now()` to the key) marks the section "seen" for everyone — the next poll computes 0 new cases for all of them.
+
+### Changes
+- `nav-badge.service.ts`:
+  - `setVisited`/`getVisited` now scope the timestamp by the signed-in user via a new `keyFor(path)` helper → `cs_nav_badge_{userId}:{path}`. Each account tracks its own "last visited" state.
+  - Added a `currentUser$` subscription that clears badges and refreshes when the *user id* changes (login / logout / switch account), so a freshly switched account is never shown the previous account's stale counts. Guarded so a same-id profile update doesn't cause a flicker/extra fetch.
+  - Restored the immediate `refresh()` on construction (the user-scope guard skips the first synchronous `currentUser$` emit, so without it badges only appeared after the 10s poll — a regression introduced during the fix).
+
+### Verification
+- `npm run build` green (only the pre-existing 1.59 MB bundle-budget warning; non-fatal per AGENTS.md).
+- Live browser (headless): seeded `cs_nav_badge_{admin-001,agent-001,agent-002}:/cases` to 3 days ago, reloaded.
+  - admin shows **Cases 1**, maria shows **Cases 1**, Grace shows her own count (0 — the unassigned "Link Test User" case is not in her accessible agent-scoped list).
+  - After Grace navigates to /cases, her key advances to `now` while `admin-001:/cases` and `agent-002:/cases` are UNCHANGED (proves no cross-account write).
+  - Fresh maria login still shows **Cases 1** — Grace's earlier click did NOT dismiss maria's dot. Bug fixed.
+- NOTE: demo JWTs are short-lived; mid-session 401s during testing were token expiry, not a code issue (confirmed via `curl` with fresh tokens).
+
 ## [Phase 48 — Customer Detail: Emails/Activity panel + account-activity fix] (2026-08-13)
 **Status:** ✅ COMPLETE (93/93 backend tests green + `dotnet build` clean + `npm run build` green)
 

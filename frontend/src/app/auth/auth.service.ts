@@ -47,11 +47,14 @@ export class AuthService {
 
   /** Clears the session and notifies subscribers. */
   logout(): void {
+    // Clear the current user's per-user notification read-state BEFORE wiping
+    // the user record, so NotificationStateService can still resolve the
+    // user-scoped key (cs_read_overdue_ids_{userId}) and remove it. Calling
+    // reset() after cs_user is gone would only touch the legacy unscoped key,
+    // orphaning the scoped key and leaking this user's acknowledgements.
+    this.notifications.reset();
     sessionStorage.removeItem(TOKEN_KEY);
     sessionStorage.removeItem(USER_KEY);
-    // Clear the session-scoped "mark all read" state so the badge returns
-    // for any case still overdue on the next login.
-    this.notifications.reset();
     this._currentUser.next(null);
     this.currentUser.set(null);
   }

@@ -28,6 +28,10 @@ export class NavBadgeService {
 
   private pollTimer: ReturnType<typeof setInterval> | null = null;
   private readonly POLL_MS = 10_000;
+  // Per-section "last visited" timestamps are scoped by user id so each account
+  // tracks its own "new since I last looked" state. Without this, all accounts
+  // on one browser share a single visited timestamp and clicking Cases as one
+  // user dismisses the red dot for every other account.
   private readonly LS_PREFIX = 'cs_nav_badge_';
 
   constructor() {
@@ -54,7 +58,28 @@ export class NavBadgeService {
       window.addEventListener('cs:comment-posted', () => this.refresh());
     }
 
-    // Initial fetch + periodic polling.
+    // The per-section "last visited" timestamps are scoped by user id (see
+    // keyFor), so each account tracks its own "new since I last looked" state.
+    // When the signed-in user changes (login / logout / switch account), the
+    // previous user's badge counts are stale for the new user — clear them and
+    // recompute. This is what fixes the cross-account red-dot bleed: clicking
+    // Cases as one user must not dismiss the dot for every other account.
+    // Guarded on the user id so a no-op profile update (same id) doesn't
+    // trigger a needless badge flicker + extra API calls.
+    let prevUserId: string | null = this.auth.currentUser()?.id ?? null;
+    this.auth.currentUser$
+      .pipe(takeUntilDestroyed())
+      .subscribe(() => {
+        const userId = this.auth.currentUser()?.id ?? null;
+        if (userId === prevUserId) return;
+        prevUserId = userId;
+        this.badges.set({});
+        this.refresh();
+      });
+
+    // Initial fetch + periodic polling. The immediate refresh ensures badges
+    // populate on first load (e.g. a restored session where currentUser$ already
+    // matches the guard's initial value and is therefore skipped).
     this.refresh();
     if (typeof window !== 'undefined' && typeof window.setInterval !== 'undefined') {
       this.pollTimer = window.setInterval(() => this.refresh(), this.POLL_MS);
@@ -123,18 +148,29 @@ export class NavBadgeService {
   /** Records the current time as "last visited" for a section. */
   private setVisited(path: string): void {
     try {
-      localStorage.setItem(this.LS_PREFIX + path, Date.now().toString());
+      localStorage.setItem(this.keyFor(path), Date.now().toString());
     } catch { /* quota or SSR */ }
   }
 
   /** Returns the epoch-ms timestamp of the last visit, or null. */
   private getVisited(path: string): number | null {
     try {
-      const v = localStorage.getItem(this.LS_PREFIX + path);
+      const v = localStorage.getItem(this.keyFor(path));
       return v ? Number(v) : null;
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Builds the localStorage key for a section's "last visited" timestamp,
+   * scoped by the signed-in user so each account tracks its own state. Falls
+   * back to a shared key when there is no current user (pre-login), which a
+   * freshly logged-in user supersedes via the currentUser$ reset below.
+   */
+  private keyFor(path: string): string {
+    const userId = this.auth.currentUser()?.id ?? '';
+    return `${this.LS_PREFIX}${userId}:${path}`;
   }
 
   /** Returns the badge count for a route path (0 if none). */

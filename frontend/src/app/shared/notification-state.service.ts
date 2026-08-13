@@ -4,15 +4,21 @@ import { CallLogService } from '../cases/call-log.service';
 import { OverdueCase } from './models';
 
 const READ_KEY = 'cs_read_overdue_ids';
+// sessionStorage key for the signed-in staff user's record (mirrors AuthService.USER_KEY =
+// 'cs_user'). Read directly here to avoid a circular DI edge (AuthService already
+// injects NotificationStateService for its logout() reset).
+const USER_KEY = 'cs_user';
 
 /**
  * Drives the notification center. The list of "needs follow-up" cases is
  * computed LIVE from the cases API (overdue filter) — it is not stored, so a
  * case stays in the center for as long as it remains overdue (open and no
- * recent follow-up). "Mark all read" is SESSION-SCOPED: it hides the red badge
- * for this login only. On logout the read set is cleared, so the next login
- * shows the badge again for any case still overdue. Marking a single case read
- * is not supported — the unit of acknowledgement is the whole session.
+ * recent follow-up). The "mark all read" acknowledgement set is USER-SCOPED
+ * (keyed by the signed-in user id — see keyFor) so each account keeps its own
+ * overdue acknowledgements: Grace marking all read does NOT clear admin's or
+ * maria's badge. On logout the read set for the logging-out user is cleared
+ * (AuthService.logout -> reset), so the next login shows the badge again for
+ * any case still overdue. Marking a single case read is supported.
  */
 @Injectable({ providedIn: 'root' })
 export class NotificationStateService {
@@ -98,10 +104,12 @@ export class NotificationStateService {
     this.recompute();
   }
 
-  /** Clears all read state (used on logout / new session). */
+  /** Clears the read state for the CURRENT user (used on logout / new session). */
   reset(): void {
+    try {
+      sessionStorage.removeItem(this.keyFor());
+    } catch { /* quota or SSR */ }
     this.readIds.set(new Set());
-    this.saveReadIds();
     this.recompute();
   }
 
@@ -111,9 +119,26 @@ export class NotificationStateService {
     this.visibleCount.set(unread);
   }
 
+  /**
+   * Builds the sessionStorage key for the overdue "read" acknowledgement set,
+   * scoped by the signed-in user so each account keeps its own state (mirrors
+   * the nav-badge fix). Falls back to the legacy unscoped key when no user is
+   * signed in, so a pre-login/legacy value still resolves until first logout.
+   */
+  private keyFor(): string {
+    try {
+      const raw = sessionStorage.getItem(USER_KEY);
+      if (raw) {
+        const user = JSON.parse(raw) as { id?: string };
+        if (user?.id) return `${READ_KEY}_${user.id}`;
+      }
+    } catch { /* quota or SSR */ }
+    return READ_KEY;
+  }
+
   private loadReadIds(): Set<number> {
     try {
-      const raw = sessionStorage.getItem(READ_KEY);
+      const raw = sessionStorage.getItem(this.keyFor());
       if (!raw) return new Set();
       return new Set(JSON.parse(raw) as number[]);
     } catch {
@@ -122,6 +147,6 @@ export class NotificationStateService {
   }
 
   private saveReadIds(): void {
-    sessionStorage.setItem(READ_KEY, JSON.stringify([...this.readIds()]));
+    sessionStorage.setItem(this.keyFor(), JSON.stringify([...this.readIds()]));
   }
 }
