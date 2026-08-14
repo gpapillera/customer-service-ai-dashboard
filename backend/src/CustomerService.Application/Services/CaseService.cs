@@ -167,6 +167,8 @@ public class CaseService : ICaseService
             CategoryId = dto.CategoryId,
             CustomerId = dto.CustomerId,
             AssignedToUserId = dto.AssignedToUserId,
+            // Stamp the assignment time when a case is created already-assigned.
+            AssignedAtUtc = dto.AssignedToUserId is not null ? createdAt : null,
             Status = CaseStatus.New,
             Priority = priority,
             PriorityAutoSuggested = !dto.Priority.HasValue,
@@ -251,10 +253,12 @@ public class CaseService : ICaseService
             if (dto.AssignedToUserId == UpdateCaseDto.UnassignSentinel)
             {
                 caseEntity.AssignedToUserId = null;
+                caseEntity.AssignedAtUtc = null;
             }
             else if (dto.AssignedToUserId is not null)
             {
                 caseEntity.AssignedToUserId = dto.AssignedToUserId;
+                caseEntity.AssignedAtUtc = DateTime.UtcNow;
             }
         }
 
@@ -576,6 +580,7 @@ public class CaseService : ICaseService
         CategoryName = c.Category != null ? c.Category.Name : string.Empty,
         AssignedToUserId = c.AssignedToUserId,
         AssignedToUserName = c.AssignedToUser != null ? c.AssignedToUser.FullName : null,
+        AssignedAtUtc = c.AssignedAtUtc,
         CreatedAtUtc = c.CreatedAtUtc,
         UpdatedAtUtc = c.UpdatedAtUtc,
         FollowUpDueUtc = c.FollowUpDueUtc,

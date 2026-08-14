@@ -110,6 +110,14 @@ public class Case
     public DateTime? FollowUpDueUtc { get; set; }
 
     /// <summary>
+    /// UTC timestamp of the most recent assignment to an agent. Null while the
+    /// case is unassigned. Set on create when an assignee is supplied and on
+    /// every (re)assignment in UpdateAsync; cleared on unassign. Drives the
+    /// "cases assigned to me since I last looked" nav badge.
+    /// </summary>
+    public DateTime? AssignedAtUtc { get; set; }
+
+    /// <summary>
     /// ponytail: durable de-dup marker for the overdue-follow-up email. Set when
     /// an overdue email is sent for the case's current overdue episode; while set
     /// (and the case is still overdue for the same reason) no further overdue

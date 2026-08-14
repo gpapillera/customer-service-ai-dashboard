@@ -2,6 +2,61 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 57 — Side-nav badges for new Cases / Customers / Assignments] (2026-08-14)
+**Status:** ✅ COMPLETE (frontend `npm run build` green; backend `dotnet build` clean; 4/4 nav-badge unit tests pass; badges verified live in-browser as admin + agent)
+
+### What changed
+- **Cases tab** now shows a count badge for cases created since the user last
+  visited **OR** cases assigned to the current user since their last visit.
+- **Customers tab** now shows a count badge for customers created since the
+  user last visited (previously had zero badge logic).
+- On a live SSE `case-assignment` event targeting the current user, the Cases
+  badge **bumps instantly** (before the 10s poll reconciles).
+- Clicking a section resets its own badge (existing "last visited" behavior).
+
+### Backend (why a schema change was needed)
+The `Case` entity had **no assignment timestamp**, so "cases assigned to me
+since I last looked" could not be computed. Added `Case.AssignedAtUtc`
+(nullable, set on create-when-assigned and on every assign/reassign/unassign),
+exposed it on `CaseDto`, and added an **additive** `EnsureCaseAssignedAtUtcColumn`
+bootstrap (mirrors the repo's existing nullable-column pattern — no migrations,
+no DB drop; `*.db` is gitignored so the local SQLite file is untouched by git).
+
+### Dashboard badge — INTENTIONALLY EXCLUDED
+The Dashboard tab has **no** badge. The prior `nav-badge.service.ts` had a dead
+stub computing a Dashboard count; it was completed during planning but then
+**removed by decision** (user feedback): a badge on the aggregate overview is
+redundant with the Cases + Customers tab badges (the Dashboard already shows
+recent cases/customers in its body), and its frequently-reset "last visited"
+baseline made the count unreliable + divergent from the tab counts. Do **not**
+re-add a Dashboard badge without explicit request — it was a deliberate scope cut.
+
+### Files
+- `backend/src/CustomerService.Domain/Entities/Case.cs`: `AssignedAtUtc` property.
+- `backend/src/CustomerService.Application/Dtos/CaseDtos.cs`: `AssignedAtUtc` field + `ToDto` map.
+- `backend/src/CustomerService.Application/Services/CaseService.cs`: stamp on
+  create/assign/unassign.
+- `backend/src/CustomerService.Api/Program.cs`: `EnsureCaseAssignedAtUtcColumn` +
+  registration in `SeedDatabase`.
+- `frontend/src/app/shared/models.ts`: `Case.assignedAtUtc`.
+- `frontend/src/app/shared/nav-badge.service.ts`: rewrite `refresh()` (Cases +
+  Customers via `forkJoin` of cases/customers lists); `bumpBadge` helper; SSE
+  assignment bump (Cases only).
+- `frontend/src/app/shared/nav-badge.service.spec.ts` (NEW): 4-spec test of the
+  new-case/new-assignment-since-visit predicate.
+
+### Verification
+- `dotnet build CustomerServiceApi.sln` clean (0 errors). `npm run build` green
+  (only the pre-existing 1.5 MB bundle-budget warning). `ng test` 4/4 pass.
+- **Live (admin):** created a customer via API → **Customers 1** badge appeared
+  without clicking into the section (verified the Dashboard badge path was then
+  deliberately removed per the decision above).
+- **Live (agent `agent-001`):** reassigned case 23 to the logged-in agent →
+  **Cases 1** appeared instantly via SSE (verified `assignedAtUtc` stamped at
+  assignment time; guard correctly did NOT bump for a different agent id).
+- Seed rows stay `assignedAtUtc: null` (bootstrap adds the column but does not
+  backfill) — intentional, so first-visit badges aren't polluted by stale data.
+
 ## [Phase 56 — Realtime reliability fixes + assignee/unassign + global save-flash] (2026-08-13)
 **Status:** ✅ COMPLETE (frontend `npm run build` green; backend `dotnet build` clean; SSE delivery verified live over 6 rapid reassignments; unassign verified live via API)
 

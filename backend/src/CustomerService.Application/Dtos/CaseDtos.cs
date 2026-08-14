@@ -114,6 +114,9 @@ public class CaseDto
     /// <summary>Assigned agent name.</summary>
     public string? AssignedToUserName { get; set; }
 
+    /// <summary>UTC timestamp of the most recent assignment (null if unassigned).</summary>
+    public DateTime? AssignedAtUtc { get; set; }
+
     /// <summary>Created timestamp (UTC).</summary>
     public DateTime CreatedAtUtc { get; set; }
 

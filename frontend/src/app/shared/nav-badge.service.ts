@@ -1,8 +1,10 @@
 import { Injectable, inject, signal, effect } from '@angular/core';
 import { Router, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs';
+import { forkJoin } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CaseService } from '../cases/case.service';
+import { CustomerService } from '../customers/customer.service';
 import { AuthService } from '../auth/auth.service';
 import { RealtimeService } from './realtime.service';
 
@@ -11,16 +13,20 @@ import { RealtimeService } from './realtime.service';
  *
  * For Messages/Conversations tabs: counts unread conversations server-side.
  * For Dashboard/Customers/Cases tabs: counts items created since the last
- * time the user visited that section (tracked via localStorage timestamps).
+ * time the user visited that section, PLUS (for Cases) cases assigned to the
+ * current user since their last visit — tracked via localStorage timestamps
+ * and the backend `AssignedAtUtc` field.
  *
  * Polls every 10 s while the browser tab is visible. Also listens for
  * custom `cs:comment-posted` DOM events for immediate refresh when a
  * message is sent from any page. Resets a section's badge to zero when
- * the user navigates to it.
+ * the user navigates to it. On a live SSE `case-assignment` event targeting
+ * the current user, the Cases/Dashboard badges bump instantly (before the poll).
  */
 @Injectable({ providedIn: 'root' })
 export class NavBadgeService {
   private readonly caseService = inject(CaseService);
+  private readonly customerService = inject(CustomerService);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   /** Real-time assignment push (SSE) — refreshes badges the instant an assignment changes. */
@@ -61,11 +67,16 @@ export class NavBadgeService {
       window.addEventListener('cs:comment-posted', () => this.refresh());
     }
 
-    // Real-time: when an assignment changes anywhere, refresh badges instantly
-    // (e.g. an agent's Messages/Cases sidebar counts update the moment a case
-    // is assigned/unassigned — no wait for the 10s poll).
+    // Real-time: when an assignment changes, refresh badges instantly (the
+    // 10s poll is just the fallback). If the assignment targets the current
+    // user, bump the Cases/Dashboard badges immediately so the indication
+    // appears the moment the SSE frame lands — no wait for the poll.
     effect(() => {
-      this.realtime.caseEvent();
+      const evt = this.realtime.caseEvent();
+      const me = this.auth.currentUser()?.id ?? null;
+      if (evt?.type === 'assignment' && evt.assignedToUserId && evt.assignedToUserId === me) {
+        this.bumpBadge('/cases', 1);
+      }
       this.refresh();
     });
 
@@ -100,6 +111,7 @@ export class NavBadgeService {
   /** Fetches unread counts and updates badge signals. */
   refresh(): void {
     const role = this.auth.getRole();
+    const userId = this.auth.currentUser()?.id ?? null;
 
     // --- Messages / Conversations: unread count from conversation API ---
     if (role === 'Agent') {
@@ -122,28 +134,39 @@ export class NavBadgeService {
       });
     }
 
-    // --- Cases / Customers / Dashboard: new items since last visit ---
-    const since = this.getVisited('/cases');
-    this.caseService.list({}).subscribe({
-      next: (list) => {
-        if (since) {
-          const newCases = list.filter((c) => new Date(c.createdAtUtc).getTime() > since).length;
-          this.updateBadge('/cases', newCases);
-        } else {
-          // First visit — no badge.
-          this.updateBadge('/cases', 0);
-        }
-      },
-      error: () => { /* ignore */ },
-    });
+    // --- Cases / Customers: new items since last visit ---
+    const casesSince = this.getVisited('/cases');
+    const custSince = this.getVisited('/customers');
 
-    // Dashboard badge = new cases + new customers since last visit.
-    const dashSince = this.getVisited('/dashboard');
-    if (dashSince) {
-      // Reuse the cases data above — but we need customers too.
-      // We'll compute dashboard badge as cases + customers in a separate call.
-    }
-    // For simplicity, dashboard badge is recomputed in the cases subscribe above.
+    // A case counts as "new for me" if it was created since my last visit OR
+    // assigned to me since my last visit (deduped by id via the single filter).
+    const newCasesSince = (list: { createdAtUtc: string; assignedToUserId: string | null; assignedAtUtc?: string | null }[], since: number | null): number => {
+      if (!since) return 0;
+      return list.filter((c) => {
+        const created = new Date(c.createdAtUtc).getTime();
+        const assigned = (c.assignedToUserId === userId && c.assignedAtUtc)
+          ? new Date(c.assignedAtUtc).getTime()
+          : -1;
+        return created > since || assigned > since;
+      }).length;
+    };
+    const newCustomersSince = (list: { createdAtUtc?: string | null }[], since: number | null): number => {
+      if (!since) return 0;
+      return list.filter(
+        (cu) => cu.createdAtUtc && new Date(cu.createdAtUtc).getTime() > since,
+      ).length;
+    };
+
+    forkJoin({
+      cases: this.caseService.list({}),
+      customers: this.customerService.list(),
+    }).subscribe({
+      next: ({ cases, customers }) => {
+        this.updateBadge('/cases', newCasesSince(cases, casesSince));
+        this.updateBadge('/customers', newCustomersSince(customers, custSince));
+      },
+      error: () => { /* ignore polling errors */ },
+    });
   }
 
   /** Resets the badge for a route path to zero. */
@@ -154,6 +177,13 @@ export class NavBadgeService {
   /** Updates a single badge count. */
   private updateBadge(path: string, count: number): void {
     this.badges.update((b) => ({ ...b, [path]: count }));
+  }
+
+  /** Increments a badge by `n` (clamped at 99 to keep the pill small).
+   *  Used for the live SSE assignment bump. */
+  private bumpBadge(path: string, n: number): void {
+    const next = Math.min((this.badges()[path] ?? 0) + n, 99);
+    this.updateBadge(path, next);
   }
 
   /** Records the current time as "last visited" for a section. */

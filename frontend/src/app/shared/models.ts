@@ -79,6 +79,8 @@ export interface Case {
   categoryName: string;
   assignedToUserId: string | null;
   assignedToUserName: string | null;
+  /** UTC timestamp of the most recent assignment (null if unassigned). Drives the "assigned to me" nav badge. */
+  assignedAtUtc?: string | null;
   createdAtUtc: string;
   updatedAtUtc: string | null;
   followUpDueUtc: string | null;

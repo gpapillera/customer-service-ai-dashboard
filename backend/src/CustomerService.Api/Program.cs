@@ -223,6 +223,7 @@ public class Program
         EnsureConversationReadStatesTable(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
         EnsureUserResetTokenColumns(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
         EnsureCaseDisplayIdColumn(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
+        EnsureCaseAssignedAtUtcColumn(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
         EnsureAccountActivatedAtColumn(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
         SeedDataInitializer.Initialize(ctx);
         // Backfill any customer missing a display ID (e.g. rows created by the
@@ -737,6 +738,46 @@ public class Program
                 var exists = ctx.Database.ExecuteSqlRaw(
                     $"IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='{table}' AND COLUMN_NAME='{column}') " +
                     $"ALTER TABLE {table} ADD [{column}] nvarchar(20) NULL;");
+                _ = exists;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"WARN: could not ensure {table}.{column} column: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Adds the <c>Cases.AssignedAtUtc</c> column if missing. Needed because
+    /// <c>EnsureCreated()</c> does not alter existing tables. Idempotent +
+    /// provider-aware. Swap for EF migrations in production.
+    /// </summary>
+    private static async Task EnsureCaseAssignedAtUtcColumn(AppDbContext ctx, string? provider)
+    {
+        const string table = "Cases";
+        const string column = "AssignedAtUtc";
+        try
+        {
+            if (provider != null && provider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase))
+            {
+                var conn = ctx.Database.GetDbConnection();
+                if (conn.State != System.Data.ConnectionState.Open)
+                    await conn.OpenAsync();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = $"SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name='{column}';";
+                var count = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+                if (count == 0)
+                {
+                    using var alter = conn.CreateCommand();
+                    alter.CommandText = $"ALTER TABLE {table} ADD COLUMN {column} TEXT NULL;";
+                    await alter.ExecuteNonQueryAsync();
+                }
+            }
+            else
+            {
+                var exists = ctx.Database.ExecuteSqlRaw(
+                    $"IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='{table}' AND COLUMN_NAME='{column}') " +
+                    $"ALTER TABLE {table} ADD [{column}] datetime2 NULL;");
                 _ = exists;
             }
         }
