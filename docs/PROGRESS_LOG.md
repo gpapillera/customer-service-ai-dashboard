@@ -2,6 +2,33 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 58 — Customer-detail panel filter controls now match case-detail] (2026-08-14)
+**Status:** ✅ COMPLETE (frontend `npm run build` green; panel verified live in-browser in BOTH light + dark mode as admin)
+
+### What changed
+- The customer-detail Emails/Activity side panel reused the same control classes
+  as the case-detail panel (`.card-search`, `.date-preset`, `.date-inputs`,
+  `.date-input`, `.prefix-icon`) but those compact 38px styles lived **only** in
+  `case-detail.component.scss`. Angular scopes component styles to the host, so on
+  the customer page those inputs fell back to default Material sizing — the search
+  box and date dropdown were taller/differently padded than the case-detail panel,
+  and the native date inputs had no on-brand background/border/focus ring (and in
+  dark mode the calendar icon was invisible because `color-scheme: dark` was missing).
+- Added the mirrored control styles to `customer-detail.component.scss`: 38px
+  Material form fields (search + date preset) with hidden subscript wrapper and
+  indented icon, on-brand 38px native `.date-input` (token bg/border/radius +
+  accent focus ring), the `:host-context([data-theme='dark']) .date-input {
+  color-scheme: dark }` fix, and the thin on-brand panel scrollbar. Also aligned
+  `.panel-body` padding to `0.75rem 0.9rem 1rem` (was `0.6rem 0.9rem 0.9rem`) so the
+  list spacing matches the case-detail panel exactly.
+- Net effect: the customer-detail panel search box, date dropdown, date inputs, and
+  overall size now match the case-detail panel 1:1 in both light and dark themes.
+
+### Files
+- `frontend/src/app/customers/customer-detail.component.scss` (added mirrored
+  `.card-search` / `.date-preset` / `.date-inputs` / `.date-input` / scrollbar rules;
+  aligned `.panel-body` padding)
+
 ## [Phase 57 — Side-nav badges for new Cases / Customers / Assignments] (2026-08-14)
 **Status:** ✅ COMPLETE (frontend `npm run build` green; backend `dotnet build` clean; 4/4 nav-badge unit tests pass; badges verified live in-browser as admin + agent)
 

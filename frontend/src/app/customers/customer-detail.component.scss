@@ -313,12 +313,127 @@
   margin-top: 0.45rem;
 }
 
+/* Search + date filter controls — mirrored from case-detail so the panel
+   inputs match that page exactly (compact 38px Material fields + on-brand
+   native date inputs, with the dark-mode calendar-icon fix). These styles
+   were previously only defined in case-detail.component.scss and, because
+   Angular scopes component styles to the host, did NOT apply here — so the
+   customer-detail panel inputs rendered with default Material sizing. */
+.card-search {
+  width: 100%;
+  margin: 0;
+  --mat-form-field-container-text-size: 0.82rem;
+}
+.card-search ::ng-deep .mat-mdc-form-field-subscript-wrapper {
+  display: none;
+}
+.card-search ::ng-deep .mat-mdc-text-field-wrapper {
+  height: 38px;
+}
+.card-search ::ng-deep .mat-mdc-form-field-flex {
+  height: 38px;
+  align-items: center;
+  padding-left: 0.55rem;        /* indent the search icon + typed text */
+}
+.card-search ::ng-deep .mat-mdc-form-field-infix {
+  padding-top: 0;
+  padding-bottom: 0;
+  min-height: 0;
+  height: 38px;
+  display: flex;
+  align-items: center;
+}
+.card-search .prefix-icon {
+  color: var(--cs-text-muted);
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.date-preset {
+  width: 100%;
+  margin: 0;
+  --mat-form-field-container-text-size: 0.82rem;
+}
+.date-preset ::ng-deep .mat-mdc-form-field-subscript-wrapper {
+  display: none;
+}
+.date-preset ::ng-deep .mat-mdc-text-field-wrapper {
+  height: 38px;
+}
+.date-preset ::ng-deep .mat-mdc-form-field-flex {
+  height: 38px;
+  align-items: center;
+  padding-left: 0.55rem;        /* indent the icon + selected text */
+}
+.date-preset ::ng-deep .mat-mdc-form-field-infix {
+  padding-top: 0;
+  padding-bottom: 0;
+  min-height: 0;
+  height: 38px;
+  display: flex;
+  align-items: center;
+}
+.date-inputs {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.date-input {
+  flex: 1 1 130px;
+  min-width: 130px;          /* keep the native date picker from crushing/clipping */
+  height: 38px;              /* match the .date-preset field height */
+  box-sizing: border-box;
+  background: var(--cs-input-bg);
+  border: 1px solid var(--cs-border);
+  border-radius: var(--cs-radius-sm);
+  color: var(--cs-text);
+  padding: 0.35rem 0.55rem;
+  font-size: 0.8rem;
+  line-height: 1.2;
+}
+/* The native date-input calendar icon is drawn per `color-scheme`. Without this
+   it stays light-scheme (dark icon on the dark input bg) and is invisible in
+   dark mode. Scoped to the dark theme so light mode is untouched. */
+:host-context([data-theme='dark']) .date-input {
+  color-scheme: dark;
+}
+.date-input:focus {
+  outline: none;
+  border-color: var(--cs-accent);
+  box-shadow: 0 0 0 3px var(--cs-accent-light);
+}
+
 .panel-body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 0.6rem 0.9rem 0.9rem;
+  overscroll-behavior: contain;
+  scroll-behavior: smooth;
+  padding: 0.75rem 0.9rem 1rem;
+}
+
+/* Thin, on-brand scrollbar for the panel body only (scoped — mirrors the
+   case-detail panel so both feel identical). */
+.side-panel {
+  scrollbar-width: thin;
+  scrollbar-color: var(--cs-border-strong) transparent;
+}
+.side-panel ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.side-panel ::-webkit-scrollbar-track {
+  background: transparent;
+}
+.side-panel ::-webkit-scrollbar-thumb {
+  background-color: var(--cs-border-strong);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.side-panel ::-webkit-scrollbar-thumb:hover {
+  background-color: var(--cs-accent);
 }
 
 .mini-list {
