@@ -2,6 +2,25 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 61 — Cases table: "Modified on" column + date filter (mirrors Created)] (2026-08-15)
+**Status:** ✅ COMPLETE (frontend `npm run build` green; verified live in-browser as admin in BOTH light + dark mode)
+
+### What changed
+- Added a **"Modified on"** column to the Cases table, immediately after "Created". It shows the case's most-recent modification timestamp. Source of truth is `Case.updatedAtUtc`; cases that have never been edited fall back to `createdAtUtc` (so the column is never blank).
+- Header is sortable (desc by default) — sorts by `updatedAtUtc ?? createdAtUtc`.
+- Header carries a filter funnel mirroring the "Created" column exactly: the same 9 presets (All time / Today / Last 7 / Last 30 days / Custom range / Before / After / On or before / On or after) reusing the shared `date-filter` helpers; a removable chip in the filter row acts as the **reset** (clicking it clears the modified-date filter).
+
+### Clarification captured
+- "Most recent modification" = a real mutation (`CaseService.UpdateAsync` sets `UpdatedAtUtc` on status/priority/assignment/description edits). **Merely opening/visiting a case or customer account does NOT record an activity and does NOT change `UpdatedAtUtc`** — there is no view-tracking anywhere in the codebase (verified in `CustomerService.BuildCaseActivityItems` and `CaseService`). Activity timelines are derived from the data graph (creation, status moves, resolution, call logs, comments, emails), never from reads.
+
+### Files
+- `frontend/src/app/cases/case-list.component.html` (new header + body cell + filter dropdown)
+- `frontend/src/app/cases/case-list.component.ts` (mod-date filter signals, sort key, comparator, filter in fetchAndApply, handlers, chip clear)
+- `frontend/src/app/shared/models.ts` unchanged (Case already exposes `updatedAtUtc`)
+
+### Verification (live)
+- At `/cases` as admin: column renders with correct per-row dates (CAS-00001 Modified Aug 14 vs Created Jul 26). Header sort re-ordered by modified date. Filter "Last 7 days" → 8 cases found (only Aug 8–14 modified); chip "Modified: Last 7 days" present; clicking the chip reset to 24. Verified in dark mode; light mode uses identical CSS. `npm run build` green.
+
 ## [Phase 60 — Cases table: case-id aligns with "Case" header; AI icon floats outside alignment] (2026-08-15)
 **Status:** ✅ COMPLETE (frontend `npm run build` green; verified live in-browser as admin in BOTH light + dark mode — all 24 case-ids measured flush with the "Case" header, incl. rows carrying the AI spark icon)
 

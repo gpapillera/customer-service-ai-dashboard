@@ -130,6 +130,14 @@ export class CaseListComponent implements OnInit, OnDestroy {
   readonly customDateTo = signal('');
   /** Single date input (YYYY-MM-DD) — used by the before/after/on-or-before/on-or-after presets. */
   readonly customDateSingle = signal('');
+  /** Date filter preset for the "Modified on" column — mirrors Created exactly. */
+  readonly modDateFilterPreset = signal<DatePreset>('all');
+  /** Custom range start (YYYY-MM-DD) — only used when preset is 'custom'. */
+  readonly modCustomDateFrom = signal('');
+  /** Custom range end (YYYY-MM-DD) — only used when preset is 'custom'. */
+  readonly modCustomDateTo = signal('');
+  /** Single date input (YYYY-MM-DD) — used by the before/after/on-or-before/on-or-after presets. */
+  readonly modCustomDateSingle = signal('');
   /** Preset options for the Created header filter dropdown. */
   readonly datePresets = DATE_PRESETS;
   /** Labels a date preset key for display. */
@@ -149,11 +157,14 @@ export class CaseListComponent implements OnInit, OnDestroy {
     if (this.dateFilterPreset() !== 'all') {
       chips.push({ key: 'date', label: formatDatePreset(this.dateFilterPreset()) });
     }
+    if (this.modDateFilterPreset() !== 'all') {
+      chips.push({ key: 'modDate', label: 'Modified: ' + formatDatePreset(this.modDateFilterPreset()) });
+    }
     return chips;
   });
 
   /** Current sort state. */
-  readonly sortColumn = signal<'subject' | 'customerName' | 'categoryName' | 'priority' | 'status' | 'createdAtUtc'>('createdAtUtc');
+  readonly sortColumn = signal<'subject' | 'customerName' | 'categoryName' | 'priority' | 'status' | 'createdAtUtc' | 'updatedAtUtc'>('createdAtUtc');
   readonly sortDesc = signal(true);
 
   /** Cases sorted according to the current sort column and direction. */
@@ -171,6 +182,11 @@ export class CaseListComponent implements OnInit, OnDestroy {
         cmp = (priorityWeight[a.priority] ?? 0) - (priorityWeight[b.priority] ?? 0);
       } else if (col === 'status') {
         cmp = (statusWeight[a.status] ?? 0) - (statusWeight[b.status] ?? 0);
+      } else if (col === 'createdAtUtc' || col === 'updatedAtUtc') {
+        // Modified-on falls back to created when a case has never been edited.
+        const aVal = col === 'createdAtUtc' ? a.createdAtUtc : (a.updatedAtUtc ?? a.createdAtUtc);
+        const bVal = col === 'createdAtUtc' ? b.createdAtUtc : (b.updatedAtUtc ?? b.createdAtUtc);
+        cmp = new Date(aVal).getTime() - new Date(bVal).getTime();
       } else {
         const aVal = a[col] ?? '';
         const bVal = b[col] ?? '';
@@ -184,7 +200,7 @@ export class CaseListComponent implements OnInit, OnDestroy {
   });
 
   /** Toggle sort column; reverse direction if already sorting by this column. */
-  toggleSort(column: 'subject' | 'customerName' | 'categoryName' | 'priority' | 'status' | 'createdAtUtc'): void {
+  toggleSort(column: 'subject' | 'customerName' | 'categoryName' | 'priority' | 'status' | 'createdAtUtc' | 'updatedAtUtc'): void {
     if (this.sortColumn() === column) {
       this.sortDesc.update((d) => !d);
     } else {
@@ -316,6 +332,18 @@ export class CaseListComponent implements OnInit, OnDestroy {
               this.customDateSingle(),
             );
           }
+          const modPreset = this.modDateFilterPreset();
+          if (modPreset !== 'all') {
+            // A case with no edits uses its created date as the modified date.
+            filtered = filterByDatePreset(
+              filtered,
+              modPreset,
+              (c) => c.updatedAtUtc ?? c.createdAtUtc,
+              this.modCustomDateFrom(),
+              this.modCustomDateTo(),
+              this.modCustomDateSingle(),
+            );
+          }
           this.cases.set(filtered);
           if (!silent) {
             this.dataLoading.set(false);
@@ -397,6 +425,26 @@ export class CaseListComponent implements OnInit, OnDestroy {
     if (field === 'from') this.customDateFrom.set(value);
     else if (field === 'to') this.customDateTo.set(value);
     else this.customDateSingle.set(value);
+    this.load();
+  }
+
+  /** Sets the date filter preset from the "Modified on" header dropdown. */
+  setModDatePreset(preset: DatePreset): void {
+    this.modDateFilterPreset.set(preset);
+    // Close the dropdown for presets that don't need date inputs; keep it
+    // open for date-requiring presets so the user can type dates inline.
+    if (preset === 'all' || preset === 'today' || preset === '7days' || preset === '30days') {
+      this.openHeaderFilter.set(null);
+      this.detachDropdownScrollWatch();
+    }
+    this.load();
+  }
+
+  /** Updates a custom-date input (From/To/single) for the "Modified on" filter. */
+  onModCustomDateChange(field: 'from' | 'to' | 'single', value: string): void {
+    if (field === 'from') this.modCustomDateFrom.set(value);
+    else if (field === 'to') this.modCustomDateTo.set(value);
+    else this.modCustomDateSingle.set(value);
     this.load();
   }
 
@@ -496,6 +544,11 @@ export class CaseListComponent implements OnInit, OnDestroy {
       this.customDateFrom.set('');
       this.customDateTo.set('');
       this.customDateSingle.set('');
+    } else if (chip.key === 'modDate') {
+      this.modDateFilterPreset.set('all');
+      this.modCustomDateFrom.set('');
+      this.modCustomDateTo.set('');
+      this.modCustomDateSingle.set('');
     }
     this.load();
   }
