@@ -42,6 +42,9 @@ public class AppDbContext : DbContext
     /// <summary>Explicit customer-account activity audit rows (profile edits, etc.).</summary>
     public DbSet<CustomerActivity> CustomerActivities => Set<CustomerActivity>();
 
+    /// <summary>Case/Customer "viewed/opened" audit rows (read events, cooldown-coalesced).</summary>
+    public DbSet<ViewEvent> ViewEvents => Set<ViewEvent>();
+
     /// <summary>Per-agent, per-case "last viewed" markers for the Messages tab.</summary>
     public DbSet<ConversationReadState> ConversationReadStates => Set<ConversationReadState>();
 
@@ -157,6 +160,21 @@ public class AppDbContext : DbContext
             e.Property(a => a.ActorRole).HasMaxLength(50);
             e.HasOne(a => a.Customer!).WithMany()
                 .HasForeignKey(a => a.CustomerId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Viewed/opened audit rows. Stored as a discriminator table (no FK to
+        // Case/Customer) so the log survives target deletion and needs no
+        // migration. Indexes support the per-target and per-target+viewer
+        // cooldown lookups in ViewEventService.
+        builder.Entity<ViewEvent>(e =>
+        {
+            e.HasKey(v => v.Id);
+            e.Property(v => v.TargetType).IsRequired().HasMaxLength(20);
+            e.Property(v => v.ViewerName).IsRequired().HasMaxLength(200);
+            e.Property(v => v.ViewerUserId).HasMaxLength(100);
+            e.Property(v => v.ViewerRole).HasMaxLength(50);
+            e.HasIndex(v => new { v.TargetType, v.TargetId });
+            e.HasIndex(v => new { v.TargetType, v.TargetId, v.ViewerUserId, v.AtUtc });
         });
 
         builder.Entity<ConversationReadState>(e =>
