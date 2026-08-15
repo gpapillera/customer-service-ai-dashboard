@@ -152,7 +152,9 @@ public class CustomersController : ControllerBase
     public async Task<IActionResult> Update(int id, [FromBody] UpdateCustomerDto dto)
     {
         if (id != dto.Id) return BadRequest();
-        await _service.UpdateAsync(dto);
+        var callerUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var callerRole = User.FindFirst(ClaimTypes.Role)?.Value;
+        await _service.UpdateAsync(dto, callerRole, callerUserId);
         return NoContent();
     }
 

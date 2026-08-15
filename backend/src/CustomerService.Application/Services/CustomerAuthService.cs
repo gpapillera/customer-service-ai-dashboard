@@ -24,6 +24,7 @@ public class CustomerAuthService : ICustomerAuthService
 
     private readonly IRepository<Customer> _customers;
     private readonly IRepository<CustomerAccount> _accounts;
+    private readonly IRepository<CustomerActivity> _activities;
     private readonly INotificationSender _sender;
     private readonly IConfiguration _config;
     private readonly ICustomerDisplayIdGenerator _displayIdGenerator;
@@ -32,12 +33,14 @@ public class CustomerAuthService : ICustomerAuthService
     public CustomerAuthService(
         IRepository<Customer> customers,
         IRepository<CustomerAccount> accounts,
+        IRepository<CustomerActivity> activities,
         INotificationSender sender,
         IConfiguration config,
         ICustomerDisplayIdGenerator displayIdGenerator)
     {
         _customers = customers;
         _accounts = accounts;
+        _activities = activities;
         _sender = sender;
         _config = config;
         _displayIdGenerator = displayIdGenerator;
@@ -120,13 +123,42 @@ public class CustomerAuthService : ICustomerAuthService
             ?? throw new KeyNotFoundException($"Customer {customerId} not found.");
 
         // Email is the login identity and is intentionally NOT editable here.
-        // Only the editable profile fields change.
+        // Only the editable profile fields change — diff them so the audit row
+        // records WHAT changed (a no-op save writes nothing).
+        var newPhone = NormalizePhone(dto.Phone);
+        var newCompany = string.IsNullOrWhiteSpace(dto.Company) ? null : dto.Company.Trim();
+        var newAddress = string.IsNullOrWhiteSpace(dto.Address) ? null : dto.Address.Trim();
+        var changed = new List<string>();
+        if (!string.Equals(customer.Name, dto.Name.Trim(), StringComparison.Ordinal))
+            changed.Add("name");
+        if (!string.Equals(customer.Phone ?? string.Empty, newPhone ?? string.Empty, StringComparison.Ordinal))
+            changed.Add("phone");
+        if (!string.Equals(customer.Company ?? string.Empty, newCompany ?? string.Empty, StringComparison.Ordinal))
+            changed.Add("company");
+        if (!string.Equals(customer.Address ?? string.Empty, newAddress ?? string.Empty, StringComparison.Ordinal))
+            changed.Add("address");
+
         customer.Name = dto.Name.Trim();
-        customer.Phone = NormalizePhone(dto.Phone);
-        customer.Company = string.IsNullOrWhiteSpace(dto.Company) ? null : dto.Company.Trim();
-        customer.Address = string.IsNullOrWhiteSpace(dto.Address) ? null : dto.Address.Trim();
+        customer.Phone = newPhone;
+        customer.Company = newCompany;
+        customer.Address = newAddress;
         _customers.Update(customer);
         await _customers.SaveChangesAsync();
+
+        if (changed.Count > 0)
+        {
+            await _activities.AddAsync(new CustomerActivity
+            {
+                CustomerId = customer.Id,
+                Kind = "account_updated",
+                Label = "Profile updated",
+                Detail = "Changed: " + string.Join(", ", changed),
+                AtUtc = DateTime.UtcNow,
+                ActorUserId = customerId.ToString(),
+                ActorRole = "Customer",
+            });
+            await _activities.SaveChangesAsync();
+        }
     }
 
     /// <inheritdoc/>

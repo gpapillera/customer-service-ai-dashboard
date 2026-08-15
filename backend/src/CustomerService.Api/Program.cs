@@ -225,6 +225,7 @@ public class Program
         EnsureCaseDisplayIdColumn(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
         EnsureCaseAssignedAtUtcColumn(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
         EnsureAccountActivatedAtColumn(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
+        EnsureCustomerActivitiesTable(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
         SeedDataInitializer.Initialize(ctx);
         // Backfill any customer missing a display ID (e.g. rows created by the
         // self-signup path before this sequence existed) and seed the singleton
@@ -828,6 +829,71 @@ public class Program
         catch (Exception ex)
         {
             Console.WriteLine($"WARN: could not ensure {table}.{column} column: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Creates the <c>CustomerActivities</c> audit table if it is missing.
+    /// Holds explicit audit rows for customer-account activity that is NOT
+    /// derivable from the case graph or Notification table (today: profile/
+    /// account field edits by staff or the customer themselves). Needed because
+    /// <c>EnsureCreated()</c> will not create a table for a model added after
+    /// the database already exists. Idempotent + provider-aware. Swap for EF
+    /// migrations in production.
+    /// </summary>
+    private static async Task EnsureCustomerActivitiesTable(AppDbContext ctx, string? provider)
+    {
+        const string table = "CustomerActivities";
+        try
+        {
+            if (provider != null && provider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase))
+            {
+                var conn = ctx.Database.GetDbConnection();
+                if (conn.State != System.Data.ConnectionState.Open)
+                {
+                    await conn.OpenAsync();
+                }
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = $"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='{table}';";
+                var count = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+                if (count == 0)
+                {
+                    using var create = conn.CreateCommand();
+                    create.CommandText = $@"CREATE TABLE [{table}] (
+                        [Id] INTEGER PRIMARY KEY AUTOINCREMENT,
+                        [CustomerId] INTEGER NOT NULL,
+                        [Kind] TEXT NOT NULL,
+                        [Label] TEXT NOT NULL,
+                        [Detail] TEXT NULL,
+                        [AtUtc] TEXT NOT NULL,
+                        [ActorUserId] TEXT NULL,
+                        [ActorRole] TEXT NULL
+                    );";
+                    await create.ExecuteNonQueryAsync();
+                    using var idx = conn.CreateCommand();
+                    idx.CommandText = $"CREATE INDEX [IX_CustomerActivities_CustomerId] ON [{table}] ([CustomerId]);";
+                    await idx.ExecuteNonQueryAsync();
+                }
+            }
+            else
+            {
+                var exists = ctx.Database.ExecuteSqlRaw(
+                    $"IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='{table}') " +
+                    $"CREATE TABLE [{table}] (" +
+                    $"[Id] int IDENTITY(1,1) NOT NULL, [CustomerId] int NOT NULL, " +
+                    $"[Kind] nvarchar(50) NOT NULL, [Label] nvarchar(100) NOT NULL, " +
+                    $"[Detail] nvarchar(500) NULL, [AtUtc] datetime2 NOT NULL, " +
+                    $"[ActorUserId] nvarchar(100) NULL, [ActorRole] nvarchar(50) NULL, " +
+                    $"CONSTRAINT [PK_CustomerActivities] PRIMARY KEY ([Id]));");
+                _ = exists;
+                ctx.Database.ExecuteSqlRaw(
+                    $"IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_CustomerActivities_CustomerId') " +
+                    $"CREATE INDEX [IX_CustomerActivities_CustomerId] ON [{table}] ([CustomerId]);");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"WARN: could not ensure {table} table: {ex.Message}");
         }
     }
 

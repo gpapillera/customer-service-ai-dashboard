@@ -216,9 +216,9 @@ export interface Conversation {
 /** A single entry in the customer's merged activity timeline (case + account events). */
 export interface CustomerActivityItem {
   id: number;
-  /** opened | updated | resolved | log | comment | email (case) | account_invite | account_reset | account_activated */
+  /** opened | updated | resolved | log | comment | email (case) | account_invite | account_reset | account_activated | account_updated */
   kind: 'opened' | 'updated' | 'resolved' | 'log' | 'comment' | 'email'
-    | 'account_invite' | 'account_reset' | 'account_activated';
+    | 'account_invite' | 'account_reset' | 'account_activated' | 'account_updated';
   label: string;
   detail: string;
   atUtc: string;

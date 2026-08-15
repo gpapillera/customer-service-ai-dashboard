@@ -29,6 +29,10 @@
   width: 100%;
   max-width: 400px;
   border-radius: var(--cs-radius);
+  /* Match the app's surface token instead of Material's default outlined-card
+     skin, so the customer card matches the team login card in both themes. */
+  background: var(--cs-surface);
+  border: 1px solid var(--cs-border);
   box-shadow: var(--cs-shadow);
   padding: 0.5rem;
   animation: login-enter 0.5s var(--cs-ease) both;

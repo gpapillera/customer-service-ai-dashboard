@@ -15,22 +15,26 @@ public class CustomerService : ICustomerService
     private readonly IRepository<Customer> _customers;
     private readonly IRepository<Case> _cases;
     private readonly IRepository<Notification> _notifications;
+    private readonly IRepository<CustomerActivity> _activities;
     private readonly ICustomerDisplayIdGenerator _displayIdGenerator;
 
     /// <summary>Initializes a new <see cref="CustomerService"/>.</summary>
     /// <param name="customers">Customer repository.</param>
     /// <param name="cases">Case repository (for counts).</param>
     /// <param name="notifications">Notification repository (account + case emails for activity).</param>
+    /// <param name="activities">Customer-activity audit repository (profile edits).</param>
     /// <param name="displayIdGenerator">Monotonic sequence for customer display IDs (C-NNNNN).</param>
     public CustomerService(
         IRepository<Customer> customers,
         IRepository<Case> cases,
         IRepository<Notification> notifications,
+        IRepository<CustomerActivity> activities,
         ICustomerDisplayIdGenerator displayIdGenerator)
     {
         _customers = customers;
         _cases = cases;
         _notifications = notifications;
+        _activities = activities;
         _displayIdGenerator = displayIdGenerator;
     }
 
@@ -46,7 +50,8 @@ public class CustomerService : ICustomerService
     /// recent activity — without this the customer card footer shows only "Since …".
     /// </summary>
     private static (DateTime? atUtc, string? description, int? caseId) ComputeLastActivity(
-        Customer c, IReadOnlyList<Notification> accountNotifications)
+        Customer c, IReadOnlyList<Notification> accountNotifications,
+        IReadOnlyList<CustomerActivity>? accountActivities = null)
     {
         DateTime? latest = null;
         string? desc = null;
@@ -160,6 +165,22 @@ public class CustomerService : ICustomerService
             latest = activated;
             desc = "Account activated";
             caseId = null;
+        }
+
+        // Account-level profile edits (staff + customer self-service). These are
+        // the only account events not derivable from the case graph or
+        // Notification table, so they come from the CustomerActivities audit table.
+        if (accountActivities is not null)
+        {
+            foreach (var a in accountActivities)
+            {
+                if (a.AtUtc > (latest ?? DateTime.MinValue))
+                {
+                    latest = a.AtUtc;
+                    desc = a.Label; // "Profile updated"
+                    caseId = null;  // account-only — footer shows no deep-link
+                }
+            }
         }
 
         return (latest, desc, caseId);
@@ -336,13 +357,21 @@ public class CustomerService : ICustomerService
                      || (n.CaseId != null && caseIds.Contains(n.CaseId.Value)))
             .ToListAsync();
 
+        // Batch-load profile-edit audit rows for all loaded customers (avoids
+        // per-customer N+1, mirroring the notification batch-load above).
+        var custIds = loaded.Select(c => c.Id).ToHashSet();
+        var allActs = await _activities.Query()
+            .Where(a => custIds.Contains(a.CustomerId))
+            .ToListAsync();
+
         var result = loaded.Select(c =>
         {
             var acctNotes = allNotes.Where(n =>
                 n.Recipient == c.Email ||
                 (n.CaseId != null && (c.Cases ?? new List<Case>()).Any(cs => cs.Id == n.CaseId.Value)))
                 .ToList();
-            return ToDto(c, acctNotes);
+            var acctActs = allActs.Where(a => a.CustomerId == c.Id).ToList();
+            return ToDto(c, acctNotes, acctActs);
         }).ToList();
 
         // Re-sort by computed last-activity when sortBy=activity (in-memory after computing).
@@ -385,8 +414,11 @@ public class CustomerService : ICustomerService
             .Where(n => n.Recipient == c.Email ||
                         (n.CaseId != null && caseIds.Contains(n.CaseId.Value)))
             .ToListAsync();
+        var acctActs = await _activities.Query()
+            .Where(a => a.CustomerId == id)
+            .ToListAsync();
 
-        return ToDto(c, acctNotes);
+        return ToDto(c, acctNotes, acctActs);
     }
 
     /// <summary>
@@ -482,13 +514,21 @@ public class CustomerService : ICustomerService
                      || (n.CaseId != null && caseIds.Contains(n.CaseId.Value)))
             .ToListAsync();
 
+        // Batch-load profile-edit audit rows for all loaded customers (avoids
+        // per-customer N+1, mirroring the notification batch-load above).
+        var custIds = loaded.Select(c => c.Id).ToHashSet();
+        var allActs = await _activities.Query()
+            .Where(a => custIds.Contains(a.CustomerId))
+            .ToListAsync();
+
         var result = loaded.Select(c =>
         {
             var acctNotes = allNotes.Where(n =>
                 n.Recipient == c.Email ||
                 (n.CaseId != null && (c.Cases ?? new List<Case>()).Any(cs => cs.Id == n.CaseId.Value)))
                 .ToList();
-            return ToDto(c, acctNotes);
+            var acctActs = allActs.Where(a => a.CustomerId == c.Id).ToList();
+            return ToDto(c, acctNotes, acctActs);
         }).ToList();
 
         // Re-sort by computed last-activity when sortBy=activity (in-memory after computing).
@@ -523,17 +563,50 @@ public class CustomerService : ICustomerService
     }
 
     /// <inheritdoc/>
-    public async Task UpdateAsync(UpdateCustomerDto dto)
+    public async Task UpdateAsync(UpdateCustomerDto dto, string? callerRole = null, string? callerUserId = null)
     {
         var customer = await _customers.GetByIdAsync(dto.Id)
             ?? throw new KeyNotFoundException($"Customer {dto.Id} not found.");
+
+        // Diff the editable profile fields so the audit row records WHAT changed
+        // (not a row for an identical save). Email is normalized the same way on
+        // both sides, so a no-op edit writes nothing.
+        var changed = new List<string>();
+        if (!string.Equals(customer.Name, dto.Name, StringComparison.Ordinal))
+            changed.Add("name");
+        var newEmail = NormalizeEmail(dto.Email);
+        if (!string.Equals(customer.Email, newEmail, StringComparison.Ordinal))
+            changed.Add("email");
+        var newPhone = NormalizePhone(dto.Phone);
+        if (!string.Equals(customer.Phone ?? string.Empty, newPhone ?? string.Empty, StringComparison.Ordinal))
+            changed.Add("phone");
+        if (!string.Equals(customer.Company ?? string.Empty, dto.Company ?? string.Empty, StringComparison.Ordinal))
+            changed.Add("company");
+        if (!string.Equals(customer.Address ?? string.Empty, dto.Address ?? string.Empty, StringComparison.Ordinal))
+            changed.Add("address");
+
         customer.Name = dto.Name;
-        customer.Email = NormalizeEmail(dto.Email);
-        customer.Phone = NormalizePhone(dto.Phone);
+        customer.Email = newEmail;
+        customer.Phone = newPhone;
         customer.Company = dto.Company;
         customer.Address = dto.Address;
         _customers.Update(customer);
         await _customers.SaveChangesAsync();
+
+        if (changed.Count > 0)
+        {
+            await _activities.AddAsync(new CustomerActivity
+            {
+                CustomerId = customer.Id,
+                Kind = "account_updated",
+                Label = "Profile updated",
+                Detail = "Changed: " + string.Join(", ", changed),
+                AtUtc = DateTime.UtcNow,
+                ActorUserId = callerUserId,
+                ActorRole = callerRole,
+            });
+            await _activities.SaveChangesAsync();
+        }
     }
 
     /// <inheritdoc/>
@@ -632,6 +705,28 @@ public class CustomerService : ICustomerService
 
         var items = BuildCaseActivityItems(c);
 
+        // Account-level profile edits (staff + customer self-service). These are
+        // the only account events NOT derivable from the case graph or
+        // Notification table, so they live in the CustomerActivities audit table.
+        var profileEdits = await _activities.Query()
+            .Where(a => a.CustomerId == customerId)
+            .ToListAsync();
+        foreach (var a in profileEdits)
+        {
+            items.Add(new CustomerActivityItemDto
+            {
+                // Negative id keeps these distinct from case-item ids and from
+                // the activation sentinel (-1) used below.
+                Id = -1000 - a.Id,
+                Kind = a.Kind,
+                Label = a.Label,
+                Detail = a.Detail,
+                AtUtc = a.AtUtc,
+                CaseId = null,
+                Who = a.ActorRole,
+            });
+        }
+
         // Account-level emails (invite / reset / manual; CaseId null + Recipient == email).
         // Materialize the case-id set so the query translates (n.CaseId is nullable
         // and can't be compared to the in-graph Cases collection client-side).
@@ -717,9 +812,10 @@ public class CustomerService : ICustomerService
             .ToList();
     }
 
-    private static CustomerDto ToDto(Customer c, IReadOnlyList<Notification> accountNotifications)
+    private static CustomerDto ToDto(Customer c, IReadOnlyList<Notification> accountNotifications,
+        IReadOnlyList<CustomerActivity>? accountActivities = null)
     {
-        var (lastActivityAt, lastActivityDesc, lastActivityCaseId) = ComputeLastActivity(c, accountNotifications);
+        var (lastActivityAt, lastActivityDesc, lastActivityCaseId) = ComputeLastActivity(c, accountNotifications, accountActivities);
         return new()
         {
             Id = c.Id,

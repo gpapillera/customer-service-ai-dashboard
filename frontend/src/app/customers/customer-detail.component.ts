@@ -320,6 +320,7 @@ export class CustomerDetailComponent implements OnInit {
       case 'account_invite': return 'mail';
       case 'account_reset': return 'lock_reset';
       case 'account_activated': return 'verified_user';
+      case 'account_updated': return 'edit';
       default: return 'circle';
     }
   }

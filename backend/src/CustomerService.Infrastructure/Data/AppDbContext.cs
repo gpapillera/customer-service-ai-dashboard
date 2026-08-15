@@ -39,6 +39,9 @@ public class AppDbContext : DbContext
     /// <summary>System notifications (e.g. overdue follow-up alerts).</summary>
     public DbSet<Notification> Notifications => Set<Notification>();
 
+    /// <summary>Explicit customer-account activity audit rows (profile edits, etc.).</summary>
+    public DbSet<CustomerActivity> CustomerActivities => Set<CustomerActivity>();
+
     /// <summary>Per-agent, per-case "last viewed" markers for the Messages tab.</summary>
     public DbSet<ConversationReadState> ConversationReadStates => Set<ConversationReadState>();
 
@@ -142,6 +145,18 @@ public class AppDbContext : DbContext
             // Notifications reference a case but must survive case deletion.
             e.HasOne(n => n.Case).WithMany(c => c.Notifications)
                 .HasForeignKey(n => n.CaseId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        builder.Entity<CustomerActivity>(e =>
+        {
+            e.HasKey(a => a.Id);
+            e.Property(a => a.Kind).IsRequired().HasMaxLength(50);
+            e.Property(a => a.Label).IsRequired().HasMaxLength(100);
+            e.Property(a => a.Detail).HasMaxLength(500);
+            e.Property(a => a.ActorUserId).HasMaxLength(100);
+            e.Property(a => a.ActorRole).HasMaxLength(50);
+            e.HasOne(a => a.Customer!).WithMany()
+                .HasForeignKey(a => a.CustomerId).OnDelete(DeleteBehavior.Cascade);
         });
 
         builder.Entity<ConversationReadState>(e =>

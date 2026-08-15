@@ -15,13 +15,22 @@ namespace CustomerService.Tests;
 /// </summary>
 public class CustomerServiceTests
 {
-    private static CustomerService.Application.Services.CustomerService BuildService(out FakeRepository<Customer> customers, out FakeRepository<Case> cases)
+    private static CustomerService.Application.Services.CustomerService BuildService(
+        out FakeRepository<Customer> customers, out FakeRepository<Case> cases, out FakeRepository<CustomerActivity> activities)
     {
         customers = new FakeRepository<Customer>();
         cases = new FakeRepository<Case>();
         var notifications = new FakeRepository<Notification>();
+        activities = new FakeRepository<CustomerActivity>();
         var displayIds = new CustomerDisplayIdGenerator();
-        return new CustomerService.Application.Services.CustomerService(customers, cases, notifications, displayIds);
+        return new CustomerService.Application.Services.CustomerService(customers, cases, notifications, activities, displayIds);
+    }
+
+    // Back-compat overload for tests that don't exercise the activity audit.
+    private static CustomerService.Application.Services.CustomerService BuildService(
+        out FakeRepository<Customer> customers, out FakeRepository<Case> cases)
+    {
+        return BuildService(out customers, out cases, out var _);
     }
 
     private static Customer SeedCustomer(FakeRepository<Customer> repo, int id, string name = "Cust")
@@ -88,5 +97,83 @@ public class CustomerServiceTests
         var agentHistory = await svc.GetCustomerCaseHistoryAsync(1, "Agent", "agent-001");
         Assert.Single(agentHistory);
         Assert.Equal(1, agentHistory[0].Id);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_ProfileEdit_WritesAccountActivityRow()
+    {
+        var svc = BuildService(out var customers, out _, out var activities);
+        SeedCustomer(customers, 1, "Alpha");
+
+        await svc.UpdateAsync(new UpdateCustomerDto { Id = 1, Name = "Alpha Updated", Email = "c1@e.com" }, "Admin", "admin-001");
+
+        var rows = activities.Query().ToList();
+        Assert.Single(rows);
+        Assert.Equal(1, rows[0].CustomerId);
+        Assert.Equal("account_updated", rows[0].Kind);
+        Assert.Equal("Profile updated", rows[0].Label);
+        Assert.Equal("Admin", rows[0].ActorRole);
+        Assert.Equal("admin-001", rows[0].ActorUserId);
+        Assert.Contains("name", rows[0].Detail);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_NoChange_WritesNoActivityRow()
+    {
+        var svc = BuildService(out var customers, out _, out var activities);
+        SeedCustomer(customers, 1, "Alpha");
+
+        // Saving identical values must NOT record an audit row.
+        await svc.UpdateAsync(new UpdateCustomerDto { Id = 1, Name = "Alpha", Email = "c1@e.com" }, "Admin", "admin-001");
+
+        Assert.Empty(activities.Query().ToList());
+    }
+
+    [Fact]
+    public async Task GetCustomerActivityAsync_IncludesProfileEdit()
+    {
+        var svc = BuildService(out var customers, out var cases, out var activities);
+        var c = SeedCustomer(customers, 1, "Alpha");
+        var edit = new CustomerActivity
+        {
+            Id = 1,
+            CustomerId = 1,
+            Kind = "account_updated",
+            Label = "Profile updated",
+            Detail = "Changed: name",
+            AtUtc = DateTime.UtcNow,
+            ActorRole = "Admin",
+        };
+        (activities as IRepository<CustomerActivity>).AddAsync(edit).Wait();
+
+        var items = await svc.GetCustomerActivityAsync(1);
+
+        var auditRow = items.FirstOrDefault(i => i.Kind == "account_updated");
+        Assert.NotNull(auditRow);
+        Assert.Equal("Profile updated", auditRow!.Label);
+        Assert.Equal("Changed: name", auditRow.Detail);
+        Assert.Null(auditRow.CaseId);
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_ProfileEdit_UpdatesLastActivity()
+    {
+        var svc = BuildService(out var customers, out var cases, out var activities);
+        SeedCustomer(customers, 1, "Alpha");
+        var edit = new CustomerActivity
+        {
+            Id = 1,
+            CustomerId = 1,
+            Kind = "account_updated",
+            Label = "Profile updated",
+            Detail = "Changed: name",
+            AtUtc = DateTime.UtcNow,
+        };
+        (activities as IRepository<CustomerActivity>).AddAsync(edit).Wait();
+
+        var dto = await svc.GetByIdAsync(1);
+
+        Assert.Equal("Profile updated", dto!.LastActivityDescription);
+        Assert.Null(dto.LastActivityCaseId);
     }
 }

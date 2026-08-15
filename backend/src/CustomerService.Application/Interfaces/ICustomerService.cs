@@ -55,7 +55,9 @@ public interface ICustomerService
 
     /// <summary>Updates a customer.</summary>
     /// <param name="dto">Update payload (must include id).</param>
-    Task UpdateAsync(UpdateCustomerDto dto);
+    /// <param name="callerRole">Role of the calling user (recorded on the activity audit row).</param>
+    /// <param name="callerUserId">Id of the calling user (recorded on the activity audit row).</param>
+    Task UpdateAsync(UpdateCustomerDto dto, string? callerRole = null, string? callerUserId = null);
 
     /// <summary>Deletes a customer (Admin only).</summary>
     /// <param name="id">Customer id.</param>

@@ -2,6 +2,47 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 59 — Customer account/profile edits now recorded in activity panels + card footer] (2026-08-14)
+**Status:** ✅ COMPLETE (backend `dotnet build` + `dotnet test` green: 109/109 pass; frontend `npm run build` green; verified live in-browser as admin in BOTH light + dark mode)
+
+### What changed
+- Previously, **customer account-detail edits were written nowhere** — they did
+  not appear in the customer-detail Emails/Activity panel and did not update the
+  customer card's "most recent activity" footer. Case-level activity (opened,
+  status/priority/assignment updates, resolution, call logs, comments, emails)
+  and account events (invite / password reset / activation) were already covered.
+- Added a dedicated `CustomerActivity` audit table (SQL Server + SQLite DDL via the
+  repo's existing idempotent `EnsureXTable` startup pattern — no EF migrations, no
+  data loss) holding only account activity NOT derivable from the case graph or
+  Notification table (today: profile/account field edits).
+- `CustomerService.UpdateAsync` (staff edit) now diffs name/email/phone/company/
+  address and, on any real change, writes an `account_updated` row attributed to
+  the calling staff (`ActorRole`/`ActorUserId`). A no-op save writes nothing.
+- `CustomerAuthService.UpdateProfileAsync` (customer self-service edit) writes the
+  same row with `ActorRole = "Customer"`. Email stays non-editable there by design.
+- `GetCustomerActivityAsync` merges these rows into the customer-detail Activity
+  panel; `ComputeLastActivity` + `ToDto` fold them into the card footer's "most
+  recent activity" (account events correctly carry no case deep-link).
+- Frontend: added `'account_updated'` to the activity `kind` union and an `edit`
+  Material icon for the row.
+
+### Files
+- `backend/.../Domain/Entities/CustomerActivity.cs` (new entity)
+- `backend/.../Infrastructure/Data/AppDbContext.cs` (DbSet + EF config)
+- `backend/.../Application/Services/CustomerService.cs` (record on staff edit; merge into activity + card footer; batch-load audit rows in GetAll/Search)
+- `backend/.../Application/Services/CustomerAuthService.cs` (record on self-service edit)
+- `backend/.../Application/Interfaces/ICustomerService.cs` (UpdateAsync signature gains caller identity)
+- `backend/.../Api/Controllers/CustomersController.cs` (pass identity on PUT)
+- `backend/.../Api/Program.cs` (EnsureCustomerActivitiesTable startup helper)
+- `frontend/src/app/shared/models.ts` + `frontend/src/app/customers/customer-detail.component.ts` (kind + icon)
+- `backend/tests/CustomerService.Tests/CustomerServiceTests.cs` + `CustomerProfileAuditTests.cs` (new coverage: audit row written on real change, omitted on no-op, appears in activity + footer, customer-attributed)
+
+### Verification (live)
+- Staff edit of customer 4 (Ana Reyes) → card footer changed from "Sent email" to
+  "Profile updated" (Aug 15, 1:04 AM); `/activity` shows the `account_updated` row
+  at top with `who: Admin`; customer-detail Activity panel shows "PROFILE UPDATED"
+  row both in dark and light mode with correct contrast/icons.
+
 ## [Phase 58 — Customer-detail panel filter controls now match case-detail] (2026-08-14)
 **Status:** ✅ COMPLETE (frontend `npm run build` green; panel verified live in-browser in BOTH light + dark mode as admin)
 
