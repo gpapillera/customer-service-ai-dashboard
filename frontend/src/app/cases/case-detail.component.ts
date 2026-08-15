@@ -22,7 +22,7 @@ import { CaseService } from './case.service';
 import { CallLogService } from './call-log.service';
 import { EmailLogService } from '../email/email-log.service';
 import { CaseFormComponent, CaseFormDialogData } from './case-form.component';
-import { Case, CallLog, Agent, CustomerCaseComment, Notification } from '../shared/models';
+import { Case, CallLog, Agent, CustomerCaseComment, Notification, ViewEvent } from '../shared/models';
 import { RealtimeService } from '../shared/realtime.service';
 import { DatePreset, DATE_PRESETS, DATE_PRESET_LABELS, filterByDatePreset, datePresetNeedsInput } from '../shared/date-filter';
 import { AuthService } from '../auth/auth.service';
@@ -31,7 +31,7 @@ import { SaveFlashService } from '../shared/save-flash.service';
 /** One row in the case Activity timeline: an email, call log, comment, or state change. */
 export interface ActivityItem {
   key: string;
-  kind: 'opened' | 'updated' | 'log' | 'comment' | 'email';
+  kind: 'opened' | 'updated' | 'log' | 'comment' | 'email' | 'viewed';
   label: string;
   detail: string;
   atUtc: string;
@@ -121,6 +121,8 @@ export class CaseDetailComponent implements OnInit {
   });
   readonly logs = signal<CallLog[]>([]);
   readonly comments = signal<CustomerCaseComment[]>([]);
+  /** Viewed/opened audit rows for this case (recorded on open; coalesced server-side). */
+  readonly caseViews = signal<ViewEvent[]>([]);
   readonly loading = signal(true);
   /** Set when the case cannot be loaded (e.g. 403 for an Agent). */
   readonly loadError = signal<string | null>(null);
@@ -211,8 +213,22 @@ export class CaseDetailComponent implements OnInit {
       items.push({ key: `email-${email.id}`, kind: 'email', label: 'Email sent', detail: email.title || email.message, atUtc: email.createdAtUtc, who: email.recipient ?? undefined });
     }
 
+    // Viewed/opened audit rows: recorded on open, coalesced server-side by a
+    // 10-min per-viewer cooldown. Shown as their own timeline kind.
+    for (const v of this.caseViews()) {
+      items.push({ key: `viewed-${v.id}`, kind: 'viewed', label: 'Viewed', detail: `Viewed by ${v.viewerName}`, atUtc: v.atUtc, who: v.viewerRole ?? undefined });
+    }
+
     return items.sort((a, b) => new Date(b.atUtc).getTime() - new Date(a.atUtc).getTime());
   });
+
+  /** Loads the viewed/opened audit rows for this case into `caseViews`. */
+  private loadCaseViews(id: number): void {
+    this.caseService.caseViews(id).subscribe({
+      next: (views) => this.caseViews.set(views),
+      error: () => { /* best-effort: activity panel simply omits views */ },
+    });
+  }
 
   /** Activity rows filtered by live search + date preset. */
   readonly filteredActivity = computed(() => {
@@ -410,6 +426,13 @@ export class CaseDetailComponent implements OnInit {
           this.caseService.markConversationRead(id).subscribe({
             next: () => this.navBadgeService.refresh(),
             error: () => { /* badge will correct on next poll */ },
+          });
+          // Record this open as a "viewed" activity row. Fire-and-forget:
+          // server-side cooldown coalesces repeats, so refreshing the page
+          // within 10 min won't add a second row.
+          this.caseService.recordView(id).subscribe({
+            next: () => this.loadCaseViews(id),
+            error: () => { /* audit is best-effort; never block the page */ },
           });
         }
       },

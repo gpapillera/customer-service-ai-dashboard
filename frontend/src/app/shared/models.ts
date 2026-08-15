@@ -213,12 +213,29 @@ export interface Conversation {
   unreadCount: number;
 }
 
+/** A recorded "viewed/opened" audit event for a Case or Customer detail page. */
+export interface ViewEvent {
+  id: number;
+  /** "Case" or "Customer". */
+  targetType: string;
+  /** Id of the viewed Case or Customer. */
+  targetId: number;
+  /** Viewer's user id (JWT sub) for staff; null for customer self-view. */
+  viewerUserId?: string | null;
+  /** Human-readable viewer name shown on the timeline. */
+  viewerName: string;
+  /** Viewer role ("Admin"/"Agent"/"Customer"); null if unknown. */
+  viewerRole?: string | null;
+  /** UTC timestamp of the view. */
+  atUtc: string;
+}
+
 /** A single entry in the customer's merged activity timeline (case + account events). */
 export interface CustomerActivityItem {
   id: number;
-  /** opened | updated | resolved | log | comment | email (case) | account_invite | account_reset | account_activated | account_updated */
+  /** opened | updated | resolved | log | comment | email (case) | account_invite | account_reset | account_activated | account_updated | viewed */
   kind: 'opened' | 'updated' | 'resolved' | 'log' | 'comment' | 'email'
-    | 'account_invite' | 'account_reset' | 'account_activated' | 'account_updated';
+    | 'account_invite' | 'account_reset' | 'account_activated' | 'account_updated' | 'viewed';
   label: string;
   detail: string;
   atUtc: string;

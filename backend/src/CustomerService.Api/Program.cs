@@ -72,6 +72,7 @@ public class Program
         builder.Services.AddScoped<ICustomerService, Application.Services.CustomerService>();
         builder.Services.AddScoped<ICaseService, CaseService>();
         builder.Services.AddScoped<ICaseCommentService, CaseCommentService>();
+        builder.Services.AddScoped<IViewEventService, Application.Services.ViewEventService>();
         builder.Services.AddScoped<ICallLogService, CallLogService>();
         builder.Services.AddScoped<IAuthService, AuthService>();
         builder.Services.AddScoped<ICustomerAuthService, CustomerAuthService>();
@@ -226,6 +227,7 @@ public class Program
         EnsureCaseAssignedAtUtcColumn(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
         EnsureAccountActivatedAtColumn(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
         EnsureCustomerActivitiesTable(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
+        EnsureViewEventsTable(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
         SeedDataInitializer.Initialize(ctx);
         // Backfill any customer missing a display ID (e.g. rows created by the
         // self-signup path before this sequence existed) and seed the singleton
@@ -889,6 +891,68 @@ public class Program
                 ctx.Database.ExecuteSqlRaw(
                     $"IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_CustomerActivities_CustomerId') " +
                     $"CREATE INDEX [IX_CustomerActivities_CustomerId] ON [{table}] ([CustomerId]);");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"WARN: could not ensure {table} table: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Creates the <c>ViewEvents</c> table if it is missing (read/view audit
+    /// rows for Case + Customer detail pages). Mirrors <see cref="EnsureCustomerActivitiesTable"/>:
+    /// idempotent raw SQL so a model added after the database exists is created
+    /// without EF migrations. No FK to Case/Customer — the log must survive
+    /// target deletion.
+    /// </summary>
+    private static async Task EnsureViewEventsTable(AppDbContext ctx, string? provider)
+    {
+        const string table = "ViewEvents";
+        try
+        {
+            if (provider != null && provider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase))
+            {
+                var conn = ctx.Database.GetDbConnection();
+                if (conn.State != System.Data.ConnectionState.Open)
+                {
+                    await conn.OpenAsync();
+                }
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = $"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='{table}';";
+                var count = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+                if (count == 0)
+                {
+                    using var create = conn.CreateCommand();
+                    create.CommandText = $@"CREATE TABLE [{table}] (
+                        [Id] INTEGER PRIMARY KEY AUTOINCREMENT,
+                        [TargetType] TEXT NOT NULL,
+                        [TargetId] INTEGER NOT NULL,
+                        [ViewerUserId] TEXT NULL,
+                        [ViewerName] TEXT NOT NULL,
+                        [ViewerRole] TEXT NULL,
+                        [AtUtc] TEXT NOT NULL
+                    );";
+                    await create.ExecuteNonQueryAsync();
+                    using var idx = conn.CreateCommand();
+                    idx.CommandText = $"CREATE INDEX [IX_ViewEvents_Target] ON [{table}] ([TargetType], [TargetId]);";
+                    await idx.ExecuteNonQueryAsync();
+                }
+            }
+            else
+            {
+                var exists = ctx.Database.ExecuteSqlRaw(
+                    $"IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='{table}') " +
+                    $"CREATE TABLE [{table}] (" +
+                    $"[Id] int IDENTITY(1,1) NOT NULL, [TargetType] nvarchar(20) NOT NULL, " +
+                    $"[TargetId] int NOT NULL, [ViewerUserId] nvarchar(100) NULL, " +
+                    $"[ViewerName] nvarchar(200) NOT NULL, [ViewerRole] nvarchar(50) NULL, " +
+                    $"[AtUtc] datetime2 NOT NULL, " +
+                    $"CONSTRAINT [PK_ViewEvents] PRIMARY KEY ([Id]));");
+                _ = exists;
+                ctx.Database.ExecuteSqlRaw(
+                    $"IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_ViewEvents_Target') " +
+                    $"CREATE INDEX [IX_ViewEvents_Target] ON [{table}] ([TargetType], [TargetId]);");
             }
         }
         catch (Exception ex)

@@ -23,7 +23,8 @@ public class CustomerServiceTests
         var notifications = new FakeRepository<Notification>();
         activities = new FakeRepository<CustomerActivity>();
         var displayIds = new CustomerDisplayIdGenerator();
-        return new CustomerService.Application.Services.CustomerService(customers, cases, notifications, activities, displayIds);
+        var viewEvents = new FakeViewEventService();
+        return new CustomerService.Application.Services.CustomerService(customers, cases, notifications, activities, displayIds, viewEvents);
     }
 
     // Back-compat overload for tests that don't exercise the activity audit.

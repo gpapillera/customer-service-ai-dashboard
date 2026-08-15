@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
-import { Case, CreateCase, UpdateCase, Category, Agent, Conversation, CustomerCaseComment } from '../shared/models';
+import { Case, CreateCase, UpdateCase, Category, Agent, Conversation, CustomerCaseComment, ViewEvent } from '../shared/models';
 import { CATEGORIES } from '../shared/categories';
 
 /**
@@ -112,5 +112,20 @@ export class CaseService {
   /** Marks a conversation as read for the calling agent. */
   markConversationRead(id: number): Observable<void> {
     return this.http.post<void>(`${this.baseUrl}/${id}/conversations/mark-read`, {});
+  }
+
+  /**
+   * Records that the calling user viewed/opened this case's detail page.
+   * Coalesced server-side by a 10-minute per-viewer cooldown, so callers can
+   * fire-and-forget on every open without flooding the audit. Returns the
+   * created row (200) or null (204 coalesced) — the caller ignores both.
+   */
+  recordView(id: number): Observable<unknown> {
+    return this.http.post<unknown>(`${this.baseUrl}/${id}/view`, {});
+  }
+
+  /** Gets the viewed/opened audit rows for a case, newest first. */
+  caseViews(id: number): Observable<ViewEvent[]> {
+    return this.http.get<ViewEvent[]>(`${this.baseUrl}/${id}/views`);
   }
 }

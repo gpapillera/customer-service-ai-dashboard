@@ -157,6 +157,17 @@ export class CustomerDetailComponent implements OnInit {
     const id = Number(this.route.snapshot.paramMap.get('id'));
     this.service.customerEmails(id).subscribe((list) => this.emails.set(list));
     this.service.customerActivity(id).subscribe((list) => this.activity.set(list));
+    // Record this open as a "viewed" activity row (staff only). The backend
+    // coalesces repeats by a 10-min per-viewer cooldown, so re-opening/refreshing
+    // within that window won't add a second row. Re-fetch the activity feed so
+    // the new "Viewed" entry appears in the panel immediately.
+    const role = this.auth.getRole();
+    if (role === 'Agent' || role === 'Admin') {
+      this.service.recordView(id).subscribe({
+        next: () => this.service.customerActivity(id).subscribe((list) => this.activity.set(list)),
+        error: () => { /* audit is best-effort; never block the panel */ },
+      });
+    }
   }
 
   /** Opens the new-case modal directly on this page, locked to this customer. */
@@ -321,6 +332,7 @@ export class CustomerDetailComponent implements OnInit {
       case 'account_reset': return 'lock_reset';
       case 'account_activated': return 'verified_user';
       case 'account_updated': return 'edit';
+      case 'viewed': return 'visibility';
       default: return 'circle';
     }
   }

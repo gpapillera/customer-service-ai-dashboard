@@ -396,7 +396,7 @@
               @for (a of filteredActivity(); track a.key) {
                 <div class="tl-row">
                   <span class="tl-icon" [class]="'kind-' + a.kind">
-                    <cs-icon [name]="a.kind === 'opened' ? 'check_circle' : a.kind === 'updated' ? 'schedule' : a.kind === 'log' ? 'phone' : a.kind === 'comment' ? 'forum' : 'mail'"></cs-icon>
+                    <cs-icon [name]="a.kind === 'opened' ? 'check_circle' : a.kind === 'updated' ? 'schedule' : a.kind === 'log' ? 'phone' : a.kind === 'comment' ? 'forum' : a.kind === 'viewed' ? 'visibility' : 'mail'"></cs-icon>
                   </span>
                   <div class="tl-body">
                     <div class="tl-head">

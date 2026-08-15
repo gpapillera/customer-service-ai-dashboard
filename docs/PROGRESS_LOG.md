@@ -2,6 +2,27 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 62 — Record "viewed/opened" events in activity timelines (case + customer)] (2026-08-15)
+**Status:** ✅ COMPLETE (backend `dotnet build` + 115 tests green; frontend `npm run build` green; verified live in-browser as admin in BOTH light + dark mode)
+
+### What changed
+- New `ViewEvent` audit entity + `ViewEvents` table (idempotent `EnsureViewEventsTable`, no migrations). Records who opened a Case or Customer detail page, when, and as what role.
+- `IViewEventService` / `ViewEventService`: `RecordViewAsync` coalesces repeats per viewer by a **10-minute cooldown** (so refreshes/back-nav don't flood the log); `GetForTargetAsync` + `GetForCustomerAsync` (account views + that customer's case views).
+- Endpoints: `POST /api/cases/{id}/view`, `GET /api/cases/{id}/views`, `POST /api/customers/{id}/view`. `GetCustomerActivityAsync` now merges view events into the customer activity timeline (Kind `viewed`, "Viewed by {name}", CaseId set for case-views so they deep-link on the customer page).
+- Frontend: `recordView()` on both detail pages (fire-and-forget, role-guarded, 204 coalesced is ignored); case-detail fetches its views via `GET /api/cases/{id}/views` and merges into the Activity panel; customer-detail re-fetches its activity feed after recording so the new row appears at once. New `ViewEvent` model; `kind:'viewed'` added to both timeline unions; `visibility` icon + `.kind-viewed` (theme-aware `--cs-info`) styling on both panels.
+
+### Deliberate calls
+- Views are NOT folded into `ComputeLastActivity` (the customer card footer / list sort key) — a read shouldn't make a customer jump to the top of the list just because someone opened them. Views appear only in the activity panel.
+- Staff-only recording (the activity panels are staff-facing). Customer self-service portal opening their own account is not yet recorded (separate controller; would set `ViewerRole="Customer"`).
+
+### Files
+- Backend: `ViewEvent.cs` (new), `AppDbContext.cs`, `Program.cs` (+`EnsureViewEventsTable`), `IViewEventService.cs` (new), `ViewEventService.cs` (new), `CustomerActivityDto.cs`, `CustomerService.cs`, `CasesController.cs`, `CustomersController.cs`.
+- Tests: `ViewEventTests.cs` (new, 6 tests), `FakeViewEventService.cs` (new), `CustomerServiceTests.cs` (DI update), `FakeRepository` unchanged.
+- Frontend: `models.ts`, `case.service.ts`, `customer.service.ts`, `case-detail.component.ts/.html/.scss`, `customer-detail.component.ts/.scss`.
+
+### Verification (live)
+- Opened CAS-00001 as admin → Activity panel shows "Viewed by admin" at top (18 rows, 2 `.kind-viewed`). Opened customer 1 → 22 rows, 2 "Viewed by admin" (account + case view merged). Cooldown: re-POST view within 10 min returned 204, row count unchanged. `.kind-viewed` color resolves from theme tokens in both dark (`rgb(12,25,41)/rgb(96,165,250)`) and light (`rgb(219,234,254)/rgb(59,130,246)`). No console errors.
+
 ## [Phase 61 — Cases table: "Modified on" column + date filter (mirrors Created)] (2026-08-15)
 **Status:** ✅ COMPLETE (frontend `npm run build` green; verified live in-browser as admin in BOTH light + dark mode)
 

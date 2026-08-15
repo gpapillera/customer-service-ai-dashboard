@@ -19,14 +19,17 @@ public class CasesController : ControllerBase
 {
     private readonly ICaseService _service;
     private readonly ICaseCommentService _comments;
+    private readonly IViewEventService _viewEvents;
 
     /// <summary>Initializes a new <see cref="CasesController"/>.</summary>
     /// <param name="service">Case service.</param>
     /// <param name="comments">Shared case-comment service.</param>
-    public CasesController(ICaseService service, ICaseCommentService comments)
+    /// <param name="viewEvents">Viewed/opened audit service.</param>
+    public CasesController(ICaseService service, ICaseCommentService comments, IViewEventService viewEvents)
     {
         _service = service;
         _comments = comments;
+        _viewEvents = viewEvents;
     }
 
     /// <summary>Lists cases with optional filters.</summary>
@@ -74,6 +77,36 @@ public class CasesController : ControllerBase
         var callerRole = User.FindFirst(ClaimTypes.Role)?.Value;
         var c = await _service.GetByIdAsync(id, callerRole, callerUserId);
         return c is null ? NotFound() : Ok(c);
+    }
+
+    /// <summary>
+    /// Records that the calling user viewed/opened this case's detail page.
+    /// Coalesced per viewer by a 10-minute cooldown (see <c>ViewEventService</c>)
+    /// so refreshes/back-navigation don't flood the audit. Returns 200 with the
+    /// created row, or 204 when the view was coalesced into a recent one.
+    /// </summary>
+    /// <param name="id">Case id.</param>
+    [HttpPost("{id:int}/view")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RecordView(int id)
+    {
+        var callerUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var callerRole = User.FindFirst(ClaimTypes.Role)?.Value;
+        var name = User.FindFirst(ClaimTypes.Name)?.Value ?? callerRole ?? "Staff";
+        var created = await _viewEvents.RecordViewAsync("Case", id, callerUserId, name, callerRole);
+        return created is null ? NoContent() : Ok(created);
+    }
+
+    /// <summary>Returns the viewed/opened audit rows for this case, newest first.</summary>
+    /// <param name="id">Case id.</param>
+    [HttpGet("{id:int}/views")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<ViewEventDto>>> GetViews(int id)
+    {
+        var views = await _viewEvents.GetForTargetAsync("Case", id);
+        return Ok(views);
     }
 
     /// <summary>

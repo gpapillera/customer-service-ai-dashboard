@@ -17,6 +17,7 @@ public class CustomerService : ICustomerService
     private readonly IRepository<Notification> _notifications;
     private readonly IRepository<CustomerActivity> _activities;
     private readonly ICustomerDisplayIdGenerator _displayIdGenerator;
+    private readonly IViewEventService _viewEvents;
 
     /// <summary>Initializes a new <see cref="CustomerService"/>.</summary>
     /// <param name="customers">Customer repository.</param>
@@ -24,18 +25,21 @@ public class CustomerService : ICustomerService
     /// <param name="notifications">Notification repository (account + case emails for activity).</param>
     /// <param name="activities">Customer-activity audit repository (profile edits).</param>
     /// <param name="displayIdGenerator">Monotonic sequence for customer display IDs (C-NNNNN).</param>
+    /// <param name="viewEvents">Viewed/opened audit service (Case + Customer detail page reads).</param>
     public CustomerService(
         IRepository<Customer> customers,
         IRepository<Case> cases,
         IRepository<Notification> notifications,
         IRepository<CustomerActivity> activities,
-        ICustomerDisplayIdGenerator displayIdGenerator)
+        ICustomerDisplayIdGenerator displayIdGenerator,
+        IViewEventService viewEvents)
     {
         _customers = customers;
         _cases = cases;
         _notifications = notifications;
         _activities = activities;
         _displayIdGenerator = displayIdGenerator;
+        _viewEvents = viewEvents;
     }
 
     /// <summary>
@@ -804,6 +808,27 @@ public class CustomerService : ICustomerService
                 Detail = "Portal account activated",
                 AtUtc = activated,
                 CaseId = null,
+            });
+        }
+
+        // Viewed/opened audit rows: account views + views of this customer's
+        // cases. A read is a real activity-panel entry (shows who opened the
+        // record and when) but is deliberately NOT folded into ComputeLastActivity
+        // — that footer drives customer-list sort order and a read shouldn't make
+        // a customer jump to the top just because someone opened it.
+        var customerCaseIds = (c.Cases ?? new List<Case>()).Select(cs => cs.Id).ToList();
+        var viewEvents = await _viewEvents.GetForCustomerAsync(customerId, customerCaseIds);
+        foreach (var v in viewEvents)
+        {
+            items.Add(new CustomerActivityItemDto
+            {
+                Id = -2000 - v.Id, // negative, distinct from case items (-) and profile edits (-1000-)
+                Kind = "viewed",
+                Label = "Viewed",
+                Detail = $"Viewed by {v.ViewerName}",
+                AtUtc = v.AtUtc,
+                CaseId = v.TargetType == "Case" ? v.TargetId : null,
+                Who = v.ViewerRole,
             });
         }
 

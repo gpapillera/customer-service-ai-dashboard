@@ -17,14 +17,17 @@ public class CustomersController : ControllerBase
 {
     private readonly ICustomerService _service;
     private readonly ICustomerAuthService _auth;
+    private readonly IViewEventService _viewEvents;
 
     /// <summary>Initializes a new <see cref="CustomersController"/>.</summary>
     /// <param name="service">Customer service.</param>
     /// <param name="auth">Customer auth service (invites).</param>
-    public CustomersController(ICustomerService service, ICustomerAuthService auth)
+    /// <param name="viewEvents">Viewed/opened audit service.</param>
+    public CustomersController(ICustomerService service, ICustomerAuthService auth, IViewEventService viewEvents)
     {
         _service = service;
         _auth = auth;
+        _viewEvents = viewEvents;
     }
 
     /// <summary>Lists all customers.</summary>
@@ -130,6 +133,29 @@ public class CustomersController : ControllerBase
         if (customer is null) return NotFound();
         var activity = await _service.GetCustomerActivityAsync(id, callerRole, callerUserId);
         return Ok(activity);
+    }
+
+    /// <summary>
+    /// Records that the calling user viewed/opened this customer's detail page.
+    /// Coalesced per viewer by a 10-minute cooldown (see <c>ViewEventService</c>)
+    /// so refreshes/back-navigation don't flood the audit. Returns 200 with the
+    /// created row, or 204 when the view was coalesced into a recent one.
+    /// </summary>
+    /// <param name="id">Customer id.</param>
+    [HttpPost("{id:int}/view")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> RecordView(int id)
+    {
+        var callerUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var callerRole = User.FindFirst(ClaimTypes.Role)?.Value;
+        var customer = await _service.GetByIdAsync(id, callerRole, callerUserId);
+        if (customer is null) return NotFound();
+        var name = User.FindFirst(ClaimTypes.Name)?.Value ?? callerRole ?? "Staff";
+        var created = await _viewEvents.RecordViewAsync("Customer", id, callerUserId, name, callerRole);
+        return created is null ? NoContent() : Ok(created);
     }
 
     /// <summary>Creates a customer.</summary>

@@ -72,4 +72,14 @@ export class CustomerService {
   delete(id: number): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/${id}`);
   }
+
+  /**
+   * Records that the calling user viewed/opened this customer's detail page.
+   * Coalesced server-side by a 10-minute per-viewer cooldown, so callers can
+   * fire-and-forget on every open without flooding the audit. Returns the
+   * created row (200) or null (204 coalesced) — the caller ignores both.
+   */
+  recordView(id: number): Observable<unknown> {
+    return this.http.post<unknown>(`${this.baseUrl}/${id}/view`, {});
+  }
 }

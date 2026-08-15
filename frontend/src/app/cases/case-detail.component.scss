@@ -863,6 +863,7 @@
 .kind-log { background: var(--cs-accent-light); color: var(--cs-accent); }
 .kind-comment { background: var(--cs-warning-bg); color: var(--cs-warning); }
 .kind-email { background: var(--cs-neutral-bg); color: var(--cs-text-muted); }
+.kind-viewed { background: var(--cs-info-bg); color: var(--cs-info); }
 
 /* Pulse highlight when deep-linked from the Customers page (?activity=1) */
 @keyframes act-pulse {
