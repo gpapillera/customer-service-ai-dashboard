@@ -110,6 +110,17 @@
   border-bottom: 1px solid var(--cs-border);
   vertical-align: middle;
 }
+/* Reserve a left gutter on the first column so the AI prediction icon can
+   float there (see .ai-spark) without shifting the case-id. The header label
+   gets the SAME left padding so every case-id stays aligned with the "Case"
+   column header regardless of whether the icon is present. */
+.data-table thead th:first-child,
+.data-table tbody td:first-child {
+  padding-left: 1.75rem;
+}
+.data-table tbody td:first-child {
+  position: relative;
+}
 .data-table tbody tr:last-child td {
   border-bottom: none;
 }
@@ -127,11 +138,18 @@
   font-weight: 500;
   color: var(--cs-text);
 }
+/* AI prediction icon floats in the column's left gutter, OUTSIDE the aligned
+   case-id/subject text block. Taken out of the flex flow so it never indents
+   the case-id — every case-id stays flush with the "Case" header. */
 .ai-spark {
+  position: absolute;
+  left: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
   color: #8b5cf6;
   width: 16px;
   height: 16px;
-  flex: 0 0 auto;
+  pointer-events: none;
 }
 .muted {
   color: var(--cs-text-muted);

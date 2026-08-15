@@ -2,6 +2,20 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase 60 — Cases table: case-id aligns with "Case" header; AI icon floats outside alignment] (2026-08-15)
+**Status:** ✅ COMPLETE (frontend `npm run build` green; verified live in-browser as admin in BOTH light + dark mode — all 24 case-ids measured flush with the "Case" header, incl. rows carrying the AI spark icon)
+
+### What changed
+- On the Cases page first column, the cell was a flex row `[ai-spark icon][case-id][subject]`. When a row had an AI prediction (`priorityAutoSuggested`), the inline icon pushed the `case-id` rightward, so icon rows were indented relative to the "Case" header and to non-icon rows.
+- Reserved a left gutter on the first column (`padding-left: 1.75rem` on both the header `th` and body `td`) and floated `.ai-spark` absolutely into that gutter (`position: absolute; left: .5rem; translateY(-50%); pointer-events: none`), removing it from the flex flow.
+- Result: every `case-id` now starts at the same x as the "Case" column header regardless of whether the AI icon is present. The icon sits to the LEFT of the aligned text block (outside the alignment), so no case is indented because of the icon.
+
+### Files
+- `frontend/src/app/cases/case-list.component.scss` (gutter + absolute AI icon; no HTML/TS changes)
+
+### Verification (live)
+- At `/cases` as admin: measured `getBoundingClientRect()` of the "Case" `.th-label` vs every `.case-id`. All 24 case-ids = `left: 333` (header `333`); `deltaFromHeader: 0` for every row including the 6 rows with `.ai-spark` (CAS-00018, 00006, 00002, 00010, 00014, 00016). Re-checked with `data-theme` forced to light: 0 mismatched rows of 24. `npm run build` green.
+
 ## [Phase 59 — Customer account/profile edits now recorded in activity panels + card footer] (2026-08-14)
 **Status:** ✅ COMPLETE (backend `dotnet build` + `dotnet test` green: 109/109 pass; frontend `npm run build` green; verified live in-browser as admin in BOTH light + dark mode)
 
