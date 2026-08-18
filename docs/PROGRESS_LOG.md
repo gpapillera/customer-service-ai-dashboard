@@ -5,6 +5,11 @@
 ## [Cases table — fix column drag landing (pointer-derived drop index) + no-wrap headers/short cells] (2026-08-18)
 **Status:** ✅ COMPLETE (frontend `npm run build` green; 6/6 service unit tests pass; verified live in-browser as admin in BOTH light + dark mode)
 
+### Header resize handle double-click (auto-fit) was triggering sort — FIXED
+The `.th-resize-handle` span sits inside the `<th>`, which has `(click)="onHeaderClick(col.key)"` (sort). A double-click on the handle synthesized two `click` events that bubbled to the `<th>` sort handler, so double-click-to-auto-fit actually toggled sort instead of clearing the width. `clearColumnWidth` ran but only after sort had fired.
+- Fix: added `(click)="$event.stopPropagation()"` to `.th-resize-handle` (HTML) so a click/dblclick there never reaches the `<th>` sort handler. `onHeaderClick` stays the plain sort trigger for label clicks.
+- Verified in-browser (real component state): with sort reset to `createdAtUtc`, double-clicking the PRIORITY handle cleared its custom width (`columnWidths().priority` → undefined = auto-fit) AND `sortColumn` stayed `createdAtUtc`. Separately, a label click still toggles sort (`createdAtUtc` → `priority`). Both behaviours now coexist.
+
 ### Scrollbars on header drag (follow-up fix)
 During a drag, the floating `.cdk-drag-preview` clone (and the `.cdk-drag-placeholder` gap) render a column at its fixed/ resized width with `white-space: nowrap`. For longer labels (e.g. **Modified on**, **Category**) the content exceeded the cell box, and with no `overflow` rule the browser showed a scrollbar / "dirty box" on exactly those headers while others (short labels) looked clean. Reproduced in-browser: a narrowed "Modified on"/"Category" clone had content 91–112px > 90px box.
 - `.th-content` now `min-width: 0; overflow: hidden; text-overflow: ellipsis` — clips cleanly, never a scrollbar.

@@ -311,6 +311,9 @@ export class CaseListComponent implements OnInit, OnDestroy {
   }
 
   /** Header click sorts (matches old behaviour) — only the grip initiates a drag. */
+  /** Header click sorts (matches old behaviour). Clicks on the resize handle
+      are stopped at the handle (see template) so double-click-to-auto-fit
+      never triggers a sort. */
   onHeaderClick(key: string): void {
     this.toggleSort(key as any);
   }
