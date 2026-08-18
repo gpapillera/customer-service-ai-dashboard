@@ -34,40 +34,47 @@
   border-radius: 8px !important;
 }
 
-/* Row B: AI Predicted toggle + active-filter chips, directly below row A. */
+/* Row B: AI Predicted toggle + active-filter chips, directly below row A.
+   The row keeps a RESERVED min-height equal to the chip height at all times,
+   so toggling a filter (which adds/removes chips) never shifts the table
+   downward — the space is already there whether or not chips are showing. */
 .filters-row-2 {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  margin-top: 12px;
-  margin-bottom: 1.25rem;
+  gap: 0.5rem;
+  min-height: 30px;
+  margin-top: 4px;
+  margin-bottom: 4px;
   flex-wrap: wrap;
 }
 /* Active-filter chip — neutral gray (purple reserved for the AI toggle),
-   same border weight / radius as the row-A controls. */
+   same border weight / radius as the row-A controls. Kept small + thin so a
+   row of chips between the search bar and the table reads lightly. */
 .filter-chip {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  height: 48px;
-  padding: 0 0.5rem 0 0.75rem;
+  gap: 0.3rem;
+  height: 28px;
+  padding: 0 0.45rem 0 0.6rem;
   border: 1px solid var(--cs-border);
-  border-radius: 8px;
+  border-radius: 7px;
   background: var(--cs-surface);
   color: var(--cs-text);
   font: inherit;
-  font-weight: 600;
-  font-size: 0.9rem;
+  font-weight: 300;
+  font-size: 0.78rem;
   cursor: pointer;
   transition: background 0.18s var(--cs-ease), border-color 0.18s var(--cs-ease);
 }
 .filter-chip .chip-x {
   color: var(--cs-text-muted);
   margin-left: 0.1rem;
+  width: 14px;
+  height: 14px;
 }
 .filter-chip:hover {
-  border-color: #cbd5e1;
-  background: #f1f5f9;
+  border-color: var(--cs-chip-hover-border);
+  background: var(--cs-chip-hover-bg);
 }
 
 .center {
@@ -90,6 +97,13 @@
 .table-wrap {
   overflow-x: auto;
 }
+/* Tighten the gap between the card's top edge and the header row. The global
+   .cs-card adds 1.25rem top padding on top of the <th> padding, which leaves
+   too much empty space above the header. Pull the card's top padding in here
+   (scoped to this table) without touching other .cs-card usages. */
+.table-wrap.cs-card {
+  padding-top: 0.4rem;
+}
 .data-table {
   width: 100%;
   border-collapse: collapse;
@@ -102,13 +116,27 @@
   letter-spacing: 0.04em;
   color: var(--cs-text-muted);
   font-weight: 600;
-  padding: 0.75rem 1rem;
+  /* top bump hosts the hover grip strip ABOVE the title; horizontal padding
+     (1rem / 1.75rem first col) is unchanged so the title stays aligned with
+     the data column. Vertical-only change. */
+  padding: 0.85rem 1rem;
   border-bottom: 1px solid var(--cs-border);
+  white-space: nowrap; /* keep the header title on one line even when narrow */
+}
+/* While this column is being dragged, dim it so the bright drop-target bar
+   reads clearly as "this is where it will land". */
+th.sortable.drag-source {
+  opacity: 0.45;
 }
 .data-table tbody td {
   padding: 0.9rem 1rem;
   border-bottom: 1px solid var(--cs-border);
   vertical-align: middle;
+}
+/* Short-code columns (priority/status/category/date) keep on ONE line even when
+   the column is narrower than the text — no mid-word wrap to a 2nd row. */
+.data-table tbody td.nowrap {
+  white-space: nowrap;
 }
 /* Reserve a left gutter on the first column so the AI prediction icon can
    float there (see .ai-spark) without shifting the case-id. The header label
@@ -175,6 +203,9 @@
   align-items: center;
   gap: 0.25rem;
   position: relative;
+  min-width: 0;            /* allow the flex child to shrink instead of overflowing */
+  overflow: hidden;        /* never show a scrollbar inside the header cell */
+  text-overflow: ellipsis;
 }
 
 .th-label {
@@ -250,6 +281,10 @@
   .header-filter-dropdown {
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
   }
+  /* Keep the drop placeholder legible on the dark surface. */
+  th.cdk-drag-placeholder {
+    background: rgba(96, 165, 250, 0.14);
+  }
 }
 
 /* ---- Date header filter (Created column) ---- */
@@ -313,4 +348,178 @@
 [data-theme="dark"] .case-id {
   background: var(--cs-bg-raised, #1e293b);
   color: var(--cs-text-muted, #94a3b8);
+}
+
+/* ---- Column reorder + resize: thin hint bar + corner reset badge ---- */
+.table-card-wrap {
+  position: relative;
+}
+/* Hint floats at the table's top-right corner (snug to the reset badge) and is
+   taken OUT of flow so it adds no height between the chip row and the table —
+   keeping the chip→table gap equal to the chip→search gap (~4px). */
+.table-tools {
+  position: absolute;
+  top: -12px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  z-index: 6;
+}
+.table-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.68rem;
+  font-weight: 300;
+  letter-spacing: 0.01em;
+  color: var(--cs-text-muted);
+}
+/* Reset layout — circular icon button anchored to the table's top-right
+   corner, mirroring the unread badge placement on the Messages page.
+   Lives in .table-card-wrap (not inside .table-wrap) so the table's
+   overflow-x:auto can't clip it. */
+.reset-cols-badge {
+  position: absolute;
+  top: -12px;
+  right: -12px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--cs-border-strong);
+  background: var(--cs-surface);
+  color: var(--cs-text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  z-index: 5;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.12);
+  transition: transform 0.15s ease, background 0.18s ease, color 0.18s ease,
+    border-color 0.18s ease, box-shadow 0.18s ease;
+}
+.reset-cols-badge:hover {
+  transform: scale(1.12);
+  background: var(--cs-accent-light);
+  color: var(--cs-accent);
+  border-color: var(--cs-accent);
+  box-shadow: 0 3px 10px rgba(79, 70, 229, 0.18);
+}
+.reset-cols-badge cs-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Hover grip strip — absolutely positioned ABOVE the title, out of flow, so it
+   never indents the title or shifts layout. Revealed on header hover. */
+.th-grip-row {
+  position: absolute;
+  top: 3px;
+  left: 1rem;                 /* aligns with the title's left edge */
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  pointer-events: none;       /* strip inert; only the handle re-enables */
+  transition: opacity 0.15s var(--cs-ease);
+}
+.data-table thead th:first-child .th-grip-row { left: 1.75rem; } /* match first-col gutter */
+th.sortable:hover .th-grip-row { opacity: 1; }
+
+.th-drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  color: var(--cs-text-muted);
+  cursor: grab;
+  pointer-events: auto;       /* the only interactive part of the strip */
+  transition: color 0.15s var(--cs-ease);
+}
+th.sortable:hover .th-drag-handle {
+  color: var(--cs-accent);
+}
+.th-drag-handle:hover {
+  color: var(--cs-accent);
+}
+.th-drag-handle:active {
+  cursor: grabbing;
+}
+
+/* Second hover icon — PURE AFFORDANCE, no click action. Reinforces that the
+   header is draggable. pointer-events:none so it never intercepts the drag. */
+.th-hover-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: var(--cs-text-muted);
+  opacity: 0.65;
+  pointer-events: none;
+}
+
+/* Right-edge resize handle */
+.th-resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 8px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 2;
+  background: transparent;
+  transition: background 0.15s var(--cs-ease);
+}
+th.sortable {
+  position: relative; /* anchor for the absolutely-positioned handle */
+}
+.th-resize-handle:hover {
+  background: var(--cs-accent);
+  opacity: 0.5;
+}
+
+/* CDK drag states for <th> columns */
+th.cdk-drag-preview {
+  background: var(--cs-surface);
+  border: 1px solid var(--cs-accent);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+  padding: 0.75rem 1rem;
+  overflow: hidden;        /* the floating clone must stay a clean box — no scrollbar */
+}
+th.cdk-drag-placeholder {
+  opacity: 0.35;
+  overflow: hidden;
+}
+/* Live landing indicator: a bright vertical bar at the LEFT edge of the column
+   where the dragged header will actually drop. dragOverIndex() === i drives
+   .drop-target, and dragOverIndex is computed from the pointer's X vs each
+   column's center (see onDragMoved) — so the bar is exactly the drop spot,
+   not CDK's unreliable placeholder index. */
+th.drop-target::before {
+  content: '';
+  position: absolute;
+  left: -2px;
+  top: 4px;
+  bottom: 4px;
+  width: 4px;
+  border-radius: 2px;
+  background: var(--cs-accent);
+  box-shadow: 0 0 0 2px var(--cs-accent-light);
+}
+
+/* Make the gap where it lands unmistakable (was opacity:0.35 only). */
+th.cdk-drag-placeholder {
+  opacity: 1;
+  background: var(--cs-accent-light);
+  border: 1px dashed var(--cs-accent);
+  border-radius: 8px;
+}
+[data-theme="dark"] th.cdk-drag-preview {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }

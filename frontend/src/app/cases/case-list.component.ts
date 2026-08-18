@@ -10,6 +10,7 @@ import {
   inject,
   signal,
   effect,
+  ViewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, ActivatedRoute, Router } from '@angular/router';
@@ -21,6 +22,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatDialog } from '@angular/material/dialog';
+import { DragDropModule, CdkDragDrop, moveItemInArray, CdkDragMove } from '@angular/cdk/drag-drop';
 import { RevealDirective } from '../shared/reveal.directive';
 import { CsIconComponent } from '../shared/cs-icon.component';
 import { CsTooltipDirective } from '../shared/tooltip.directive';
@@ -35,6 +37,7 @@ import { RealtimeService } from '../shared/realtime.service';
 import { DatePreset, DATE_PRESETS, formatDatePreset, filterByDatePreset, positionHeaderDropdown } from '../shared/date-filter';
 import { SearchFilterToolbarComponent } from './search-filter-toolbar/search-filter-toolbar.component';
 import { LayoutComponent } from '../shared/layout/layout.component';
+import { CaseTableSettingsService, MIN_COL_WIDTH } from './case-table-settings.service';
 
 /**
  * Case list with status / priority / category filters and a free-text search.
@@ -56,6 +59,7 @@ import { LayoutComponent } from '../shared/layout/layout.component';
     CsTooltipDirective,
     KbdNavDirective,
     SearchFilterToolbarComponent,
+    DragDropModule,
   ],
   templateUrl: './case-list.component.html',
   styleUrl: './case-list.component.scss',
@@ -207,6 +211,151 @@ export class CaseListComponent implements OnInit, OnDestroy {
       this.sortColumn.set(column);
       this.sortDesc.set(true);
     }
+  }
+
+  // ── Per-user column order + width (Cases table customization) ──
+  private readonly tableSettings = inject(CaseTableSettingsService);
+  /** Column order (per-user) driving both <thead> and <tbody>. */
+  readonly columnOrder = this.tableSettings.columnOrder;
+  /** Column widths (per-user) in px; absent key = auto. */
+  readonly columnWidths = this.tableSettings.columnWidths;
+
+  /** Static metadata per column: label + which header filter (if any) it owns. */
+  readonly COLDEFS: Record<string, { label: string; filter?: 'category' | 'priority' | 'status' | 'date' | 'modDate' }> = {
+    subject:      { label: 'Case' },
+    customerName: { label: 'Customer' },
+    categoryName: { label: 'Category', filter: 'category' },
+    priority:     { label: 'Priority', filter: 'priority' },
+    status:       { label: 'Status', filter: 'status' },
+    createdAtUtc: { label: 'Created', filter: 'date' },
+    updatedAtUtc: { label: 'Modified on', filter: 'modDate' },
+  };
+  /** Columns in the current (per-user) display order, with metadata. */
+  readonly orderedColumns = computed(() => this.columnOrder().map((k) => ({ key: k, ...this.COLDEFS[k] })));
+
+  /** Landing index (among current columns) where the dragged column will drop.
+      Drives the live drop-indicator bar. Computed from the pointer's X position
+      vs each column's center — NOT CDK's placeholder index, which is unreliable
+      on a <tr> drop-list + border-collapse (it kept reporting 0, so every drag
+      landed in the first column). */
+  readonly dragOverIndex = signal<number | null>(null);
+
+  /** Key of the column currently being dragged (for source styling). */
+  readonly draggingKey = signal<string | null>(null);
+
+  /** Last pointer X (client coords) seen during an active drag. Captured in
+      onDragMoved and read by dropColumn. Kept in a PLAIN field (not the
+      dragOverIndex signal) because CDK fires (cdkDragEnded) BEFORE
+      (cdkDropListDropped) — if we relied on the signal, onDragEnded would null
+      it before dropColumn runs and we'd fall back to CDK's unreliable
+      currentIndex (which is ~0 on a <tr> + border-collapse table, so every
+      drag snapped to the first column). */
+  private lastDragX: number | null = null;
+
+  /** The <tr cdkDropList> — used to read live column geometry during a drag. */
+  @ViewChild('dropList') private dropListRef?: ElementRef<HTMLTableRowElement>;
+
+  /** Begin a header drag — remember which column is moving (for styling). */
+  onDragStarted(key: string): void {
+    this.draggingKey.set(key);
+  }
+
+  /** Reorder after drop. We IGNORE CDK's event.currentIndex (unreliable here)
+      and use the pointer-derived landing index instead, so the column lands
+      exactly where the live indicator showed. NOTE: cdkDragEnded fires BEFORE
+      cdkDropListDropped, so the dragOverIndex signal may already be null by now
+      — read lastDragX (a plain field) instead, which is not cleared early. */
+  dropColumn(event: CdkDragDrop<string[]>): void {
+    const desired = this.computeDropIndex(this.lastDragX) ?? event.currentIndex;
+    const order = [...this.columnOrder()];
+    if (desired >= 0 && desired < order.length && event.previousIndex !== desired) {
+      moveItemInArray(order, event.previousIndex, desired);
+      this.columnOrder.set(order);
+      this.tableSettings.persist();
+    }
+    this.lastDragX = null;
+    this.dragOverIndex.set(null);
+    this.draggingKey.set(null);
+  }
+
+  /** Live: where will the dragged column land? Compute from the pointer's X
+      position vs each <th>'s center — robust regardless of CDK's internal
+      placeholder index (which misbehaved on a <tr> + border-collapse table).
+      Drives the bright drop-indicator bar shown during the drag. Returns null
+      if geometry is unavailable. */
+  private computeDropIndex(pointerX: number | null): number | null {
+    const list = this.dropListRef?.nativeElement;
+    if (!list || pointerX == null) return null;
+    const x = pointerX - window.scrollX;
+    const ths = Array.from(list.querySelectorAll('th')) as HTMLElement[];
+    let best = -1;
+    let bestDist = Infinity;
+    ths.forEach((th, idx) => {
+      const r = th.getBoundingClientRect();
+      const center = r.left + r.width / 2;
+      const d = Math.abs(x - center);
+      if (d < bestDist) { bestDist = d; best = idx; }
+    });
+    return best >= 0 ? best : null;
+  }
+
+  onDragMoved(e: CdkDragMove): void {
+    this.lastDragX = e.pointerPosition.x;
+    this.dragOverIndex.set(this.computeDropIndex(this.lastDragX));
+  }
+
+  /** Clear drag state when the drag ends (drop or cancel). */
+  onDragEnded(): void {
+    this.dragOverIndex.set(null);
+    this.draggingKey.set(null);
+  }
+
+  /** Header click sorts (matches old behaviour) — only the grip initiates a drag. */
+  onHeaderClick(key: string): void {
+    this.toggleSort(key as any);
+  }
+
+  /** Reset columns AND widths to default for the current user. */
+  resetColumns(): void {
+    this.tableSettings.reset();
+  }
+
+  // ── Column resize (right-edge handle) ──
+  private resizing: { key: string; startX: number; startW: number } | null = null;
+
+  /** Begin dragging a column's right-edge resize handle. */
+  startResize(event: MouseEvent, key: string): void {
+    event.preventDefault();
+    event.stopPropagation();
+    const th = (event.currentTarget as HTMLElement).closest('th');
+    const startW = this.columnWidths()[key]
+      ?? th?.getBoundingClientRect().width
+      ?? 120;
+    this.resizing = { key, startX: event.clientX, startW };
+    window.addEventListener('mousemove', this.onResizeMove);
+    window.addEventListener('mouseup', this.onResizeEnd);
+  }
+
+  /** Live width update while dragging the resize handle. */
+  onResizeMove = (e: MouseEvent): void => {
+    if (!this.resizing) return;
+    const next = Math.max(MIN_COL_WIDTH, Math.round(this.resizing.startW + (e.clientX - this.resizing.startX)));
+    this.columnWidths.update((m) => ({ ...m, [this.resizing!.key]: next }));
+  };
+
+  /** End the resize drag and persist the final width. */
+  onResizeEnd = (): void => {
+    if (this.resizing) this.tableSettings.persist();
+    this.resizing = null;
+    window.removeEventListener('mousemove', this.onResizeMove);
+    window.removeEventListener('mouseup', this.onResizeEnd);
+  };
+
+  /** Double-click a resize handle -> clear that column's custom width (auto). */
+  clearColumnWidth(key: string, event: MouseEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.tableSettings.clearWidth(key);
   }
 
   ngOnInit(): void {

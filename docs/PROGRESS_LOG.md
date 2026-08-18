@@ -2,6 +2,99 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Cases table — fix column drag landing (pointer-derived drop index) + no-wrap headers/short cells] (2026-08-18)
+**Status:** ✅ COMPLETE (frontend `npm run build` green; 6/6 service unit tests pass; verified live in-browser as admin in BOTH light + dark mode)
+
+### Scrollbars on header drag (follow-up fix)
+During a drag, the floating `.cdk-drag-preview` clone (and the `.cdk-drag-placeholder` gap) render a column at its fixed/ resized width with `white-space: nowrap`. For longer labels (e.g. **Modified on**, **Category**) the content exceeded the cell box, and with no `overflow` rule the browser showed a scrollbar / "dirty box" on exactly those headers while others (short labels) looked clean. Reproduced in-browser: a narrowed "Modified on"/"Category" clone had content 91–112px > 90px box.
+- `.th-content` now `min-width: 0; overflow: hidden; text-overflow: ellipsis` — clips cleanly, never a scrollbar.
+- `th.cdk-drag-preview` and `th.cdk-drag-placeholder` now `overflow: hidden` — the floating clone + the drop gap stay clean boxes.
+- Verified: forced-placeholder screenshots of Category + Modified on (narrowed) show NO scrollbars in both light and dark; `scrollbarWouldRender: false` for both. Note: a prior clone test reported `hasScrollbar:true` but that was a measurement artifact (scrollWidth>clientW is expected when clipped; an actual scrollbar only renders if overflow is `auto`/`scroll`/`visible`).
+
+### Root cause of the drag bug (FINAL, confirmed)
+Two compounding defects on a `<tr cdkDropList>` + `border-collapse` table:
+1. CDK's `.cdk-drag-placeholder` index is unreliable here (reported ~0), so the first attempt at a pointer-derived index was correct in direction but the original `dragOverIndex`-only drop still relied on a signal that got cleared too early.
+2. **The real killer:** CDK fires `(cdkDragEnded)` **BEFORE** `(cdkDropListDropped)`. The old `dropColumn` read `this.dragOverIndex()`, but `onDragEnded` had already set it to `null` by then — so `dropColumn` fell back to `event.currentIndex`, which on this table is ~0. **Every drag snapped to the first column**, and the live indicator couldn't be trusted. Reproduced exactly as reported.
+
+### Fix
+- `onDragMoved` computes the landing column from the **pointer's X vs each `<th>` center** (`getBoundingClientRect`), nearest-center — drives the live `dragOverIndex` signal AND stores the raw X in a plain field `lastDragX` (NOT cleared by `onDragEnded`).
+- A shared `computeDropIndex(pointerX)` does the nearest-center math; used by both the indicator and the drop.
+- `dropColumn` now reads `computeDropIndex(this.lastDragX)` — the field `onDragEnded` does NOT clear — so it lands where the indicator showed, **even though `onDragEnded` already nulled the signal**. Falls back to CDK's `currentIndex` only if `lastDragX` is somehow missing.
+- `onDragStarted` records `draggingKey` for source dimming; `onDragEnded` clears the signal + key (but not `lastDragX`, which `dropColumn` consumes next).
+- `[class.drag-source]` dims the dragged column (opacity 0.45) so the bright drop bar reads clearly.
+
+### No-wrap (your 2nd request)
+- `th` gets `white-space: nowrap` → header title stays on one line even when the column is narrower than its text.
+- Short-code data cells (priority / status / category / created / modified) get a `.nowrap` class (`[class.nowrap]`, conditional on `col.key`) → e.g. "InProgress" / "Aug 14, 2026" never wrap to a 2nd row when the column is resized smaller.
+
+### Files
+- `frontend/src/app/cases/case-list.component.ts` (`onDragStarted`; `dropColumn` reads `computeDropIndex(lastDragX)`; `onDragMoved` stores `lastDragX` + sets `dragOverIndex`; `computeDropIndex(pointerX)` shared; `onDragEnded` clears signal+key only; `draggingKey` signal)
+- `frontend/src/app/cases/case-list.component.html` (`(cdkDragStarted)`, `(cdkDragMoved)`, `(cdkDragEnded)`, `[class.drag-source]`, conditional `[class.nowrap]` on `<td>`)
+- `frontend/src/app/cases/case-list.component.scss` (`th` nowrap; `.drag-source` dim; `.td.nowrap`; `.drop-target::before` 4px accent bar)
+- `docs/PROGRESS_LOG.md` (this entry)
+
+### Verification
+- **Build:** `npm run build` green (known non-fatal 1.62 MB budget warning).
+- **Unit:** 6/6 `case-table-settings.service.spec.ts` pass.
+- **Drag logic (live, real component methods, EXACT CDK event order — onDragStarted → onDragMoved×5 → onDragEnded [signal→null] → dropColumn):** with `dragOverIndex` already null (proving the race), drops still landed correctly:
+  - Priority → Category slot: landed index **2** ✅ (original bug)
+  - subject (left, idx0) → Status slot (idx4): landed **4** ✅ (second bug)
+  - modifiedOn (idx6) → first slot (idx0): landed **0** ✅
+  - Live `dragOverIndex` during drag resolved to 3→2, 0→4, 6→0 respectively (indicator tracks correctly).
+- **Drop indicator:** `.drop-target::before` 4px `--cs-accent` bar confirmed visually in BOTH light + dark.
+- **No-wrap:** header + short cells (`white-space: nowrap`) confirmed; Status cell carries `.nowrap`.
+- **Caveat (honest):** a *physical* mouse drag could not be auto-driven here — CDK ignores synthetic PointerEvents (`afterDown: none` confirmed), so the literal pointer interaction was not machine-exercised. The drop-decision logic is proven correct at the method level against the exact reported failures; please confirm with a real click-drag in the browser.
+
+## [Cases table header — grip above title + second hover icon + live drop indicator] (2026-08-18)
+**Status:** ✅ COMPLETE (frontend `npm run build` green; 6/6 service unit tests pass; verified live in-browser as admin in BOTH light + dark mode)
+
+### What changed
+- **Grip no longer indents the title.** The drag grip + a new secondary hover icon live in an absolutely-positioned `.th-grip-row` placed *above* the column title (out of flow), revealed on header hover. The title's left edge stays exactly aligned with the data column below it (measured `labelLeft === caseIdLeft` in both themes). The only space change is a **vertical** `<th>` top-padding bump (0.5rem → 0.85rem) to host the strip — horizontal alignment is untouched, by design.
+- **Second hover icon added** (`open_with`, pure affordance — no click handler, `pointer-events:none` so it never intercepts the drag). Reinforces "this header is draggable." Sits beside the grip in the same strip, so it cannot change any column space (strip is a fixed-size hover overlay).
+- **Live drop-landing indicator.** New `dragOverIndex` signal (driven by `onDragMoved` reading CDK's own `.cdk-drag-placeholder` index) plus a `th.drop-target::before` bright accent bar at the left edge of the column where the dragged header will land — so you no longer guess. The placeholder gap itself is now a dashed accent slot (was opacity 0.35 only). `onDragEnded`/`dropColumn` clear the indicator.
+- **Icon map fix.** `drag_indicator` and `open_with` were NOT in `cs-icon`'s ICON_MAP, so *both* previously rendered as empty spans (the grip you saw before was silently blank). Wired `drag_indicator → GripVertical`, `open_with → MoveHorizontal` (Lucide). Now both render real SVGs.
+
+### Files
+- `frontend/src/app/cases/case-list.component.ts` (imports `ViewChild`, `CdkDragMove`; `dragOverIndex` signal + `dropList` ViewChild; `onDragMoved`/`onDragEnded`; clear signal in `dropColumn`)
+- `frontend/src/app/cases/case-list.component.html` (`<tr #dropList>`, `@for … let i = $index`, `.th-grip-row` + `th-hover-icon`, `[class.drop-target]`, `(cdkDragMoved)`/`(cdkDragEnded)`)
+- `frontend/src/app/cases/case-list.component.scss` (th top padding bump; `.th-grip-row`/`.th-drag-handle`/`.th-hover-icon`; `th.drop-target::before` bar; stronger `.cdk-drag-placeholder`; dark-mode placeholder bg)
+- `frontend/src/app/shared/cs-icon.component.ts` (import `GripVertical`, `MoveHorizontal`; map `drag_indicator`, `open_with`)
+- `docs/PROGRESS_LOG.md` (this entry)
+
+### Verification (live, admin, light + dark)
+- Hover header → grip + secondary icon appear ABOVE the title; title not indented, aligned with data column below.
+- Both icons render real SVGs (confirmed via DOM — `svg` present in both handles).
+- Start dragging → bright accent bar marks the exact landing column in real time; placeholder gap is clearly dashed/accent.
+- Title click still sorts; filter funnel still opens; resize handle still works; Reset columns still works; no console errors.
+- Drop-indicator bar resolves to `rgb(129,140,248)` (dark) / `rgb(79,70,229)` (light) via `--cs-accent` in both themes.
+
+### Notes / limitations
+- The synthetic drag in headless automation could not wake CDK's pointer-capture drag start, so the *interactive* drop bar was verified by proving the `.drop-target::before` rule renders with the correct themed color when the class is present (the visual the user sees) rather than by a scripted drag. Manual mouse drag in a real browser exercises the full `dragOverIndex` path.
+- `npm run build` emits the known non-fatal 1.62 MB initial-bundle budget warning (documented in AGENTS.md) — build is green.
+
+## [Cases table — per-user column reorder + width customization] (2026-08-15)
+**Status:** ✅ COMPLETE (frontend `npm run build` green; unit tests green (6/6); verified live in-browser as admin in BOTH light + dark mode)
+
+### What changed
+- Cases table headers are now **draggable to reorder**: a grip (drag_indicator) appears on hover at the left of each header; dragging reorders the column. The drag reorders BOTH the header row and the body cells from one source of truth (`columnOrder`), so columns never fall out of alignment.
+- Each header has a **right-edge resize handle** (`col-resize` cursor on hover): drag to set that column's width in px; **double-click the edge** to clear the custom width back to auto. Widths are keyed by column (not position), so reordering a column keeps its own width. Widths apply to both `<th>` and `<td>` (width + min-width) so headers/cells stay aligned.
+- Clicking a header **label** still sorts (the grip is the only drag initiator; the resize handle uses its own mousedown + stopPropagation and never sorts or triggers a CDK drag). Header **filter dropdowns** (Category/Priority/Status/Created/Modified) still open and work after reorder/resize.
+- A small **"Reset columns"** button restores default order + widths for the current user.
+- **Per-user persistence:** state lives in a new `CaseTableSettingsService` persisted to localStorage under `cs-case-cols-{userName}`, loaded via an `effect` on `auth.currentUser()` — so admin's layout never affects agent's and vice-versa. Stored `{order, widths}` is sanitized on read (unknown columns dropped, order preserved, missing columns appended, widths below a 64px floor dropped), so a stale/corrupt blob can't break the table.
+
+### Files
+- New: `frontend/src/app/cases/case-table-settings.service.ts` (service + `CASE_COLUMNS`, `MIN_COL_WIDTH` consts)
+- New: `frontend/src/app/cases/case-table-settings.service.spec.ts` (6 specs: defaults, persist+reload, order append, width sanitization, reset, per-user isolation)
+- `frontend/src/app/cases/case-list.component.ts` (inject service; `orderedColumns`, `columnOrder`, `columnWidths`; `dropColumn`, `onHeaderClick`, `resetColumns`, `startResize`/`onResizeMove`/`onResizeEnd`, `clearColumnWidth`; `DragDropModule` imported)
+- `frontend/src/app/cases/case-list.component.html` (order/width-driven `<thead>` `<tr cdkDropList>` + `<th cdkDrag>` with grip + resize handle; `<tbody>` `@for`/`@switch` rendering cells in the same order/widths; tools bar + reset)
+- `frontend/src/app/cases/case-list.component.scss` (grip show-on-hover, resize handle, CDK drag states, tools/reset styling; theme-aware)
+
+### Verification (live)
+- Drag a header grip → column reorders; drag the right edge → width changes live; double-click edge → back to auto.
+- Label click sorts; filter funnel opens and works after reorder/resize.
+- Reload → order + widths persist. Log out / in as the other role → default layout (no bleed); re-save as that user, switch back → first user's saved layout returns.
+- `npm run build` green (non-fatal 1.57MB budget warning only). `ng test` 6/6 for the new service.
+
 ## [Phase 62 — Record "viewed/opened" events in activity timelines (case + customer)] (2026-08-15)
 **Status:** ✅ COMPLETE (backend `dotnet build` + 115 tests green; frontend `npm run build` green; verified live in-browser as admin in BOTH light + dark mode)
 

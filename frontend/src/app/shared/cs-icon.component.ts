@@ -16,6 +16,7 @@ import {
   CircleUser,
   LogOut,
   FolderOpen,
+  GripVertical,
   TriangleAlert,
   TrendingUp,
   ChevronRight,
@@ -34,6 +35,7 @@ import {
   Phone,
   ChevronLeft,
   Menu,
+  MoveHorizontal,
   Bell,
   BellRing,
   Settings,
@@ -59,6 +61,7 @@ import {
   History,
   Calendar,
   User,
+  RotateCcw,
 } from 'lucide-angular/src/icons';
 
 /**
@@ -124,6 +127,9 @@ const ICON_MAP: Record<string, LucideIconData> = {
   lock_reset: KeyRound,
   verified_user: BadgeCheck,
   circle: Circle,
+  restart: RotateCcw,
+  drag_indicator: GripVertical,
+  open_with: MoveHorizontal,
 };
 
 @Component({

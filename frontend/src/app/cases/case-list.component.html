@@ -31,6 +31,13 @@
   }
 </div>
 
+<div class="table-card-wrap">
+  <div class="table-tools">
+    <span class="table-hint">
+      Drag <cs-icon name="drag_indicator" [size]="14"></cs-icon> to reorder &middot;
+      drag a column's right edge <cs-icon name="horizontal_rule" [size]="14"></cs-icon> to resize
+    </span>
+  </div>
 @if (loading()) {
   <div class="center"><mat-spinner diameter="36"></mat-spinner></div>
 } @else if (cases().length === 0) {
@@ -39,246 +46,167 @@
     <p>No cases match your filters.</p>
   </div>
 } @else {
+    <button type="button" class="reset-cols-badge" (click)="resetColumns()"
+            title="Reset columns" aria-label="Reset columns">
+      <cs-icon name="restart" [size]="16"></cs-icon>
+    </button>
   <div class="table-wrap cs-card">
     <table class="data-table">
       <thead>
-        <tr>
-          <th class="sortable" (click)="toggleSort('subject')">
-            <span class="th-content">
-              <span class="th-label">Case</span>
-              @if (sortColumn() === 'subject') { <span class="sort-arrow">{{ sortDesc() ? '↓' : '↑' }}</span> }
-            </span>
-          </th>
-          <th class="sortable" (click)="toggleSort('customerName')">
-            <span class="th-content">
-              <span class="th-label">Customer</span>
-              @if (sortColumn() === 'customerName') { <span class="sort-arrow">{{ sortDesc() ? '↓' : '↑' }}</span> }
-            </span>
-          </th>
-          <th class="sortable" (click)="toggleSort('categoryName')">
-            <span class="th-content">
-              <span class="th-label">Category</span>
-              @if (sortColumn() === 'categoryName') { <span class="sort-arrow">{{ sortDesc() ? '↓' : '↑' }}</span> }
-              <button type="button" class="header-filter-btn"
-                [class.filter-active]="filters().categoryId != null"
-                (click)="$event.stopPropagation(); toggleHeaderFilter('category')"
-                aria-label="Filter by category">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z"/></svg>
-              </button>
-              @if (openHeaderFilter() === 'category') {
-                <div class="header-filter-dropdown" (click)="$event.stopPropagation()">
-                  <button type="button" class="hfd-option" [class.active]="filters().categoryId == null"
-                    (click)="setHeaderFilter('category', null)">All</button>
-                  @for (c of categories; track c.id) {
-                    <button type="button" class="hfd-option" [class.active]="filters().categoryId === c.id"
-                      (click)="setHeaderFilter('category', c.id)">{{ c.name }}</button>
+        <tr #dropList cdkDropList [cdkDropListData]="columnOrder()" (cdkDropListDropped)="dropColumn($event)" cdkDropListLockAxis="x">
+          @for (col of orderedColumns(); track col.key; let i = $index) {
+            <th class="sortable" cdkDrag [cdkDragData]="col.key"
+                [style.width.px]="columnWidths()[col.key] || null"
+                [style.minWidth.px]="columnWidths()[col.key] || null"
+                [class.drop-target]="dragOverIndex() === i"
+                [class.drag-source]="draggingKey() === col.key"
+                (click)="onHeaderClick(col.key)"
+                (cdkDragStarted)="onDragStarted(col.key)"
+                (cdkDragMoved)="onDragMoved($event)"
+                (cdkDragEnded)="onDragEnded()">
+              <!-- Hover grip strip: absolutely positioned ABOVE the title, out of flow,
+                   so it never indents the title or shifts layout. Revealed on row hover. -->
+              <span class="th-grip-row" aria-hidden="true">
+                <span class="th-drag-handle" cdkDragHandle title="Drag to reorder"
+                      (click)="$event.stopPropagation()"><cs-icon name="drag_indicator" [size]="16"></cs-icon></span>
+                <span class="th-hover-icon" title="Drag to reorder columns"><cs-icon name="open_with" [size]="14"></cs-icon></span>
+              </span>
+              <span class="th-content">
+                <span class="th-label">{{ col.label }}</span>
+                @if (sortColumn() === col.key) { <span class="sort-arrow">{{ sortDesc() ? '↓' : '↑' }}</span> }
+                @if (col.filter) {
+                  <button type="button" class="header-filter-btn"
+                    [class.filter-active]="(col.filter === 'category' && filters().categoryId != null)
+                      || (col.filter === 'priority' && filters().priority)
+                      || (col.filter === 'status' && (filters().status || isOpenFilter()))
+                      || (col.filter === 'date' && dateFilterPreset() !== 'all')
+                      || (col.filter === 'modDate' && modDateFilterPreset() !== 'all')"
+                    (click)="$event.stopPropagation(); toggleHeaderFilter(col.filter!)"
+                    aria-label="Filter column">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z"/></svg>
+                  </button>
+                  @if (openHeaderFilter() === col.filter) {
+                    <div class="header-filter-dropdown" (click)="$event.stopPropagation()">
+                      @switch (col.filter) {
+                        @case ('category') {
+                          <button type="button" class="hfd-option" [class.active]="filters().categoryId == null" (click)="setHeaderFilter('category', null)">All</button>
+                          @for (c of categories; track c.id) {
+                            <button type="button" class="hfd-option" [class.active]="filters().categoryId === c.id" (click)="setHeaderFilter('category', c.id)">{{ c.name }}</button>
+                          }
+                        }
+                        @case ('priority') {
+                          <button type="button" class="hfd-option" [class.active]="!filters().priority" (click)="setHeaderFilter('priority', '')">All</button>
+                          @for (p of priorities; track p) {
+                            <button type="button" class="hfd-option" [class.active]="filters().priority === p" (click)="setHeaderFilter('priority', p)">{{ p }}</button>
+                          }
+                        }
+                        @case ('status') {
+                          <button type="button" class="hfd-option" [class.active]="!filters().status && !isOpenFilter()" (click)="setHeaderFilter('status', '')">All</button>
+                          <button type="button" class="hfd-option" [class.active]="isOpenFilter()" (click)="setHeaderFilter('status', 'Open')">Open</button>
+                          @for (s of statuses; track s) {
+                            <button type="button" class="hfd-option" [class.active]="filters().status === s" (click)="setHeaderFilter('status', s)">{{ s }}</button>
+                          }
+                        }
+                        @case ('date') {
+                          @for (p of datePresets; track p) {
+                            <button type="button" class="hfd-option" [class.active]="dateFilterPreset() === p" (click)="setDatePreset(p)">{{ datePresetLabel(p) }}</button>
+                          }
+                          @if (dateFilterPreset() === 'custom') { <div class="hfd-sep"></div>
+                            <label class="date-popup-label">From</label>
+                            <input type="date" class="date-popup-input" [ngModel]="customDateFrom()" (ngModelChange)="onCustomDateChange('from', $event)" aria-label="From date" />
+                            <label class="date-popup-label">To</label>
+                            <input type="date" class="date-popup-input" [ngModel]="customDateTo()" (ngModelChange)="onCustomDateChange('to', $event)" aria-label="To date" />
+                          }
+                          @if (dateFilterPreset() === 'beforeCustomDate') { <div class="hfd-sep"></div>
+                            <label class="date-popup-label">Before</label>
+                            <input type="date" class="date-popup-input" [ngModel]="customDateSingle()" (ngModelChange)="onCustomDateChange('single', $event)" aria-label="Before date" />
+                          }
+                          @if (dateFilterPreset() === 'afterCustomDate') { <div class="hfd-sep"></div>
+                            <label class="date-popup-label">After</label>
+                            <input type="date" class="date-popup-input" [ngModel]="customDateSingle()" (ngModelChange)="onCustomDateChange('single', $event)" aria-label="After date" />
+                          }
+                          @if (dateFilterPreset() === 'onOrBeforeCustomDate') { <div class="hfd-sep"></div>
+                            <label class="date-popup-label">On or before</label>
+                            <input type="date" class="date-popup-input" [ngModel]="customDateSingle()" (ngModelChange)="onCustomDateChange('single', $event)" aria-label="On or before date" />
+                          }
+                          @if (dateFilterPreset() === 'onOrAfterCustomDate') { <div class="hfd-sep"></div>
+                            <label class="date-popup-label">On or after</label>
+                            <input type="date" class="date-popup-input" [ngModel]="customDateSingle()" (ngModelChange)="onCustomDateChange('single', $event)" aria-label="On or after date" />
+                          }
+                        }
+                        @case ('modDate') {
+                          @for (p of datePresets; track p) {
+                            <button type="button" class="hfd-option" [class.active]="modDateFilterPreset() === p" (click)="setModDatePreset(p)">{{ datePresetLabel(p) }}</button>
+                          }
+                          @if (modDateFilterPreset() === 'custom') { <div class="hfd-sep"></div>
+                            <label class="date-popup-label">From</label>
+                            <input type="date" class="date-popup-input" [ngModel]="modCustomDateFrom()" (ngModelChange)="onModCustomDateChange('from', $event)" aria-label="From date" />
+                            <label class="date-popup-label">To</label>
+                            <input type="date" class="date-popup-input" [ngModel]="modCustomDateTo()" (ngModelChange)="onModCustomDateChange('to', $event)" aria-label="To date" />
+                          }
+                          @if (modDateFilterPreset() === 'beforeCustomDate') { <div class="hfd-sep"></div>
+                            <label class="date-popup-label">Before</label>
+                            <input type="date" class="date-popup-input" [ngModel]="modCustomDateSingle()" (ngModelChange)="onModCustomDateChange('single', $event)" aria-label="Before date" />
+                          }
+                          @if (modDateFilterPreset() === 'afterCustomDate') { <div class="hfd-sep"></div>
+                            <label class="date-popup-label">After</label>
+                            <input type="date" class="date-popup-input" [ngModel]="modCustomDateSingle()" (ngModelChange)="onModCustomDateChange('single', $event)" aria-label="After date" />
+                          }
+                          @if (modDateFilterPreset() === 'onOrBeforeCustomDate') { <div class="hfd-sep"></div>
+                            <label class="date-popup-label">On or before</label>
+                            <input type="date" class="date-popup-input" [ngModel]="modCustomDateSingle()" (ngModelChange)="onModCustomDateChange('single', $event)" aria-label="On or before date" />
+                          }
+                          @if (modDateFilterPreset() === 'onOrAfterCustomDate') { <div class="hfd-sep"></div>
+                            <label class="date-popup-label">On or after</label>
+                            <input type="date" class="date-popup-input" [ngModel]="modCustomDateSingle()" (ngModelChange)="onModCustomDateChange('single', $event)" aria-label="On or after date" />
+                          }
+                        }
+                      }
+                    </div>
                   }
-                </div>
-              }
-            </span>
-          </th>
-          <th class="sortable" (click)="toggleSort('priority')">
-            <span class="th-content">
-              <span class="th-label">Priority</span>
-              @if (sortColumn() === 'priority') { <span class="sort-arrow">{{ sortDesc() ? '↓' : '↑' }}</span> }
-              <button type="button" class="header-filter-btn"
-                [class.filter-active]="filters().priority"
-                (click)="$event.stopPropagation(); toggleHeaderFilter('priority')"
-                aria-label="Filter by priority">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z"/></svg>
-              </button>
-              @if (openHeaderFilter() === 'priority') {
-                <div class="header-filter-dropdown" (click)="$event.stopPropagation()">
-                  <button type="button" class="hfd-option" [class.active]="!filters().priority"
-                    (click)="setHeaderFilter('priority', '')">All</button>
-                  @for (p of priorities; track p) {
-                    <button type="button" class="hfd-option" [class.active]="filters().priority === p"
-                      (click)="setHeaderFilter('priority', p)">{{ p }}</button>
-                  }
-                </div>
-              }
-            </span>
-          </th>
-          <th class="sortable" (click)="toggleSort('status')">
-            <span class="th-content">
-              <span class="th-label">Status</span>
-              @if (sortColumn() === 'status') { <span class="sort-arrow">{{ sortDesc() ? '↓' : '↑' }}</span> }
-              <button type="button" class="header-filter-btn"
-                [class.filter-active]="filters().status || isOpenFilter()"
-                (click)="$event.stopPropagation(); toggleHeaderFilter('status')"
-                aria-label="Filter by status">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z"/></svg>
-              </button>
-              @if (openHeaderFilter() === 'status') {
-                <div class="header-filter-dropdown" (click)="$event.stopPropagation()">
-                  <button type="button" class="hfd-option" [class.active]="!filters().status && !isOpenFilter()"
-                    (click)="setHeaderFilter('status', '')">All</button>
-                  <button type="button" class="hfd-option" [class.active]="isOpenFilter()"
-                    (click)="setHeaderFilter('status', 'Open')">Open</button>
-                  @for (s of statuses; track s) {
-                    <button type="button" class="hfd-option" [class.active]="filters().status === s"
-                      (click)="setHeaderFilter('status', s)">{{ s }}</button>
-                  }
-                </div>
-              }
-            </span>
-          </th>
-          <th class="sortable" (click)="toggleSort('createdAtUtc')">
-            <span class="th-content">
-              <span class="th-label">Created</span>
-              @if (sortColumn() === 'createdAtUtc') { <span class="sort-arrow">{{ sortDesc() ? '↓' : '↑' }}</span> }
-              <button type="button" class="header-filter-btn"
-                [class.filter-active]="dateFilterPreset() !== 'all'"
-                (click)="$event.stopPropagation(); toggleHeaderFilter('date')"
-                aria-label="Filter by created date">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z"/></svg>
-              </button>
-              @if (openHeaderFilter() === 'date') {
-                <div class="header-filter-dropdown date-dropdown" (click)="$event.stopPropagation()">
-                  @for (p of datePresets; track p) {
-                    <button type="button" class="hfd-option" [class.active]="dateFilterPreset() === p"
-                      (click)="setDatePreset(p)">{{ datePresetLabel(p) }}</button>
-                  }
-                  @if (dateFilterPreset() === 'custom') {
-                    <div class="hfd-sep"></div>
-                    <label class="date-popup-label">From</label>
-                    <input type="date" class="date-popup-input"
-                      [ngModel]="customDateFrom()"
-                      (ngModelChange)="onCustomDateChange('from', $event)"
-                      aria-label="From date" />
-                    <label class="date-popup-label">To</label>
-                    <input type="date" class="date-popup-input"
-                      [ngModel]="customDateTo()"
-                      (ngModelChange)="onCustomDateChange('to', $event)"
-                      aria-label="To date" />
-                  }
-                  @if (dateFilterPreset() === 'beforeCustomDate') {
-                    <div class="hfd-sep"></div>
-                    <label class="date-popup-label">Before</label>
-                    <input type="date" class="date-popup-input"
-                      [ngModel]="customDateSingle()"
-                      (ngModelChange)="onCustomDateChange('single', $event)"
-                      aria-label="Before date" />
-                  }
-                  @if (dateFilterPreset() === 'afterCustomDate') {
-                    <div class="hfd-sep"></div>
-                    <label class="date-popup-label">After</label>
-                    <input type="date" class="date-popup-input"
-                      [ngModel]="customDateSingle()"
-                      (ngModelChange)="onCustomDateChange('single', $event)"
-                      aria-label="After date" />
-                  }
-                  @if (dateFilterPreset() === 'onOrBeforeCustomDate') {
-                    <div class="hfd-sep"></div>
-                    <label class="date-popup-label">On or before</label>
-                    <input type="date" class="date-popup-input"
-                      [ngModel]="customDateSingle()"
-                      (ngModelChange)="onCustomDateChange('single', $event)"
-                      aria-label="On or before date" />
-                  }
-                  @if (dateFilterPreset() === 'onOrAfterCustomDate') {
-                    <div class="hfd-sep"></div>
-                    <label class="date-popup-label">On or after</label>
-                    <input type="date" class="date-popup-input"
-                      [ngModel]="customDateSingle()"
-                      (ngModelChange)="onCustomDateChange('single', $event)"
-                      aria-label="On or after date" />
-                  }
-                </div>
-              }
-            </span>
-          </th>
-          <th class="sortable" (click)="toggleSort('updatedAtUtc')">
-            <span class="th-content">
-              <span class="th-label">Modified on</span>
-              @if (sortColumn() === 'updatedAtUtc') { <span class="sort-arrow">{{ sortDesc() ? '↓' : '↑' }}</span> }
-              <button type="button" class="header-filter-btn"
-                [class.filter-active]="modDateFilterPreset() !== 'all'"
-                (click)="$event.stopPropagation(); toggleHeaderFilter('modDate')"
-                aria-label="Filter by modified date">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z"/></svg>
-              </button>
-              @if (openHeaderFilter() === 'modDate') {
-                <div class="header-filter-dropdown date-dropdown" (click)="$event.stopPropagation()">
-                  @for (p of datePresets; track p) {
-                    <button type="button" class="hfd-option" [class.active]="modDateFilterPreset() === p"
-                      (click)="setModDatePreset(p)">{{ datePresetLabel(p) }}</button>
-                  }
-                  @if (modDateFilterPreset() === 'custom') {
-                    <div class="hfd-sep"></div>
-                    <label class="date-popup-label">From</label>
-                    <input type="date" class="date-popup-input"
-                      [ngModel]="modCustomDateFrom()"
-                      (ngModelChange)="onModCustomDateChange('from', $event)"
-                      aria-label="From date" />
-                    <label class="date-popup-label">To</label>
-                    <input type="date" class="date-popup-input"
-                      [ngModel]="modCustomDateTo()"
-                      (ngModelChange)="onModCustomDateChange('to', $event)"
-                      aria-label="To date" />
-                  }
-                  @if (modDateFilterPreset() === 'beforeCustomDate') {
-                    <div class="hfd-sep"></div>
-                    <label class="date-popup-label">Before</label>
-                    <input type="date" class="date-popup-input"
-                      [ngModel]="modCustomDateSingle()"
-                      (ngModelChange)="onModCustomDateChange('single', $event)"
-                      aria-label="Before date" />
-                  }
-                  @if (modDateFilterPreset() === 'afterCustomDate') {
-                    <div class="hfd-sep"></div>
-                    <label class="date-popup-label">After</label>
-                    <input type="date" class="date-popup-input"
-                      [ngModel]="modCustomDateSingle()"
-                      (ngModelChange)="onModCustomDateChange('single', $event)"
-                      aria-label="After date" />
-                  }
-                  @if (modDateFilterPreset() === 'onOrBeforeCustomDate') {
-                    <div class="hfd-sep"></div>
-                    <label class="date-popup-label">On or before</label>
-                    <input type="date" class="date-popup-input"
-                      [ngModel]="modCustomDateSingle()"
-                      (ngModelChange)="onModCustomDateChange('single', $event)"
-                      aria-label="On or before date" />
-                  }
-                  @if (modDateFilterPreset() === 'onOrAfterCustomDate') {
-                    <div class="hfd-sep"></div>
-                    <label class="date-popup-label">On or after</label>
-                    <input type="date" class="date-popup-input"
-                      [ngModel]="modCustomDateSingle()"
-                      (ngModelChange)="onModCustomDateChange('single', $event)"
-                      aria-label="On or after date" />
-                  }
-                </div>
-              }
-            </span>
-          </th>
+                }
+              </span>
+              <span class="th-resize-handle"
+                    title="Drag to resize · double-click to auto"
+                    (mousedown)="startResize($event, col.key)"
+                    (dblclick)="clearColumnWidth(col.key, $event)"></span>
+            </th>
+          }
         </tr>
       </thead>
       <tbody appKbdNav kbdNavItem="tr.row-link" [kbdNavWrap]="false">
         @for (c of sortedCases(); track c.id) {
-          <tr
-            (click)="open(c.id)"
-            class="row-link"
-            tabindex="-1"
-            (keydown.enter)="open(c.id)"
-          >
-            <td>
-              <div class="cell-title">
-                @if (c.priorityAutoSuggested) { <cs-icon name="auto_awesome" class="ai-spark"></cs-icon> }
-                <span class="case-id">{{ c.caseDisplayId || '#' + c.id }}</span>
-                {{ c.subject }}
-              </div>
-            </td>
-            <td class="muted">{{ c.customerName }}</td>
-            <td class="muted">{{ c.categoryName }}</td>
-            <td><span class="cs-pill" [class]="priorityClass(c.priority)" [csTooltip]="priorityTooltip(c)"><span class="cs-dot"></span>{{ c.priority }}</span></td>
-            <td><span class="cs-pill" [class]="statusClass(c.status)" [csTooltip]="statusTooltip(c)"><span class="cs-dot"></span>{{ c.status }}</span></td>
-            <td class="muted">{{ c.createdAtUtc | date:'mediumDate' }}</td>
-            <td class="muted">{{ (c.updatedAtUtc ?? c.createdAtUtc) | date:'mediumDate' }}</td>
+          <tr class="row-link" (click)="open(c.id)" tabindex="-1" (keydown.enter)="open(c.id)">
+            @for (col of orderedColumns(); track col.key) {
+              <td [class.muted]="col.key !== 'subject' && col.key !== 'priority' && col.key !== 'status'"
+                  [class.nowrap]="col.key === 'priority' || col.key === 'status' || col.key === 'categoryName' || col.key === 'createdAtUtc' || col.key === 'updatedAtUtc'"
+                  [style.width.px]="columnWidths()[col.key] || null"
+                  [style.minWidth.px]="columnWidths()[col.key] || null">
+                @switch (col.key) {
+                  @case ('subject') {
+                    <div class="cell-title">
+                      @if (c.priorityAutoSuggested) { <cs-icon name="auto_awesome" class="ai-spark"></cs-icon> }
+                      <span class="case-id">{{ c.caseDisplayId || '#' + c.id }}</span>
+                      {{ c.subject }}
+                    </div>
+                  }
+                  @case ('customerName') { {{ c.customerName }} }
+                  @case ('categoryName') { {{ c.categoryName }} }
+                  @case ('priority') {
+                    <span class="cs-pill" [class]="priorityClass(c.priority)" [csTooltip]="priorityTooltip(c)"><span class="cs-dot"></span>{{ c.priority }}</span>
+                  }
+                  @case ('status') {
+                    <span class="cs-pill" [class]="statusClass(c.status)" [csTooltip]="statusTooltip(c)"><span class="cs-dot"></span>{{ c.status }}</span>
+                  }
+                  @case ('createdAtUtc') { {{ c.createdAtUtc | date:'mediumDate' }} }
+                  @case ('updatedAtUtc') { {{ (c.updatedAtUtc ?? c.createdAtUtc) | date:'mediumDate' }} }
+                }
+              </td>
+            }
           </tr>
         }
       </tbody>
     </table>
   </div>
 }
+</div>
