@@ -24,18 +24,21 @@ public class AuthService : IAuthService
     private readonly IConfiguration _config;
     private readonly INotificationSender _sender;
     private readonly ILogger<AuthService> _logger;
+    private readonly IRefreshTokenService _refreshTokens;
 
     /// <summary>Initializes a new <see cref="AuthService"/>.</summary>
     public AuthService(
         IRepository<User> users,
         IConfiguration config,
         INotificationSender sender,
-        ILogger<AuthService> logger)
+        ILogger<AuthService> logger,
+        IRefreshTokenService refreshTokens)
     {
         _users = users;
         _config = config;
         _sender = sender;
         _logger = logger;
+        _refreshTokens = refreshTokens;
     }
 
     /// <inheritdoc/>
@@ -48,8 +51,13 @@ public class AuthService : IAuthService
             return null;
         }
 
-        var key = Encoding.UTF8.GetBytes(_config["Jwt:Key"] ?? "dev-insecure-key-change-me-1234567890");
-        var expires = DateTime.UtcNow.AddHours(8);
+        // Jwt:Key is validated for presence + non-default at startup (fail-fast guard in Program.cs).
+        var key = Encoding.UTF8.GetBytes(_config["Jwt:Key"]!);
+        // Short-lived access token (default 15 min) — paired with a rotatable
+        // refresh cookie so a stolen access token has a tiny window.
+        var accessMinutes = int.TryParse(_config["Jwt:AccessTokenMinutes"], out var m) ? m : 15;
+        var refreshDays = int.TryParse(_config["Jwt:RefreshTokenDays"], out var d) ? d : 14;
+        var expires = DateTime.UtcNow.AddMinutes(accessMinutes);
         var securityToken = new JwtSecurityToken(
             issuer: _config["Jwt:Issuer"],
             audience: _config["Jwt:Audience"],
@@ -64,10 +72,14 @@ public class AuthService : IAuthService
                 new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256));
         var tokenString = new JwtSecurityTokenHandler().WriteToken(securityToken);
 
+        // Persisted, rotatable refresh token (set as an HttpOnly cookie by the controller).
+        var refreshToken = await _refreshTokens.CreateAsync(user.Id, "Staff", user.Role.ToString(), refreshDays);
+
         return new LoginResponse
         {
             Id = user.Id,
             Token = tokenString,
+            RefreshToken = refreshToken,
             ExpiresUtc = expires,
             UserName = user.UserName,
             FullName = user.FullName,
@@ -174,5 +186,47 @@ public class AuthService : IAuthService
         _users.Update(user);
         await _users.SaveChangesAsync();
         return true;
+    }
+
+    /// <inheritdoc/>
+    public async Task<(string AccessToken, string RefreshToken, DateTime ExpiresUtc)> RefreshAsync(string refreshToken)
+    {
+        var (ok, stored) = await _refreshTokens.ValidateAsync(refreshToken);
+        if (!ok || stored is null)
+        {
+            throw new InvalidOperationException("Invalid or expired refresh token.");
+        }
+
+        // Re-load the user so role changes since issuance are reflected.
+        var user = await _users.Query().FirstOrDefaultAsync(u => u.Id == stored.SubjectId);
+        if (user is null)
+        {
+            await _refreshTokens.RevokeAsync(refreshToken);
+            throw new InvalidOperationException("Subject no longer exists.");
+        }
+
+        var newRefresh = await _refreshTokens.RotateAsync(refreshToken);
+        var accessMinutes = int.TryParse(_config["Jwt:AccessTokenMinutes"], out var m) ? m : 15;
+        var expires = DateTime.UtcNow.AddMinutes(accessMinutes);
+        var key = Encoding.UTF8.GetBytes(_config["Jwt:Key"]!);
+        var securityToken = new JwtSecurityToken(
+            issuer: _config["Jwt:Issuer"],
+            audience: _config["Jwt:Audience"],
+            claims: new[]
+            {
+                new Claim(ClaimTypes.NameIdentifier, user.Id),
+                new Claim(ClaimTypes.Name, user.UserName),
+                new Claim(ClaimTypes.Role, user.Role.ToString()),
+            },
+            expires: expires,
+            signingCredentials: new SigningCredentials(
+                new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256));
+        return (new JwtSecurityTokenHandler().WriteToken(securityToken), newRefresh, expires);
+    }
+
+    /// <inheritdoc/>
+    public Task LogoutAsync(string refreshToken)
+    {
+        return _refreshTokens.RevokeAsync(refreshToken);
     }
 }

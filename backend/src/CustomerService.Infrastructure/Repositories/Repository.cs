@@ -25,6 +25,9 @@ public class Repository<T> : IRepository<T> where T : class
     public IQueryable<T> Query() => _set.AsNoTracking();
 
     /// <inheritdoc/>
+    public IQueryable<T> QueryTracked() => _set;
+
+    /// <inheritdoc/>
     public async Task<T?> GetByIdAsync(object id) => await _set.FindAsync(id);
 
     /// <inheritdoc/>

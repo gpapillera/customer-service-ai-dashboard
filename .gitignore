@@ -49,3 +49,6 @@ logs/
 *.db
 *.db-shm
 *.db-wal
+
+# Hermes agent working dir (plans, session logs, skills) — not project code
+.hermes/

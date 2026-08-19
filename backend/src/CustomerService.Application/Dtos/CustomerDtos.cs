@@ -73,6 +73,9 @@ public class CustomerDto
     /// <summary>UTC timestamp when the customer record was created.</summary>
     public DateTime CreatedAtUtc { get; set; }
 
+    /// <summary>UTC timestamp of the last account-level profile edit, or null if never edited.</summary>
+    public DateTime? UpdatedAtUtc { get; set; }
+
     /// <summary>UTC timestamp of the most recent activity across all customer cases.</summary>
     public DateTime? LastActivityAtUtc { get; set; }
 
@@ -91,6 +94,25 @@ public class CustomerDto
 
     /// <summary>True if the customer's account is active (password set).</summary>
     public bool AccountActive { get; set; }
+
+    /// <summary>
+    /// True when the customer has been soft-deleted and is sitting in the
+    /// recycle bin. Only populated by the recycle-bin endpoint; normal reads
+    /// never return soft-deleted rows.
+    /// </summary>
+    public bool IsDeleted { get; set; }
+
+    /// <summary>UTC timestamp the customer was soft-deleted (recycle bin), or null.</summary>
+    public DateTime? DeletedAtUtc { get; set; }
+
+    /// <summary>Id of the user who soft-deleted the customer, or null.</summary>
+    public string? DeletedById { get; set; }
+
+    /// <summary>
+    /// True once the customer has been purged (PII anonymized). A purged row
+    /// is excluded from the recycle bin and is not restorable.
+    /// </summary>
+    public bool Purged { get; set; }
 }
 
 /// <summary>Minimal info for an active case (subject + status).</summary>

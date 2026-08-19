@@ -7,6 +7,17 @@ using Microsoft.AspNetCore.Mvc;
 namespace CustomerService.Api.Controllers;
 
 /// <summary>
+/// Optional request body for <c>POST /api/customers/restore/{id}</c>. When
+/// <see cref="CaseIds"/> is null or empty, all of the customer's
+/// soft-deleted cases are restored alongside the account.
+/// </summary>
+public sealed record RestoreCustomerBody
+{
+    /// <summary>Case ids to restore. Null/empty restores all.</summary>
+    public List<int>? CaseIds { get; init; }
+}
+
+/// <summary>
 /// CRUD endpoints for customers, plus name/email/phone search.
 /// See docs/DIY.md §5 for the customer management walkthrough.
 /// </summary>
@@ -197,6 +208,83 @@ public class CustomersController : ControllerBase
         try
         {
             await _service.DeleteAsync(id, callerRole);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+    }
+
+    /// <summary>
+    /// Returns the soft-deleted customers in the recycle bin (Admin only).
+    /// Purged customers are excluded. Each row carries its deleted-state
+    /// metadata (deletedAt, deletedBy, purged) so the drawer can render
+    /// without a second call.
+    /// </summary>
+    [HttpGet("recycle-bin")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IReadOnlyList<CustomerDto>> GetRecycleBin()
+    {
+        return await _service.GetDeletedAsync();
+    }
+
+    /// <summary>
+    /// Returns the soft-deleted (non-purged) cases belonging to a specific
+    /// customer — backs the account-restore case-picker dialog (Admin only).
+    /// </summary>
+    [HttpGet("{id:int}/deleted-cases")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IReadOnlyList<CaseDto>> GetCustomerDeletedCases(int id)
+    {
+        return await _service.GetDeletedCasesAsync(id);
+    }
+
+    /// <summary>
+    /// Restores a soft-deleted customer from the recycle bin, optionally
+    /// restoring a selected subset of its soft-deleted cases (Admin only).
+    /// </summary>
+    /// <param name="id">Customer id.</param>
+    /// <param name="body">
+    /// Optional payload: <c>{ "caseIds": [int, ...] }</c>. Omit or send an
+    /// empty array to restore all of the customer's soft-deleted cases.
+    /// </param>
+    [HttpPost("restore/{id:int}")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Restore(int id, [FromBody] RestoreCustomerBody? body = null)
+    {
+        var callerUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        try
+        {
+            await _service.RestoreAsync(id, body?.CaseIds, callerUserId);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+    }
+
+    /// <summary>
+    /// Permanently purges a soft-deleted customer (keep-row anonymize, Admin
+    /// only). Irreversible PII erasure — the row stays for audit/FK integrity.
+    /// </summary>
+    /// <param name="id">Customer id.</param>
+    [HttpPost("purge/{id:int}")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Purge(int id)
+    {
+        var callerRole = User.FindFirst(ClaimTypes.Role)?.Value;
+        try
+        {
+            await _service.PurgeAsync(id, callerRole);
             return NoContent();
         }
         catch (KeyNotFoundException)

@@ -28,6 +28,7 @@ public class CustomerAuthService : ICustomerAuthService
     private readonly INotificationSender _sender;
     private readonly IConfiguration _config;
     private readonly ICustomerDisplayIdGenerator _displayIdGenerator;
+    private readonly IRefreshTokenService _refreshTokens;
 
     /// <summary>Initializes a new <see cref="CustomerAuthService"/>.</summary>
     public CustomerAuthService(
@@ -36,7 +37,8 @@ public class CustomerAuthService : ICustomerAuthService
         IRepository<CustomerActivity> activities,
         INotificationSender sender,
         IConfiguration config,
-        ICustomerDisplayIdGenerator displayIdGenerator)
+        ICustomerDisplayIdGenerator displayIdGenerator,
+        IRefreshTokenService refreshTokens)
     {
         _customers = customers;
         _accounts = accounts;
@@ -44,6 +46,7 @@ public class CustomerAuthService : ICustomerAuthService
         _sender = sender;
         _config = config;
         _displayIdGenerator = displayIdGenerator;
+        _refreshTokens = refreshTokens;
     }
 
     /// <inheritdoc/>
@@ -353,8 +356,13 @@ public class CustomerAuthService : ICustomerAuthService
             return null;
         }
 
-        var key = Encoding.UTF8.GetBytes(_config["Jwt:Key"] ?? "dev-insecure-key-change-me-1234567890");
-        var expires = DateTime.UtcNow.AddHours(8);
+        // Jwt:Key is validated for presence + non-default at startup (fail-fast guard in Program.cs).
+        var key = Encoding.UTF8.GetBytes(_config["Jwt:Key"]!);
+        // Short-lived access token (default 15 min) — paired with a rotatable
+        // refresh cookie so a stolen access token has a tiny window.
+        var accessMinutes = int.TryParse(_config["Jwt:AccessTokenMinutes"], out var m) ? m : 15;
+        var refreshDays = int.TryParse(_config["Jwt:RefreshTokenDays"], out var d) ? d : 14;
+        var expires = DateTime.UtcNow.AddMinutes(accessMinutes);
         var securityToken = new JwtSecurityToken(
             issuer: _config["Jwt:Issuer"],
             audience: _config["Jwt:Audience"],
@@ -370,14 +378,66 @@ public class CustomerAuthService : ICustomerAuthService
                 new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256));
         var tokenString = new JwtSecurityTokenHandler().WriteToken(securityToken);
 
+        // Persisted, rotatable refresh token (set as an HttpOnly cookie by the controller).
+        var refreshToken = await _refreshTokens.CreateAsync(customer.Id.ToString(), "Customer", "Customer", refreshDays);
+
         return new CustomerLoginResponse
         {
             Token = tokenString,
+            RefreshToken = refreshToken,
             ExpiresUtc = expires,
             CustomerId = customer.Id,
             CustomerName = customer.Name,
             Role = "Customer",
         };
+    }
+
+    /// <inheritdoc/>
+    public async Task<(string AccessToken, string RefreshToken, DateTime ExpiresUtc)> RefreshAsync(string refreshToken)
+    {
+        var (ok, stored) = await _refreshTokens.ValidateAsync(refreshToken);
+        if (!ok || stored is null)
+        {
+            throw new InvalidOperationException("Invalid or expired refresh token.");
+        }
+
+        if (!int.TryParse(stored.SubjectId, out var customerId))
+        {
+            await _refreshTokens.RevokeAsync(refreshToken);
+            throw new InvalidOperationException("Corrupt refresh subject.");
+        }
+
+        var customer = await _customers.GetByIdAsync(customerId);
+        if (customer is null)
+        {
+            await _refreshTokens.RevokeAsync(refreshToken);
+            throw new InvalidOperationException("Subject no longer exists.");
+        }
+
+        var newRefresh = await _refreshTokens.RotateAsync(refreshToken);
+        var accessMinutes = int.TryParse(_config["Jwt:AccessTokenMinutes"], out var m) ? m : 15;
+        var expires = DateTime.UtcNow.AddMinutes(accessMinutes);
+        var key = Encoding.UTF8.GetBytes(_config["Jwt:Key"]!);
+        var securityToken = new JwtSecurityToken(
+            issuer: _config["Jwt:Issuer"],
+            audience: _config["Jwt:Audience"],
+            claims: new[]
+            {
+                new Claim(ClaimTypes.NameIdentifier, customer.Id.ToString()),
+                new Claim(ClaimTypes.Name, customer.Email),
+                new Claim(ClaimTypes.Role, "Customer"),
+                new Claim("CustomerId", customer.Id.ToString()),
+            },
+            expires: expires,
+            signingCredentials: new SigningCredentials(
+                new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256));
+        return (new JwtSecurityTokenHandler().WriteToken(securityToken), newRefresh, expires);
+    }
+
+    /// <inheritdoc/>
+    public Task LogoutAsync(string refreshToken)
+    {
+        return _refreshTokens.RevokeAsync(refreshToken);
     }
 
     private async Task<CustomerAccount?> FindByTokenAsync(string token)

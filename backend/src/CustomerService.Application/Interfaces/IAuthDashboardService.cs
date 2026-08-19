@@ -27,6 +27,12 @@ public interface IAuthService
     /// success, false if the token is invalid/expired/already used.
     /// </summary>
     Task<bool> ResetPasswordAsync(ResetPasswordRequest request);
+
+    /// <summary>Rotates a valid refresh cookie into a fresh access + refresh token pair.</summary>
+    Task<(string AccessToken, string RefreshToken, DateTime ExpiresUtc)> RefreshAsync(string refreshToken);
+
+    /// <summary>Revokes a refresh token (logout). Idempotent.</summary>
+    Task LogoutAsync(string refreshToken);
 }
 
 /// <summary>Application service contract for dashboard analytics.</summary>

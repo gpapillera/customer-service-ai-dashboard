@@ -128,6 +128,27 @@ public class Case
     /// </summary>
     public DateTime? LastOverdueNotifiedUtc { get; set; }
 
+    /// <summary>
+    /// Soft-delete flag. When true the case is logically removed but retained
+    /// in the store until purged. Set by the soft-delete path (Task A2).
+    /// </summary>
+    public bool IsDeleted { get; set; }
+
+    /// <summary>UTC timestamp when the case was soft-deleted. Null while active.</summary>
+    public DateTime? DeletedAtUtc { get; set; }
+
+    /// <summary>Id of the user who soft-deleted the case. Null while active.</summary>
+    public string? DeletedById { get; set; }
+
+    /// <summary>
+    /// Hard-purge flag. When true the case has been physically removed (or marked
+    /// for physical removal) and is excluded from all queries. Set by the purge path.
+    /// </summary>
+    public bool Purged { get; set; }
+
+    /// <summary>UTC timestamp when the case was purged. Null until purged.</summary>
+    public DateTime? PurgedAtUtc { get; set; }
+
     /// <summary>Navigation property: call / follow-up logs attached to this case.</summary>
     public ICollection<CallLog> CallLogs { get; set; } = new List<CallLog>();
 

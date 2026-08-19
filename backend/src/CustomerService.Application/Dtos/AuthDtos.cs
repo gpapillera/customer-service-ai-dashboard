@@ -21,6 +21,9 @@ public class LoginResponse
     /// <summary>JWT bearer token.</summary>
     public string Token { get; set; } = string.Empty;
 
+    /// <summary>Rotatable refresh token (set as an HttpOnly cookie by the API).</summary>
+    public string? RefreshToken { get; set; }
+
     /// <summary>Token expiry (UTC).</summary>
     public DateTime ExpiresUtc { get; set; }
 
@@ -108,6 +111,9 @@ public class CustomerLoginResponse
 {
     /// <summary>JWT bearer token.</summary>
     public string Token { get; set; } = string.Empty;
+
+    /// <summary>Rotatable refresh token (set as an HttpOnly cookie by the API).</summary>
+    public string? RefreshToken { get; set; }
 
     /// <summary>Token expiry (UTC).</summary>
     public DateTime ExpiresUtc { get; set; }
@@ -254,4 +260,35 @@ public class UpdateAgentDto
 
     /// <summary>Optional profile picture URL (admin may set this).</summary>
     public string? ProfilePictureUrl { get; set; }
+}
+
+/// <summary>
+/// Result of a refresh-token rotation. The access + refresh values are also
+/// returned as HttpOnly cookies by the controller; this body lets a client
+/// confirm success (and, if it still relies on the header path, read the new
+/// access token).
+/// </summary>
+public class RefreshResponse
+{
+    /// <summary>Fresh short-lived access token.</summary>
+    public string AccessToken { get; set; } = string.Empty;
+
+    /// <summary>Fresh rotatable refresh token (also set as an HttpOnly cookie).</summary>
+    public string RefreshToken { get; set; } = string.Empty;
+
+    /// <summary>New access-token expiry (UTC).</summary>
+    public DateTime ExpiresUtc { get; set; }
+}
+
+/// <summary>Customer-portal analogue of <see cref="RefreshResponse"/>.</summary>
+public class CustomerRefreshResponse
+{
+    /// <summary>Fresh short-lived access token.</summary>
+    public string AccessToken { get; set; } = string.Empty;
+
+    /// <summary>Fresh rotatable refresh token (also set as an HttpOnly cookie).</summary>
+    public string RefreshToken { get; set; } = string.Empty;
+
+    /// <summary>New access-token expiry (UTC).</summary>
+    public DateTime ExpiresUtc { get; set; }
 }

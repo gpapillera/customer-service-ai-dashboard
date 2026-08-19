@@ -182,6 +182,73 @@ public class CasesController : ControllerBase
     }
 
     /// <summary>
+    /// Returns the soft-deleted cases in the recycle bin (Admin only), with
+    /// their owning-customer context (name / whether the account is itself
+    /// deleted, to gate restore). Purged cases are excluded.
+    /// </summary>
+    [HttpGet("recycle-bin")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IReadOnlyList<CaseDto>> GetRecycleBin()
+    {
+        return await _service.GetDeletedAsync();
+    }
+
+    /// <summary>
+    /// Restores a soft-deleted case from the recycle bin (Admin only). The
+    /// case's owning customer must be active — if the account is still
+    /// deleted the service throws and the call returns 400.
+    /// </summary>
+    /// <param name="id">Case id.</param>
+    [HttpPost("restore/{id:int}")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RestoreCase(int id)
+    {
+        var callerUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        try
+        {
+            await _service.RestoreCaseAsync(id, callerUserId);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Permanently purges a soft-deleted case (keep-row anonymize, Admin
+    /// only). Irreversible — the subject/description are scrubbed and the row
+    /// is marked purged (no physical delete).
+    /// </summary>
+    /// <param name="id">Case id.</param>
+    [HttpPost("purge/{id:int}")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> PurgeCase(int id)
+    {
+        var callerRole = User.FindFirst(ClaimTypes.Role)?.Value;
+        try
+        {
+            await _service.PurgeCaseAsync(id, callerRole);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+    }
+
+    /// <summary>
     /// Returns the shared comment thread for a case (staff can read any case's
     /// thread). 404 if the case does not exist.
     /// </summary>

@@ -45,6 +45,39 @@ public interface ICaseService
     Task DeleteAsync(int id, string? callerRole = null, string? callerUserId = null);
 
     /// <summary>
+    /// Restores a soft-deleted case from the recycle bin, but only if its owning
+    /// customer account is active. If the customer is itself soft-deleted the
+    /// call throws <see cref="InvalidOperationException"/> — the account must be
+    /// restored first.
+    /// </summary>
+    /// <param name="caseId">Case id.</param>
+    /// <param name="callerUserId">Id of the calling user (for audit logging).</param>
+    Task RestoreCaseAsync(int caseId, string? callerUserId = null);
+
+    /// <summary>
+    /// Permanently anonymizes a soft-deleted case (hard purge) by KEEPING the
+    /// row and scrubbing its <c>Subject</c> and <c>Description</c> to
+    /// <c>"[deleted]"</c>, then marking it <c>Purged</c> with a timestamp. No
+    /// physical delete is performed. Admin only — non-admins receive a
+    /// <see cref="ForbiddenException"/>. If the case is not in the recycle bin
+    /// (not soft-deleted, or already purged) a <see cref="KeyNotFoundException"/>
+    /// is thrown.
+    /// </summary>
+    /// <param name="caseId">Case id.</param>
+    /// <param name="callerRole">Role of the calling user (only Admin may purge).</param>
+    Task PurgeCaseAsync(int caseId, string? callerRole = null);
+
+    /// <summary>
+    /// Returns the soft-deleted cases in the recycle bin (Admin only), with
+    /// their owning customer's display context (name / display ID / whether
+    /// the account is itself deleted, so the UI can gate case restore on
+    /// account restore). Purged cases are excluded — they are anonymized and
+    /// not restorable. Bypasses the global soft-delete filter.
+    /// </summary>
+    /// <returns>Binned cases that are <c>IsDeleted &amp;&amp; !Purged</c>.</returns>
+    Task<IReadOnlyList<CaseDto>> GetDeletedAsync();
+
+    /// <summary>
     /// Returns the agent's "Messages" conversations: cases assigned to the
     /// given agent that have at least one comment, each summarised with the
     /// latest comment (snippet, timestamp, author) and an <c>unread</c> flag.

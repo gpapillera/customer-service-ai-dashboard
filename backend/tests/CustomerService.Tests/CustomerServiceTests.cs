@@ -177,4 +177,184 @@ public class CustomerServiceTests
         Assert.Equal("Profile updated", dto!.LastActivityDescription);
         Assert.Null(dto.LastActivityCaseId);
     }
+
+    [Fact]
+    public async Task DeleteAsync_AsAdmin_SoftDeletesCustomerAndCascadesToCases()
+    {
+        var svc = BuildService(out var customers, out var cases);
+        var customer = SeedCustomer(customers, 1, "Alpha");
+        var case1 = SeedCase(cases, 1, 1, "agent-001");
+        var case2 = SeedCase(cases, 2, 1, "agent-002");
+
+        // The in-memory fake does not populate navigation properties the way
+        // EF's Include does, so wire the graph manually to mirror it.
+        customer.Cases = new List<Case> { case1, case2 };
+
+        await svc.DeleteAsync(1, callerRole: "Admin", callerUserId: "admin-001");
+
+        // Customer and both cases are soft-deleted...
+        Assert.True(customer.IsDeleted);
+        Assert.True(case1.IsDeleted);
+        Assert.True(case2.IsDeleted);
+        Assert.Equal("admin-001", customer.DeletedById);
+        Assert.Equal("admin-001", case1.DeletedById);
+        Assert.Equal("admin-001", case2.DeletedById);
+
+        // ...but the rows still exist in the store (no physical removal).
+        Assert.Equal(1, customers.Query().Count());
+        Assert.Equal(2, cases.Query().Count());
+    }
+
+    [Fact]
+    public async Task RestoreAsync_SelectedCase_RestoresCustomerAndOneCaseOnly()
+    {
+        var svc = BuildService(out var customers, out var cases);
+        var customer = SeedCustomer(customers, 1, "Alpha");
+        var case1 = SeedCase(cases, 1, 1, "agent-001");
+        var case2 = SeedCase(cases, 2, 1, "agent-002");
+
+        // The in-memory fake does not populate navigation properties the way
+        // EF's Include does, so wire the graph manually to mirror it. This
+        // must be set BEFORE DeleteAsync so the cascade soft-deletes the cases.
+        customer.Cases = new List<Case> { case1, case2 };
+
+        // Soft-delete the customer (cascades to both cases).
+        await svc.DeleteAsync(1, callerRole: "Admin", callerUserId: "admin-001");
+
+        // Restore the customer but only case1.
+        await svc.RestoreAsync(1, new List<int> { case1.Id }, callerUserId: "admin-001");
+
+        // Customer is back...
+        Assert.False(customer.IsDeleted);
+        Assert.Null(customer.DeletedAtUtc);
+        Assert.Null(customer.DeletedById);
+        Assert.Equal("admin-001", customer.RestoredById);
+
+        // ...case1 restored, case2 still binned...
+        Assert.False(case1.IsDeleted);
+        Assert.True(case2.IsDeleted);
+
+        // ...and every row still exists in the store (no physical removal).
+        Assert.Equal(1, customers.Query().Count());
+        Assert.Equal(2, cases.Query().Count());
+    }
+
+    // ---- Task A8: PurgeAsync (keep-row anonymize / GDPR erasure) ----
+
+    private static CustomerService.Application.Services.CustomerService BuildServiceWithNotifications(
+        out FakeRepository<Customer> customers, out FakeRepository<Case> cases, out FakeRepository<Notification> notifications)
+    {
+        customers = new FakeRepository<Customer>();
+        cases = new FakeRepository<Case>();
+        notifications = new FakeRepository<Notification>();
+        var activities = new FakeRepository<CustomerActivity>();
+        var displayIds = new CustomerDisplayIdGenerator();
+        var viewEvents = new FakeViewEventService();
+        return new CustomerService.Application.Services.CustomerService(customers, cases, notifications, activities, displayIds, viewEvents);
+    }
+
+    [Fact]
+    public async Task PurgeAsync_AsAdmin_KeepsRowAndAnonymizesPii()
+    {
+        var svc = BuildServiceWithNotifications(out var customers, out var cases, out var notifications);
+        var customer = SeedCustomer(customers, 1, "Alpha");
+        customer.Email = "victim@x.com";
+        customer.Phone = "555-1212";
+        customer.Company = "Acme";
+        customer.Address = "1 Main St";
+        customer.Account = new CustomerAccount { Id = 1, CustomerId = 1, PasswordHash = "bcrypt-hash", IsActive = true };
+
+        var case1 = SeedCase(cases, 1, 1, "agent-001");
+        var comment = new CaseComment { Id = 1, CaseId = 1, AuthorCustomerId = 1, Body = "My issue is urgent" };
+        case1.Comments = new List<CaseComment> { comment };
+        customer.Cases = new List<Case> { case1 };
+
+        var note = new Notification { Id = 1, Recipient = "victim@x.com", Type = NotificationType.CustomerInvite };
+        (notifications as IRepository<Notification>).AddAsync(note).Wait();
+
+        // Soft-delete first (cascades to case + nullifies comment authorship).
+        await svc.DeleteAsync(1, callerRole: "Admin", callerUserId: "admin-001");
+
+        // Admin hard-purges: keep the row but erase PII.
+        await svc.PurgeAsync(1, callerRole: "Admin");
+
+        // Row still exists (no physical delete)...
+        Assert.Equal(1, customers.Query().Count());
+
+        // ...profile PII scrubbed...
+        Assert.Equal("Deleted User", customer.Name);
+        Assert.Equal(string.Empty, customer.Email);
+        Assert.Null(customer.Phone);
+        Assert.Null(customer.Company);
+        Assert.Null(customer.Address);
+
+        // ...account credentials disabled so the login can never be reused...
+        Assert.NotNull(customer.Account);
+        Assert.Null(customer.Account!.PasswordHash);
+        Assert.False(customer.Account.IsActive);
+
+        // ...purge markers set...
+        Assert.True(customer.Purged);
+        Assert.NotNull(customer.PurgedAtUtc);
+
+        // ...comment text preserved but authorship link nulled...
+        Assert.Equal("My issue is urgent", comment.Body);
+        Assert.Null(comment.AuthorCustomerId);
+
+        // ...notification recipient scrubbed...
+        Assert.Null(note.Recipient);
+
+        // ...and it no longer appears in the recycle bin (IsDeleted && !Purged).
+        Assert.Empty(customers.Query().Where(c => c.IsDeleted && !c.Purged).ToList());
+    }
+
+    [Fact]
+    public async Task PurgeAsync_NonAdmin_ThrowsForbidden()
+    {
+        var svc = BuildServiceWithNotifications(out var customers, out var cases, out var _);
+        var customer = SeedCustomer(customers, 1, "Alpha");
+        customer.Cases = new List<Case>();
+
+        await svc.DeleteAsync(1, callerRole: "Admin", callerUserId: "admin-001");
+
+        await Assert.ThrowsAsync<ForbiddenException>(() => svc.PurgeAsync(1, callerRole: "Agent"));
+    }
+
+    [Fact]
+    public async Task PurgeAsync_NotInRecycleBin_ThrowsKeyNotFound()
+    {
+        var svc = BuildServiceWithNotifications(out var customers, out var cases, out var _);
+        SeedCustomer(customers, 1, "Alpha");
+
+        // Never soft-deleted -> not in the recycle bin.
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => svc.PurgeAsync(1, callerRole: "Admin"));
+    }
+
+    [Fact]
+    public async Task GetDeletedAsync_ReturnsBinnedOnly_ExcludesPurged()
+    {
+        var svc = BuildService(out var customers, out var cases, out var _);
+        var customer = SeedCustomer(customers, 1, "Alpha");
+        var c1 = SeedCase(cases, 1, 1, "agent-001");
+        var c2 = SeedCase(cases, 2, 1, "agent-002");
+        customer.Cases = new List<Case> { c1, c2 };
+
+        // Soft-delete the customer (cascades to cases).
+        await svc.DeleteAsync(1, callerRole: "Admin", callerUserId: "admin-001");
+        // Purge the customer so it leaves the bin.
+        await svc.PurgeAsync(1, callerRole: "Admin");
+
+        // A fresh, still-binned customer.
+        var customer2 = SeedCustomer(customers, 2, "Bravo");
+        customer2.Cases = new List<Case>();
+        await svc.DeleteAsync(2, callerRole: "Admin", callerUserId: "admin-001");
+
+        var binned = await svc.GetDeletedAsync();
+
+        // Only the still-binned customer is returned; the purged one is excluded.
+        Assert.Single(binned);
+        Assert.Equal("Bravo", binned[0].Name);
+        Assert.True(binned[0].IsDeleted);
+        Assert.NotNull(binned[0].DeletedAtUtc);
+    }
 }

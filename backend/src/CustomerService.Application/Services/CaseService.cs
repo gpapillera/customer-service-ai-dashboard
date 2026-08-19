@@ -112,7 +112,13 @@ public class CaseService : ICaseService
     /// <inheritdoc/>
     public async Task<CaseDto?> GetByIdAsync(int id, string? callerRole = null, string? callerUserId = null)
     {
-        var c = await _cases.Query()
+        // Admins reach deleted-detail views (recycle drawer) and must be able
+        // to load a soft-deleted row; other roles keep the global filter so
+        // binned rows stay hidden.
+        var q = _cases.Query();
+        if (string.Equals(callerRole, nameof(UserRole.Admin), StringComparison.OrdinalIgnoreCase))
+            q = q.IgnoreQueryFilters();
+        var c = await q
             .Include(c => c.Customer)
             .Include(c => c.Category)
             .Include(c => c.AssignedToUser)
@@ -336,14 +342,109 @@ public class CaseService : ICaseService
         if (!string.Equals(callerRole, nameof(UserRole.Admin), StringComparison.OrdinalIgnoreCase))
             throw new ForbiddenException("Only admins can delete cases.");
 
-        var caseEntity = await _cases.Query()
+        var caseEntity = await _cases.QueryTracked()
             .Include(c => c.Comments)
             .Include(c => c.CallLogs)
             .FirstOrDefaultAsync(c => c.Id == id)
             ?? throw new KeyNotFoundException($"Case {id} not found.");
 
-        _cases.Remove(caseEntity);
+        // Soft-delete: flip the flag instead of physically removing the row.
+        // Any comment authorship links that would otherwise dangle (the
+        // AuthorCustomerId FK uses NoAction, so EF cannot cascade) are
+        // nullified — the comment text is preserved. The case row remains.
+        if (caseEntity.Comments is not null)
+        {
+            foreach (var comment in caseEntity.Comments)
+            {
+                if (comment.AuthorCustomerId == id)
+                    comment.AuthorCustomerId = null;
+            }
+        }
+
+        caseEntity.IsDeleted = true;
+        caseEntity.DeletedAtUtc = DateTime.UtcNow;
+        caseEntity.DeletedById = callerUserId;
+
         await _cases.SaveChangesAsync();
+    }
+
+    /// <inheritdoc/>
+    public async Task RestoreCaseAsync(int caseId, string? callerUserId = null)
+    {
+        // Bypass the global soft-delete filter so a binned case can be loaded.
+        // Include the owning customer so the account gate below can be checked.
+        // QueryTracked() so the IsDeleted flips are persisted.
+        var caseEntity = await _cases.QueryTracked()
+            .IgnoreQueryFilters()
+            .Include(c => c.Customer)
+            .FirstOrDefaultAsync(c => c.Id == caseId && c.IsDeleted && !c.Purged)
+            ?? throw new KeyNotFoundException("Case is not in the recycle bin (or already purged).");
+
+        // GATE: a case may only be restored if its owning customer account is
+        // active. A soft-deleted customer's cases stay unrecoverable until the
+        // account itself is restored first.
+        if (caseEntity.Customer is not null && caseEntity.Customer.IsDeleted)
+            throw new InvalidOperationException("Restore the customer account before restoring its cases.");
+
+        caseEntity.IsDeleted = false;
+        caseEntity.DeletedAtUtc = null;
+        caseEntity.DeletedById = null;
+        await _cases.SaveChangesAsync();
+    }
+
+    /// <inheritdoc/>
+    public async Task PurgeCaseAsync(int caseId, string? callerRole = null)
+    {
+        // Only Admin may purge (anonymize) a soft-deleted case.
+        if (!string.Equals(callerRole, nameof(UserRole.Admin), StringComparison.OrdinalIgnoreCase))
+            throw new ForbiddenException("Only admins can purge cases.");
+
+        // Bypass the global soft-delete filter so a binned (but not yet purged)
+        // case can be loaded. QueryTracked() so the anonymization is persisted.
+        var c = await _cases.QueryTracked()
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(x => x.Id == caseId && x.IsDeleted && !x.Purged);
+        if (c is null)
+            throw new KeyNotFoundException("Case is not in the recycle bin (or already purged).");
+
+        // Hard purge = KEEP THE ROW but ANONYMIZE: scrub the subject and
+        // description and mark the case purged. No physical delete.
+        c.Subject = "[deleted]";
+        c.Description = "[deleted]";
+        c.Purged = true;
+        c.PurgedAtUtc = DateTime.UtcNow;
+
+        await _cases.SaveChangesAsync();
+    }
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<CaseDto>> GetDeletedAsync()
+    {
+        // Bypass the global soft-delete filter and return only binned,
+        // not-yet-purged cases with their owning customer for the drawer's
+        // "Deleted User (C-00012)" context and the restore-gating hint.
+        var binned = await _cases.Query()
+            .IgnoreQueryFilters()
+            .Include(c => c.Customer)
+            .Include(c => c.Category)
+            .Where(c => c.IsDeleted && !c.Purged)
+            .OrderByDescending(c => c.DeletedAtUtc)
+            .ToListAsync();
+
+        return binned.Select(c =>
+        {
+            var dto = ToDto(c);
+            dto.IsDeleted = true;
+            dto.DeletedAtUtc = c.DeletedAtUtc;
+            dto.DeletedById = c.DeletedById;
+            dto.Purged = c.Purged;
+            // Restore-gating: a case can only be revived once its account is.
+            dto.CustomerIsDeleted = c.Customer is not null && c.Customer.IsDeleted;
+            // After purge the customer's name is "Deleted User"; surface a
+            // readable customer label either way.
+            dto.CustomerName = c.Customer is not null ? c.Customer.Name : "Deleted User";
+            return dto;
+        }).ToList();
     }
 
     /// <inheritdoc/>
@@ -586,5 +687,12 @@ public class CaseService : ICaseService
         FollowUpDueUtc = c.FollowUpDueUtc,
         DaysOverdue = OverduePolicy.NeedsFollowUp(c) ? OverduePolicy.DaysOverdue(c) : null,
         CommentCount = c.Comments?.Count ?? 0,
+        // Soft-delete / recycle metadata so the UI can render deleted-mode
+        // detail and the restore-gating hint without a second call.
+        IsDeleted = c.IsDeleted,
+        DeletedAtUtc = c.DeletedAtUtc,
+        DeletedById = c.DeletedById,
+        Purged = c.Purged,
+        CustomerIsDeleted = c.Customer?.IsDeleted ?? false,
     };
 }

@@ -283,6 +283,8 @@ public class NotificationServiceTests
         public Task RequestPasswordResetAsync(int customerId) => System.Threading.Tasks.Task.CompletedTask;
         public Task<string> ResendInviteByEmailAsync(string email) { ResentInviteEmail = email; return System.Threading.Tasks.Task.FromResult("fresh-token"); }
         public Task RequestPasswordResetByEmailAsync(string email) { ResetEmail = email; return System.Threading.Tasks.Task.CompletedTask; }
+        public Task<(string AccessToken, string RefreshToken, DateTime ExpiresUtc)> RefreshAsync(string refreshToken) => throw new System.NotImplementedException();
+        public Task LogoutAsync(string refreshToken) => System.Threading.Tasks.Task.CompletedTask;
     }
 
     private static NotificationService BuildWith(RecordingCustomerAuth auth, out FakeRepository<Notification> notes)

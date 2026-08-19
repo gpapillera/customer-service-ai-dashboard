@@ -78,4 +78,10 @@ public interface ICustomerAuthService
     /// </summary>
     /// <param name="email">Recipient email of the customer to reset for.</param>
     Task RequestPasswordResetByEmailAsync(string email);
+
+    /// <summary>Rotates a valid refresh cookie into a fresh access + refresh token pair.</summary>
+    Task<(string AccessToken, string RefreshToken, DateTime ExpiresUtc)> RefreshAsync(string refreshToken);
+
+    /// <summary>Revokes a refresh token (logout). Idempotent.</summary>
+    Task LogoutAsync(string refreshToken);
 }

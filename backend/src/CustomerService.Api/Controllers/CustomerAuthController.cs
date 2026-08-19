@@ -1,34 +1,41 @@
+using CustomerService.Api.Services;
 using CustomerService.Application.Dtos;
 using CustomerService.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace CustomerService.Api.Controllers;
 
 /// <summary>
 /// Public customer-portal authentication endpoints: validate invite, accept
-/// invite, and customer login. These are unauthenticated (the customer has no
-/// session yet). See docs/DIY.md §8.
+/// invite, customer login, refresh, and logout. The invite/accept/register
+/// flows are unauthenticated (the customer has no session yet). See docs/DIY.md §8.
 /// </summary>
 [ApiController]
 [Route("api/customer-auth")]
 public class CustomerAuthController : ControllerBase
 {
     private readonly ICustomerAuthService _auth;
+    private readonly ITokenCookieService _cookies;
 
     /// <summary>Initializes a new <see cref="CustomerAuthController"/>.</summary>
     /// <param name="auth">Customer auth service.</param>
-    public CustomerAuthController(ICustomerAuthService auth) => _auth = auth;
+    /// <param name="cookies">Cookie issuer for the access + refresh tokens.</param>
+    public CustomerAuthController(ICustomerAuthService auth, ITokenCookieService cookies)
+    {
+        _auth = auth;
+        _cookies = cookies;
+    }
 
     /// <summary>
     /// Validates an invite token without requiring auth. Returns whether the
     /// token is valid plus the customer's display name / masked email so the
     /// future frontend can render "Set your password for [name]".
     /// </summary>
-    /// <param name="token">Invite token.</param>
-    /// <returns>A <see cref="ValidateInviteResponse"/>.</returns>
     [HttpGet("validate-invite")]
     [AllowAnonymous]
+    [EnableRateLimiting("auth")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<ActionResult<ValidateInviteResponse>> ValidateInvite([FromQuery] string token)
     {
@@ -43,10 +50,9 @@ public class CustomerAuthController : ControllerBase
     /// Accepts an invite: validates the token, sets the password (BCrypt), and
     /// activates the account. Does not log the customer in.
     /// </summary>
-    /// <param name="request">Token + new password.</param>
-    /// <returns>204 No Content on success, 400 on invalid/expired/used token.</returns>
     [HttpPost("accept-invite")]
     [AllowAnonymous]
+    [EnableRateLimiting("auth")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> AcceptInvite([FromBody] AcceptInviteRequest request)
@@ -67,20 +73,76 @@ public class CustomerAuthController : ControllerBase
     }
 
     /// <summary>
-    /// Logs a customer in and returns a JWT (role = "Customer"). Wrong
-    /// password, inactive account, or unknown email all return the same
-    /// generic error to avoid leaking which part failed.
+    /// Logs a customer in, sets the access + refresh cookies, and returns the
+    /// JWT (role = "Customer"). Wrong password, inactive account, or unknown
+    /// email all return the same generic error to avoid leaking which part failed.
     /// </summary>
-    /// <param name="request">Email + password.</param>
-    /// <returns>A <see cref="CustomerLoginResponse"/> or 401.</returns>
     [HttpPost("login")]
     [AllowAnonymous]
+    [EnableRateLimiting("auth")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Login([FromBody] CustomerLoginRequest request)
     {
         var result = await _auth.LoginAsync(request);
-        return result is null ? Unauthorized(new { error = "Invalid credentials." }) : Ok(result);
+        if (result is null)
+        {
+            return Unauthorized(new { error = "Invalid credentials." });
+        }
+
+        _cookies.AppendAuthCookies(Response, result.Token, result.RefreshToken!);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Rotates the customer refresh cookie into a fresh access + refresh pair.
+    /// Returned both as cookies and in the response body.
+    /// </summary>
+    [HttpPost("refresh")]
+    [AllowAnonymous]
+    [EnableRateLimiting("auth")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> Refresh()
+    {
+        var refreshToken = Request.Cookies["refresh_token"];
+        if (string.IsNullOrEmpty(refreshToken))
+        {
+            return Unauthorized(new { error = "No refresh token." });
+        }
+
+        try
+        {
+            var (accessToken, newRefresh, expires) = await _auth.RefreshAsync(refreshToken);
+            _cookies.AppendAuthCookies(Response, accessToken, newRefresh);
+            return Ok(new CustomerRefreshResponse
+            {
+                AccessToken = accessToken,
+                RefreshToken = newRefresh,
+                ExpiresUtc = expires,
+            });
+        }
+        catch (InvalidOperationException)
+        {
+            _cookies.ClearAuthCookies(Response);
+            return Unauthorized(new { error = "Invalid or expired refresh token." });
+        }
+    }
+
+    /// <summary>Clears the auth cookies and revokes the customer refresh token.</summary>
+    [HttpPost("logout")]
+    [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> Logout()
+    {
+        var refreshToken = Request.Cookies["refresh_token"];
+        if (!string.IsNullOrEmpty(refreshToken))
+        {
+            await _auth.LogoutAsync(refreshToken);
+        }
+
+        _cookies.ClearAuthCookies(Response);
+        return Ok(new { message = "Logged out." });
     }
 
     /// <summary>
@@ -90,10 +152,9 @@ public class CustomerAuthController : ControllerBase
     /// token/JWT is returned — the customer must click the emailed link and set
     /// a password before they can log in.
     /// </summary>
-    /// <param name="request">Full name, email, phone, company, address.</param>
-    /// <returns>204 No Content on success, 400 if the email is already in use or the payload is invalid.</returns>
     [HttpPost("register")]
     [AllowAnonymous]
+    [EnableRateLimiting("auth")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Register([FromBody] RegisterCustomerDto request)

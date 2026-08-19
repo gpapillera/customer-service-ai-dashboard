@@ -22,6 +22,13 @@ public class FakeRepository<T> : IRepository<T> where T : class
     /// <summary>All stored entities (untracked, async-capable).</summary>
     public IQueryable<T> Query() => new AsyncEnumerableAdapter<T>(_items.AsQueryable());
 
+    /// <summary>
+    /// Tracked query for mutation paths. The in-memory store holds entity
+    /// references, so mutations to loaded entities already persist in
+    /// <c>_items</c>; this simply returns the same set as <see cref="Query"/>.
+    /// </summary>
+    public IQueryable<T> QueryTracked() => Query();
+
     /// <summary>Finds an entity by its Id (int or string primary key).</summary>
     public Task<T?> GetByIdAsync(object id)
     {

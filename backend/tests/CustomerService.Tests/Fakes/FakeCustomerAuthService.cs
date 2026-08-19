@@ -44,4 +44,10 @@ public class FakeCustomerAuthService : ICustomerAuthService
 
     public Task RequestPasswordResetByEmailAsync(string email) =>
         System.Threading.Tasks.Task.CompletedTask;
+
+    public Task<(string AccessToken, string RefreshToken, DateTime ExpiresUtc)> RefreshAsync(string refreshToken) =>
+        throw new System.NotImplementedException();
+
+    public Task LogoutAsync(string refreshToken) =>
+        System.Threading.Tasks.Task.CompletedTask;
 }

@@ -25,6 +25,13 @@ public class FakeCaseService : ICaseService
 
     public Task DeleteAsync(int id, string? callerRole = null, string? callerUserId = null) => Task.CompletedTask;
 
+    public Task RestoreCaseAsync(int caseId, string? callerUserId = null) => Task.CompletedTask;
+
+    public Task PurgeCaseAsync(int caseId, string? callerRole = null) => Task.CompletedTask;
+
+    public Task<IReadOnlyList<CaseDto>> GetDeletedAsync() =>
+        Task.FromResult<IReadOnlyList<CaseDto>>(new List<CaseDto>());
+
     public Task<IReadOnlyList<ConversationSummaryDto>> GetMyConversationsAsync(string agentUserId) =>
         Task.FromResult<IReadOnlyList<ConversationSummaryDto>>(new List<ConversationSummaryDto>());
 

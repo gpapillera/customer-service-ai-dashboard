@@ -272,10 +272,32 @@ works in-container.
 | Key | Location | Description |
 |---|---|---|
 | `Database:Provider` | `appsettings.json` / env `Database__Provider` | `SqlServer` (default) or `Sqlite` |
-| `ConnectionStrings:SqlServer` | `appsettings.json` | SQL Server connection string |
+| `ConnectionStrings:SqlServer` | env `ConnectionStrings__SqlServer` (NOT committed) | SQL Server connection string — MUST be supplied via env/secret; the repo value is a redacted placeholder |
 | `ConnectionStrings:Sqlite` | `appsettings.json` | SQLite connection string (`customer_service.db`) |
-| `Jwt:Key` | `appsettings.json` | Dev placeholder signing key (externalize for prod) |
+| `Jwt:Key` | user-secrets (`dotnet user-secrets`) / env `Jwt__Key` | **Required.** HS256 signing key (≥48 bytes entropy). The app **refuses to start** if this is missing or still the committed placeholder. Never commit a real value. |
+| `Jwt:AccessTokenMinutes` | `appsettings.json` / env `Jwt__AccessTokenMinutes` | Short-lived access-token lifetime (default **15**). The access JWT is delivered as an `HttpOnly` cookie so XSS can't read it. |
+| `Jwt:RefreshTokenDays` | `appsettings.json` / env `Jwt__RefreshTokenDays` | Refresh-token lifetime (default **14**). Refresh tokens are server-side, rotatable, and single-use (replay is revoked). |
+| `Cors:AllowedOrigins` | `appsettings.json` / env `Cors__AllowedOrigins` | Comma-separated permitted SPA origins (default `http://localhost:4200`). The CORS policy **DOES allow credentials** (required for the auth cookies to cross the SPA↔API boundary). Keep this to your real frontend origin(s) only — never `*` with credentials. |
+| `AllowedHosts` | `appsettings.json` / env `AllowedHosts` | Hosts the API will answer for (default `localhost,127.0.0.1`). Set to `*` only for local testing. |
+
+> 🍪 **Cookie auth (since Phase C+).** The JWT is no longer stored in the browser.
+> On login/refresh the API sets two `HttpOnly; SameSite=Lax` cookies
+> (`access_token`, `refresh_token`). The Angular SPA sends them automatically via
+> `withCredentials: true` (and still attaches a legacy `Authorization` header when
+> present — dual-source). The refresh cookie rotates on use; replaying an old one
+> returns `401`. `Secure` is set automatically when the request is HTTPS. The SSE
+> realtime feed authenticates the same way (`fetch` + `credentials: 'include'`).
+> See `docs/PROGRESS_LOG.md` → "Phase C+: Cookie Auth + Refresh Tokens".
 | `ML:ModelPath` | `appsettings.json` | Path to `priority_model.onnx` |
+
+> ⚠️ **Production secrets — read before deploying.** This repo previously shipped
+> real-looking credentials in `appsettings.json` (SQL Server password) and
+> `appsettings.Development.json` (Gmail app password). Both have been redacted to
+> `CHANGE-ME-USE-ENV` placeholders. Supply them via environment variables or
+> `dotnet user-secrets` — never commit them. The `Jwt:Key` worst offender (a
+> publicly-known fallback key) was removed entirely; the API now throws at startup
+> unless a real key is configured. See `docs/PROGRESS_LOG.md` → "Phase C: Backend
+> Security Hardening" for the full audit and fix list.
 
 ---
 

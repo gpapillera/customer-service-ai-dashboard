@@ -30,6 +30,35 @@ public class Customer
     /// <summary>UTC timestamp when the record was created.</summary>
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 
+    /// <summary>
+    /// UTC timestamp of the last account-level profile edit (name/email/phone/
+    /// company/address). Null until the first edit. Used by the Customers
+    /// sidenav badge to flag "info updated since I last looked" — distinct from
+    /// case-level activity (which is surfaced in the notification center, not here).
+    /// </summary>
+    public DateTime? UpdatedAtUtc { get; set; }
+
+    /// <summary>Soft-delete flag. When true, the customer is hidden from normal queries but retained.</summary>
+    public bool IsDeleted { get; set; }
+
+    /// <summary>UTC timestamp when the record was soft-deleted. Null until deleted.</summary>
+    public DateTime? DeletedAtUtc { get; set; }
+
+    /// <summary>ID of the user who soft-deleted the record. Null until deleted.</summary>
+    public string? DeletedById { get; set; }
+
+    /// <summary>Hard-purge flag. When true, the record has been anonymized (PII scrubbed, row kept) and is irreversible. See Plan Task A8.</summary>
+    public bool Purged { get; set; }
+
+    /// <summary>UTC timestamp when the record was purged. Null until purged.</summary>
+    public DateTime? PurgedAtUtc { get; set; }
+
+    /// <summary>ID of the user who restored the record. Null until restored.</summary>
+    public string? RestoredById { get; set; }
+
+    /// <summary>UTC timestamp when the record was restored from soft-delete. Null until restored.</summary>
+    public DateTime? RestoredAtUtc { get; set; }
+
     /// <summary>Navigation property: cases raised by this customer.</summary>
     public ICollection<Case> Cases { get; set; } = new List<Case>();
 

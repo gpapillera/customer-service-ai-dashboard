@@ -136,6 +136,32 @@ public class CaseDto
 
     /// <summary>Total number of comments on the case thread.</summary>
     public int CommentCount { get; set; }
+
+    /// <summary>
+    /// True when the case has been soft-deleted and is sitting in the recycle
+    /// bin. Only populated by the recycle-bin endpoint; normal reads never
+    /// return soft-deleted rows.
+    /// </summary>
+    public bool IsDeleted { get; set; }
+
+    /// <summary>UTC timestamp the case was soft-deleted (recycle bin), or null.</summary>
+    public DateTime? DeletedAtUtc { get; set; }
+
+    /// <summary>Id of the user who soft-deleted the case, or null.</summary>
+    public string? DeletedById { get; set; }
+
+    /// <summary>
+    /// True once the case has been purged (subject/description scrubbed). A
+    /// purged row is excluded from the recycle bin and is not restorable.
+    /// </summary>
+    public bool Purged { get; set; }
+
+    /// <summary>
+    /// True when the case's owning customer account is also soft-deleted.
+    /// Drives the gated restore hint in the UI ("Restore the customer account
+    /// first"). Only meaningful for binned cases.
+    /// </summary>
+    public bool CustomerIsDeleted { get; set; }
 }
 
 /// <summary>

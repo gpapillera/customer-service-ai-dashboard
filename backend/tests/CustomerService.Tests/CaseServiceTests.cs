@@ -5,6 +5,7 @@ using CustomerService.Domain;
 using CustomerService.Domain.Entities;
 using CustomerService.Domain.Interfaces;
 using CustomerService.ML;
+using Microsoft.EntityFrameworkCore;
 using CustomerService.Tests.Fakes;
 using Xunit;
 
@@ -171,17 +172,31 @@ public class CaseServiceTests
     }
 
     [Fact]
-    public async Task DeleteAsync_RemovesCase()
+    public async Task DeleteAsync_SoftDeletesCase_KeepsRowAndFlags()
     {
         var svc = BuildService(out var cases, out var customers, out var categories);
-        SeedCustomer(customers, 1);
+        var customer = SeedCustomer(customers, 1);
         SeedCategory(categories, 1);
 
         var created = await svc.CreateAsync(new CreateCaseDto { Subject = "A", CustomerId = 1, CategoryId = 1 });
         Assert.NotNull(await svc.GetByIdAsync(created.Id));
 
-        await svc.DeleteAsync(created.Id, callerRole: "Admin");
-        Assert.Null(await svc.GetByIdAsync(created.Id));
+        // Admin soft-deletes the case.
+        await svc.DeleteAsync(created.Id, callerRole: "Admin", callerUserId: "admin-1");
+
+        // Row still exists — soft delete, no physical removal.
+        var stored = cases.Query().FirstOrDefault(c => c.Id == created.Id);
+        Assert.NotNull(stored);
+        Assert.True(stored!.IsDeleted);
+        Assert.NotNull(stored.DeletedAtUtc);
+        Assert.True(stored.DeletedAtUtc.HasValue);
+        Assert.Equal("admin-1", stored.DeletedById);
+
+        // The customer is NOT touched by a case soft-delete.
+        var storedCustomer = customers.Query().FirstOrDefault(c => c.Id == 1);
+        Assert.NotNull(storedCustomer);
+        Assert.Equal(customer.Name, storedCustomer!.Name);
+        Assert.False(storedCustomer.IsDeleted);
     }
 
     [Fact]
@@ -333,5 +348,187 @@ public class CaseServiceTests
         Assert.Equal("agent-001", assignEvt.AssignedToUserId);
         Assert.True(hub.TryRead(out var unassignEvt));
         Assert.Null(unassignEvt.AssignedToUserId);
+    }
+
+    // ---- Task A2: soft-delete + purge fields (default state) ----
+
+    [Fact]
+    public void Case_DefaultState_HasSoftDeleteAndPurgeFieldsUnset()
+    {
+        var c = new Case { Subject = "X", CustomerId = 1 };
+
+        Assert.False(c.IsDeleted);
+        Assert.False(c.Purged);
+        Assert.Null(c.DeletedAtUtc);
+        Assert.Null(c.PurgedAtUtc);
+    }
+
+    // ---- Task A7: RestoreCaseAsync (account-gated) ----
+
+    [Fact]
+    public async Task RestoreCaseAsync_CustomerSoftDeleted_ThrowsInvalidOperationException()
+    {
+        var svc = BuildService(out var cases, out var customers, out var categories);
+        var customer = SeedCustomer(customers, 1);
+        SeedCategory(categories, 1);
+        var created = await svc.CreateAsync(new CreateCaseDto { Subject = "A", CustomerId = 1, CategoryId = 1 });
+
+        // Admin soft-deletes the CUSTOMER. In the real DB this cascade
+        // soft-deletes the case too; the fake has no cascade, so replicate it:
+        // soft-delete the customer, soft-delete the case, and wire the navigation
+        // the EF Include(c => c.Customer) would load so the gate can inspect it.
+        customer.IsDeleted = true;
+        customer.DeletedAtUtc = DateTime.UtcNow;
+        customer.DeletedById = "admin-1";
+        await svc.DeleteAsync(created.Id, "Admin", "admin-1");
+
+        var stored = cases.Query().First(c => c.Id == created.Id);
+        stored.Customer = customer; // simulate Include(c => c.Customer)
+
+        // Gate: a case under a soft-deleted account cannot be restored.
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => svc.RestoreCaseAsync(created.Id, "admin-1"));
+    }
+
+    [Fact]
+    public async Task RestoreCaseAsync_CaseSoftDeletedCustomerActive_RestoresCase()
+    {
+        var svc = BuildService(out var cases, out var customers, out var categories);
+        var customer = SeedCustomer(customers, 1); // active
+        SeedCategory(categories, 1);
+        var created = await svc.CreateAsync(new CreateCaseDto { Subject = "A", CustomerId = 1, CategoryId = 1 });
+
+        // Admin soft-deletes just the CASE (customer stays active).
+        await svc.DeleteAsync(created.Id, "Admin", "admin-1");
+
+        var stored = cases.Query().First(c => c.Id == created.Id);
+        stored.Customer = customer; // active customer (gate passes)
+
+        await svc.RestoreCaseAsync(created.Id, "admin-1");
+
+        // Row still exists and is no longer soft-deleted.
+        var restored = cases.Query().First(c => c.Id == created.Id);
+        Assert.NotNull(restored);
+        Assert.False(restored.IsDeleted);
+        Assert.Null(restored.DeletedAtUtc);
+        Assert.Null(restored.DeletedById);
+    }
+
+    // ---- Task A9: PurgeCaseAsync (keep-row anonymize) ----
+
+    [Fact]
+    public async Task PurgeCaseAsync_AdminScrubbedCase_KeepsRowAndAnonymizes()
+    {
+        var svc = BuildService(out var cases, out var customers, out var categories);
+        SeedCustomer(customers, 1); // active
+        SeedCategory(categories, 1);
+
+        var created = await svc.CreateAsync(new CreateCaseDto
+        {
+            Subject = "Real",
+            Description = "Real desc",
+            CustomerId = 1,
+            CategoryId = 1,
+        });
+
+        // Admin soft-deletes (places it in the recycle bin).
+        await svc.DeleteAsync(created.Id, "Admin", "admin-1");
+
+        // Admin hard-purges: keep the row but anonymize it.
+        await svc.PurgeCaseAsync(created.Id, "Admin");
+
+        // Row still exists — no physical delete.
+        var stored = cases.Query().IgnoreQueryFilters().FirstOrDefault(c => c.Id == created.Id);
+        Assert.NotNull(stored);
+        Assert.Equal("[deleted]", stored!.Subject);
+        Assert.Equal("[deleted]", stored.Description);
+        Assert.True(stored.Purged);
+        Assert.True(stored.PurgedAtUtc.HasValue);
+    }
+
+    [Fact]
+    public async Task PurgeCaseAsync_NonAdmin_ThrowsForbidden()
+    {
+        var svc = BuildService(out var cases, out var customers, out var categories);
+        SeedCustomer(customers, 1);
+        SeedCategory(categories, 1);
+
+        var created = await svc.CreateAsync(new CreateCaseDto
+        {
+            Subject = "Real",
+            Description = "Real desc",
+            CustomerId = 1,
+            CategoryId = 1,
+        });
+        await svc.DeleteAsync(created.Id, "Admin", "admin-1");
+
+        await Assert.ThrowsAsync<ForbiddenException>(() => svc.PurgeCaseAsync(created.Id, "Agent"));
+    }
+
+    [Fact]
+    public async Task PurgeCaseAsync_NotInRecycleBin_ThrowsKeyNotFound()
+    {
+        var svc = BuildService(out var cases, out var customers, out var categories);
+        SeedCustomer(customers, 1);
+        SeedCategory(categories, 1);
+
+        var created = await svc.CreateAsync(new CreateCaseDto
+        {
+            Subject = "Real",
+            Description = "Real desc",
+            CustomerId = 1,
+            CategoryId = 1,
+        });
+
+        // Never soft-deleted -> not in the recycle bin.
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => svc.PurgeCaseAsync(created.Id, "Admin"));
+    }
+
+    [Fact]
+    public async Task GetDeletedAsync_ReturnsBinnedOnly_ExcludesPurged_AndCarriesCustomerContext()
+    {
+        var svc = BuildService(out var cases, out var customers, out var categories);
+        SeedCategory(categories, 1);
+        var cust = SeedCustomer(customers, 1);
+        cust.Name = "Alpha";
+
+        var binned = await svc.CreateAsync(new CreateCaseDto
+        {
+            Subject = "Stay in bin",
+            Description = "d",
+            CustomerId = 1,
+            CategoryId = 1,
+        });
+        // Soft-delete just this case (customer stays active).
+        await svc.DeleteAsync(binned.Id, "Admin", "admin-001");
+
+        // A second case that we purge so it must be excluded from the bin.
+        var purged = await svc.CreateAsync(new CreateCaseDto
+        {
+            Subject = "Will be purged",
+            Description = "d",
+            CustomerId = 1,
+            CategoryId = 1,
+        });
+        await svc.DeleteAsync(purged.Id, "Admin", "admin-001");
+        await svc.PurgeCaseAsync(purged.Id, "Admin");
+
+        // The in-memory fake does not populate navigation properties via
+        // Include (the way EF does), so wire the case -> customer link
+        // manually to mirror it — otherwise c.Customer is null and the
+        // GetDeletedAsync drawer context falls back to "Deleted User".
+        foreach (var cs in cases.Query().ToList())
+            cs.Customer = cust;
+
+        var result = await svc.GetDeletedAsync();
+
+        // Only the still-binned case is returned.
+        Assert.Single(result);
+        Assert.Equal(binned.Id, result[0].Id);
+        Assert.True(result[0].IsDeleted);
+        // Owning customer context is carried for the drawer.
+        Assert.Equal("Alpha", result[0].CustomerName);
+        Assert.False(result[0].CustomerIsDeleted); // account still active
+        Assert.False(result[0].Purged);
     }
 }

@@ -1,12 +1,14 @@
 using System.Data;
 using System.IO;
 using System.Text;
+using System.Threading.RateLimiting;
 using CustomerService.Application.Interfaces;
 using CustomerService.Application.Services;
 using CustomerService.Domain.Interfaces;
 using CustomerService.Infrastructure.Data;
 using CustomerService.Infrastructure.Repositories;
 using CustomerService.ML;
+using CustomerService.Api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -39,8 +41,21 @@ public class Program
             app.UseSwagger();
             app.UseSwaggerUI();
         }
+        else
+        {
+            // Redirect plaintext HTTP -> HTTPS and send HSTS in production.
+            app.UseHttpsRedirection();
+            app.UseHsts();
+        }
 
-        app.UseCors("AllowAngularDev");        app.UseMiddleware<CustomerService.Api.Middleware.ApiExceptionMiddleware>();        app.UseAuthentication();
+        app.UseCors("AllowAngularDev");
+        app.UseMiddleware<CustomerService.Api.Middleware.SecurityHeadersMiddleware>();
+        app.UseMiddleware<CustomerService.Api.Middleware.ApiExceptionMiddleware>();
+        // Resolve the endpoint early so rate limiting + authorization see it.
+        app.UseRouting();
+        // Throttle anonymous auth endpoints before authentication runs.
+        app.UseRateLimiter();
+        app.UseAuthentication();
         app.UseAuthorization();
         app.MapControllers();
     }
@@ -52,6 +67,17 @@ public class Program
     {
         var builder = WebApplication.CreateBuilder(args);
         var config = builder.Configuration;
+
+        // SECURITY: never run with a missing or default JWT signing key. A known
+        // key lets anyone forge an Admin token. Fail fast (closed), not open.
+        var jwtKey = config["Jwt:Key"];
+        if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey == "dev-insecure-key-change-me-1234567890")
+        {
+            throw new InvalidOperationException(
+                "Jwt:Key is missing or still set to the insecure development default. " +
+                "Set it via 'dotnet user-secrets set \"Jwt:Key\" \"<64+ char random>\"' " +
+                "or the Jwt__Key environment variable before running in any non-local environment.");
+        }
 
         var provider = config["Database:Provider"] ?? "SqlServer";
         builder.Services.AddDbContext<AppDbContext>(options =>
@@ -76,6 +102,8 @@ public class Program
         builder.Services.AddScoped<ICallLogService, CallLogService>();
         builder.Services.AddScoped<IAuthService, AuthService>();
         builder.Services.AddScoped<ICustomerAuthService, CustomerAuthService>();
+        builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
+        builder.Services.AddScoped<ITokenCookieService, TokenCookieService>();
         builder.Services.AddScoped<IDashboardService, DashboardService>();
         // Monotonic sequence generator for customer display IDs (C-NNNNN). Singleton
         // so the counter is shared/consistent across the process; seeded from the
@@ -140,7 +168,7 @@ public class Program
             return predictor;
         });
 
-        var jwtKey = config["Jwt:Key"] ?? "dev-insecure-key-change-me-1234567890";
+        // jwtKey is validated for presence + non-default at startup (fail-fast guard above).
         builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(options =>
             {
@@ -153,6 +181,21 @@ public class Program
                     ValidIssuer = config["Jwt:Issuer"],
                     ValidAudience = config["Jwt:Audience"],
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+                };
+                // Dual-source token: prefer the HttpOnly access_token cookie set on
+                // login/refresh, but fall back to the Authorization header so the
+                // legacy header flow (SSE fetch, older clients) still works.
+                options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
+                {
+                    OnMessageReceived = context =>
+                    {
+                        var cookie = context.Request.Cookies["access_token"];
+                        if (!string.IsNullOrEmpty(cookie))
+                        {
+                            context.Token = cookie;
+                        }
+                        return Task.CompletedTask;
+                    },
                 };
             });
 
@@ -196,8 +239,30 @@ public class Program
 
         builder.Services.AddCors(options =>
         {
+            var corsOrigins = config["Cors:AllowedOrigins"]
+                ?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                ?? new[] { "http://localhost:4200" };
             options.AddPolicy("AllowAngularDev", policy =>
-                policy.WithOrigins("http://localhost:4200").AllowAnyHeader().AllowAnyMethod());
+                policy.WithOrigins(corsOrigins).AllowAnyHeader().AllowAnyMethod().AllowCredentials());
+            // AllowCredentials() is REQUIRED now that auth uses cookies. Origins are
+            // explicit (never "*"), which is what makes this combination valid + safe.
+        });
+
+        // Rate limiting on anonymous auth endpoints (brute-force protection).
+        // Built-in .NET 8 limiter - no extra dependency. Keyed by client IP.
+        builder.Services.AddRateLimiter(options =>
+        {
+            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+            options.AddPolicy("auth", context =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 5,
+                        Window = TimeSpan.FromMinutes(1),
+                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                        QueueLimit = 0,
+                    }));
         });
 
         return builder;
@@ -226,8 +291,12 @@ public class Program
         EnsureCaseDisplayIdColumn(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
         EnsureCaseAssignedAtUtcColumn(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
         EnsureAccountActivatedAtColumn(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
+        EnsureCustomerUpdatedAtUtcColumn(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
+        EnsureCustomerSoftDeleteColumns(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
+        EnsureCaseSoftDeleteColumns(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
         EnsureCustomerActivitiesTable(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
         EnsureViewEventsTable(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
+        EnsureRefreshTokensTable(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
         SeedDataInitializer.Initialize(ctx);
         // Backfill any customer missing a display ID (e.g. rows created by the
         // self-signup path before this sequence existed) and seed the singleton
@@ -235,6 +304,69 @@ public class Program
         // value. Idempotent: only NULL display IDs are filled.
         var displayIdGenerator = scope.ServiceProvider.GetRequiredService<ICustomerDisplayIdGenerator>();
         EnsureCustomerDisplayIds(ctx, displayIdGenerator, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
+    }
+
+    /// <summary>
+    /// Creates the <c>RefreshTokens</c> table if it is missing. Needed because
+    /// the project uses <c>EnsureCreated()</c> (no migrations), which will not
+    /// create a table for a model added after the database already exists.
+    /// Idempotent + provider-aware. Swap for EF migrations in production.
+    /// </summary>
+    private static async Task EnsureRefreshTokensTable(AppDbContext ctx, string? provider)
+    {
+        const string table = "RefreshTokens";
+        try
+        {
+            if (provider != null && provider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase))
+            {
+                var conn = ctx.Database.GetDbConnection();
+                if (conn.State != System.Data.ConnectionState.Open)
+                {
+                    await conn.OpenAsync();
+                }
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = $"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='{table}';";
+                var count = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+                if (count == 0)
+                {
+                    using var create = conn.CreateCommand();
+                    create.CommandText = $@"CREATE TABLE [{table}] (
+                        [Id] INTEGER PRIMARY KEY AUTOINCREMENT,
+                        [Token] TEXT NOT NULL,
+                        [SubjectId] TEXT NOT NULL,
+                        [SubjectType] TEXT NOT NULL,
+                        [Role] TEXT NOT NULL,
+                        [CreatedUtc] TEXT NOT NULL,
+                        [ExpiresUtc] TEXT NOT NULL,
+                        [RevokedUtc] TEXT,
+                        [ReplacedByToken] TEXT
+                    );";
+                    await create.ExecuteNonQueryAsync();
+                    using var idxToken = conn.CreateCommand();
+                    idxToken.CommandText = $"CREATE UNIQUE INDEX [IX_RefreshTokens_Token] ON [{table}] ([Token]);";
+                    await idxToken.ExecuteNonQueryAsync();
+                }
+            }
+            else
+            {
+                var exists = ctx.Database.ExecuteSqlRaw(
+                    $"IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='{table}') " +
+                    $"CREATE TABLE [{table}] (" +
+                    $"[Id] int IDENTITY(1,1) NOT NULL, [Token] nvarchar(128) NOT NULL, " +
+                    $"[SubjectId] nvarchar(100) NOT NULL, [SubjectType] nvarchar(20) NOT NULL, " +
+                    $"[Role] nvarchar(50) NOT NULL, [CreatedUtc] datetime2 NOT NULL, " +
+                    $"[ExpiresUtc] datetime2 NOT NULL, [RevokedUtc] datetime2, [ReplacedByToken] nvarchar(128), " +
+                    $"CONSTRAINT [PK_RefreshTokens] PRIMARY KEY ([Id]));");
+                _ = exists;
+                ctx.Database.ExecuteSqlRaw(
+                    $"IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_RefreshTokens_Token') " +
+                    $"CREATE UNIQUE INDEX [IX_RefreshTokens_Token] ON [{table}] ([Token]);");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"WARN: could not ensure {table} table: {ex.Message}");
+        }
     }
 
     /// <summary>
@@ -831,6 +963,165 @@ public class Program
         catch (Exception ex)
         {
             Console.WriteLine($"WARN: could not ensure {table}.{column} column: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Adds the <c>Customers.UpdatedAtUtc</c> column if it is missing. Records
+    /// the last account-level profile edit (name/email/phone/company/address),
+    /// surfaced by the Customers sidenav badge as "info updated since I last
+    /// looked". Needed because <c>EnsureCreated()</c> does not alter existing
+    /// tables when the model gains a column. Idempotent + provider-aware.
+    /// Seed rows stay <c>UpdatedAtUtc: null</c> (this bootstrap adds the column
+    /// but does not backfill) — intentional, so first-visit badges aren't
+    /// polluted by stale data. Swap for EF migrations in production.
+    /// </summary>
+    private static async Task EnsureCustomerUpdatedAtUtcColumn(AppDbContext ctx, string? provider)
+    {
+        const string table = "Customers";
+        const string column = "UpdatedAtUtc";
+        try
+        {
+            if (provider != null && provider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase))
+            {
+                var conn = ctx.Database.GetDbConnection();
+                if (conn.State != System.Data.ConnectionState.Open)
+                    await conn.OpenAsync();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = $"SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name='{column}';";
+                var count = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+                if (count == 0)
+                {
+                    using var alter = conn.CreateCommand();
+                    alter.CommandText = $"ALTER TABLE {table} ADD COLUMN {column} TEXT NULL;";
+                    await alter.ExecuteNonQueryAsync();
+                }
+            }
+            else
+            {
+                var exists = ctx.Database.ExecuteSqlRaw(
+                    $"IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='{table}' AND COLUMN_NAME='{column}') " +
+                    $"ALTER TABLE {table} ADD [{column}] datetime2 NULL;");
+                _ = exists;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"WARN: could not ensure {table}.{column} column: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Ensures the soft-delete / purge columns exist on <c>Customers</c>. Needed
+    /// because <c>EnsureCreated()</c> does not alter existing tables when the
+    /// model gains columns (here: IsDeleted, DeletedAtUtc, DeletedById, Purged,
+    /// PurgedAtUtc, RestoredById, RestoredAtUtc). Idempotent + provider-aware.
+    /// Swap for EF migrations in production.
+    /// </summary>
+    private static async Task EnsureCustomerSoftDeleteColumns(AppDbContext ctx, string? provider)
+    {
+        const string table = "Customers";
+        // (column name, sqlite type, sqlserver type)
+        var columns = new (string Name, string Sqlite, string SqlServer)[]
+        {
+            ("IsDeleted", "INTEGER NOT NULL DEFAULT 0", "bit NOT NULL DEFAULT 0"),
+            ("DeletedAtUtc", "TEXT NULL", "datetime2 NULL"),
+            ("DeletedById", "TEXT NULL", "nvarchar(450) NULL"),
+            ("Purged", "INTEGER NOT NULL DEFAULT 0", "bit NOT NULL DEFAULT 0"),
+            ("PurgedAtUtc", "TEXT NULL", "datetime2 NULL"),
+            ("RestoredById", "TEXT NULL", "nvarchar(450) NULL"),
+            ("RestoredAtUtc", "TEXT NULL", "datetime2 NULL"),
+        };
+        try
+        {
+            if (provider != null && provider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase))
+            {
+                var conn = ctx.Database.GetDbConnection();
+                if (conn.State != System.Data.ConnectionState.Open)
+                    await conn.OpenAsync();
+                foreach (var col in columns)
+                {
+                    using var check = conn.CreateCommand();
+                    check.CommandText = $"SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name='{col.Name}';";
+                    var count = Convert.ToInt32(await check.ExecuteScalarAsync());
+                    if (count == 0)
+                    {
+                        using var alter = conn.CreateCommand();
+                        alter.CommandText = $"ALTER TABLE {table} ADD COLUMN {col.Name} {col.Sqlite};";
+                        await alter.ExecuteNonQueryAsync();
+                    }
+                }
+            }
+            else
+            {
+                foreach (var col in columns)
+                {
+                    var exists = ctx.Database.ExecuteSqlRaw(
+                        $"IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='{table}' AND COLUMN_NAME='{col.Name}') " +
+                        $"ALTER TABLE {table} ADD [{col.Name}] {col.SqlServer};");
+                    _ = exists;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"WARN: could not ensure {table} soft-delete columns: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Ensures the soft-delete / purge columns exist on <c>Cases</c>. Needed
+    /// because <c>EnsureCreated()</c> does not alter existing tables when the
+    /// model gains columns (here: IsDeleted, DeletedAtUtc, DeletedById, Purged,
+    /// PurgedAtUtc). Idempotent + provider-aware. Swap for EF migrations in
+    /// production.
+    /// </summary>
+    private static async Task EnsureCaseSoftDeleteColumns(AppDbContext ctx, string? provider)
+    {
+        const string table = "Cases";
+        // (column name, sqlite type, sqlserver type)
+        var columns = new (string Name, string Sqlite, string SqlServer)[]
+        {
+            ("IsDeleted", "INTEGER NOT NULL DEFAULT 0", "bit NOT NULL DEFAULT 0"),
+            ("DeletedAtUtc", "TEXT NULL", "datetime2 NULL"),
+            ("DeletedById", "TEXT NULL", "nvarchar(450) NULL"),
+            ("Purged", "INTEGER NOT NULL DEFAULT 0", "bit NOT NULL DEFAULT 0"),
+            ("PurgedAtUtc", "TEXT NULL", "datetime2 NULL"),
+        };
+        try
+        {
+            if (provider != null && provider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase))
+            {
+                var conn = ctx.Database.GetDbConnection();
+                if (conn.State != System.Data.ConnectionState.Open)
+                    await conn.OpenAsync();
+                foreach (var col in columns)
+                {
+                    using var check = conn.CreateCommand();
+                    check.CommandText = $"SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name='{col.Name}';";
+                    var count = Convert.ToInt32(await check.ExecuteScalarAsync());
+                    if (count == 0)
+                    {
+                        using var alter = conn.CreateCommand();
+                        alter.CommandText = $"ALTER TABLE {table} ADD COLUMN {col.Name} {col.Sqlite};";
+                        await alter.ExecuteNonQueryAsync();
+                    }
+                }
+            }
+            else
+            {
+                foreach (var col in columns)
+                {
+                    var exists = ctx.Database.ExecuteSqlRaw(
+                        $"IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='{table}' AND COLUMN_NAME='{col.Name}') " +
+                        $"ALTER TABLE {table} ADD [{col.Name}] {col.SqlServer};");
+                    _ = exists;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"WARN: could not ensure {table} soft-delete columns: {ex.Message}");
         }
     }
 

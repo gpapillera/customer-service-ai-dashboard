@@ -392,7 +392,13 @@ public class CustomerService : ICustomerService
     /// <inheritdoc/>
     public async Task<CustomerDto?> GetByIdAsync(int id, string? callerRole = null, string? callerUserId = null)
     {
-        var c = await _customers.Query()
+        // Admins reach deleted-detail views (recycle drawer) and must be able
+        // to load a soft-deleted row; other roles keep the global filter so
+        // binned rows stay hidden.
+        var q = _customers.Query();
+        if (string.Equals(callerRole, nameof(UserRole.Admin), StringComparison.OrdinalIgnoreCase))
+            q = q.IgnoreQueryFilters();
+        var c = await q
             .Include(x => x.Account)
             .Include(x => x.Cases).ThenInclude(cs => cs.CallLogs)
             .Include(x => x.Cases).ThenInclude(cs => cs.Comments)
@@ -594,6 +600,11 @@ public class CustomerService : ICustomerService
         customer.Phone = newPhone;
         customer.Company = dto.Company;
         customer.Address = dto.Address;
+        // Stamp the profile-edit timestamp once, only when something actually
+        // changed. A no-op save (changed.Count == 0) leaves UpdatedAtUtc null,
+        // so an unchanged record never appears as "updated since last visit".
+        if (changed.Count > 0)
+            customer.UpdatedAtUtc = DateTime.UtcNow;
         _customers.Update(customer);
         await _customers.SaveChangesAsync();
 
@@ -614,16 +625,17 @@ public class CustomerService : ICustomerService
     }
 
     /// <inheritdoc/>
-    public async Task DeleteAsync(int id, string? callerRole = null)
+    public async Task DeleteAsync(int id, string? callerRole = null, string? callerUserId = null)
     {
         // Only Admin may delete customers (mirrors CaseService.DeleteAsync).
         if (!string.Equals(callerRole, nameof(UserRole.Admin), StringComparison.OrdinalIgnoreCase))
             throw new ForbiddenException("Only admins can delete customers.");
 
-        // Load the customer with the full graph so we can nullify
-        // CaseComment.AuthorCustomerId before removal (that FK uses NoAction,
-        // so EF cannot auto-cascade and would throw on DELETE).
-        var customer = await _customers.Query()
+        // Load the customer with the full graph so we can soft-delete its
+        // cases and nullify CaseComment.AuthorCustomerId before the cascade.
+        // QueryTracked() (not Query()) so the IsDeleted mutations are tracked
+        // and persisted by SaveChangesAsync.
+        var customer = await _customers.QueryTracked()
             .Include(c => c.Cases).ThenInclude(cs => cs.Comments)
             .FirstOrDefaultAsync(c => c.Id == id)
             ?? throw new KeyNotFoundException($"Customer {id} not found.");
@@ -644,7 +656,192 @@ public class CustomerService : ICustomerService
             }
         }
 
-        _customers.Remove(customer);
+        // Soft-delete the customer's cases first (cascade), then the customer
+        // itself. No physical removal — EF global soft-delete filters hide
+        // these rows from queries while the data remains in the store for
+        // audit/recovery. The caller is recorded as the deleter.
+        if (customer.Cases is not null)
+        {
+            foreach (var cs in customer.Cases)
+            {
+                cs.IsDeleted = true;
+                cs.DeletedAtUtc = DateTime.UtcNow;
+                cs.DeletedById = callerUserId;
+            }
+        }
+
+        customer.IsDeleted = true;
+        customer.DeletedAtUtc = DateTime.UtcNow;
+        customer.DeletedById = callerUserId;
+
+        await _customers.SaveChangesAsync();
+    }
+
+    /// <inheritdoc/>
+    public async Task RestoreAsync(int id, List<int>? caseIdsToRestore = null, string? callerUserId = null)
+    {
+        // Bypass the global soft-delete filter so we can load a binned
+        // customer, then restore it plus (a subset of) its soft-deleted cases.
+        // QueryTracked() so the IsDeleted flips are persisted.
+        var customer = await _customers.QueryTracked()
+            .IgnoreQueryFilters()
+            .Include(c => c.Cases)
+            .FirstOrDefaultAsync(c => c.Id == id && c.IsDeleted && !c.Purged)
+            ?? throw new KeyNotFoundException("Customer is not in the recycle bin (or already purged).");
+
+        // Restore the customer record itself.
+        customer.IsDeleted = false;
+        customer.DeletedAtUtc = null;
+        customer.DeletedById = null;
+        customer.RestoredAtUtc = DateTime.UtcNow;
+        customer.RestoredById = callerUserId;
+
+        // Restore selected (or all) soft-deleted cases that belong to it.
+        // Cases not selected stay in the recycle bin for a later restore.
+        // A null OR empty selection means "restore all" (matches the documented
+        // contract — the controller accepts { caseIds: [] } to mean restore-all).
+        var restoreAllCases = caseIdsToRestore is null || caseIdsToRestore.Count == 0;
+        if (customer.Cases is not null)
+        {
+            foreach (var cs in customer.Cases)
+            {
+                if (cs.IsDeleted && !cs.Purged &&
+                    (restoreAllCases || caseIdsToRestore.Contains(cs.Id)))
+                {
+                    cs.IsDeleted = false;
+                    cs.DeletedAtUtc = null;
+                    cs.DeletedById = null;
+                }
+            }
+        }
+
+        // Cases are part of the same customer graph, so a single SaveChanges
+        // persists both the customer and the restored cases.
+        await _customers.SaveChangesAsync();
+    }
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<CustomerDto>> GetDeletedAsync()
+    {
+        // Bypass the global soft-delete filter and return only binned,
+        // not-yet-purged customers. Purged rows stay hidden from the bin.
+        var binned = await _customers.Query()
+            .IgnoreQueryFilters()
+            .Include(c => c.Account)
+            .Include(c => c.Cases).ThenInclude(cs => cs.Comments)
+            .Include(c => c.Cases).ThenInclude(cs => cs.Notifications)
+            .Where(c => c.IsDeleted && !c.Purged)
+            .OrderByDescending(c => c.DeletedAtUtc)
+            .ToListAsync();
+
+        return binned.Select(c =>
+        {
+            var acctNotes = (IReadOnlyList<Notification>)new List<Notification>();
+            var acctActs = (IReadOnlyList<CustomerActivity>?)null;
+            var dto = ToDto(c, acctNotes, acctActs);
+            // Surface the deleted-state metadata so the UI can render the
+            // recycle-bin row without a second call.
+            dto.IsDeleted = true;
+            dto.DeletedAtUtc = c.DeletedAtUtc;
+            dto.DeletedById = c.DeletedById;
+            dto.Purged = c.Purged;
+            return dto;
+        }).ToList();
+    }
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<CaseDto>> GetDeletedCasesAsync(int customerId)
+    {
+        // Bypass the global soft-delete filter and return only this customer's
+        // binned, not-yet-purged cases — the exact set the restore picker offers.
+        return await _cases.Query()
+            .IgnoreQueryFilters()
+            .Include(c => c.Category)
+            .Where(c => c.CustomerId == customerId && c.IsDeleted && !c.Purged)
+            .OrderByDescending(c => c.DeletedAtUtc)
+            .Select(c => CaseService.ToDto(c))
+            .ToListAsync();
+    }
+
+    /// <inheritdoc/>
+    public async Task PurgeAsync(int id, string? callerRole = null)
+    {
+        // Only Admin may purge (irreversible PII erasure).
+        if (!string.Equals(callerRole, nameof(UserRole.Admin), StringComparison.OrdinalIgnoreCase))
+            throw new ForbiddenException("Only admins can purge customers.");
+
+        // Load the binned customer with its full graph so we can anonymize the
+        // profile, disable the account credentials, nullify comment authorship,
+        // and reach the linked cases. IgnoreQueryFilters bypasses the soft-delete
+        // filter so a binned (IsDeleted) customer is still loadable. QueryTracked()
+        // so the anonymization is persisted.
+        var target = await _customers.QueryTracked()
+            .IgnoreQueryFilters()
+            .Include(c => c.Cases).ThenInclude(cs => cs.Comments)
+            .Include(c => c.Account)
+            .FirstOrDefaultAsync(c => c.Id == id && c.IsDeleted && !c.Purged)
+            ?? throw new KeyNotFoundException("Customer is not in the recycle bin (or already purged).");
+
+        // Capture the email FIRST — it's the key used to find linked notifications,
+        // and we're about to null it on the profile.
+        var email = target.Email;
+
+        // Anonymize the profile PII. CustomerDisplayId is intentionally kept for
+        // traceability/audit; it is not PII. Email is a non-nullable string
+        // (initialized to string.Empty), so we blank it rather than null it.
+        target.Name = "Deleted User";
+        target.Email = string.Empty;
+        target.Phone = null;
+        target.Company = null;
+        target.Address = null;
+
+        // Disable the login entirely: a purged account must never authenticate
+        // again. The row stays (FK integrity + audit), but the credentials are gone.
+        if (target.Account is not null)
+        {
+            target.Account.PasswordHash = null;
+            target.Account.InviteToken = null;
+            target.Account.IsActive = false;
+            target.Account.ActivatedAtUtc = null;
+        }
+
+        // Nullify customer-authored comment links (text is preserved). DeleteAsync
+        // usually already did this during the cascade, but this is defensive and
+        // idempotent in case a comment slipped through.
+        if (target.Cases is not null)
+        {
+            foreach (var cs in target.Cases)
+            {
+                if (cs.Comments is null) continue;
+                foreach (var comment in cs.Comments)
+                    if (comment.AuthorCustomerId == id)
+                        comment.AuthorCustomerId = null;
+            }
+        }
+
+        // Scrub notification PII: any notification addressed to the customer's
+        // email, or tied to one of the customer's cases.
+        if (!string.IsNullOrEmpty(email))
+        {
+            // EF can't translate an in-memory collection predicate inside the
+            // query, so materialize the customer's case ids locally first.
+            var customerCaseIds = (target.Cases ?? new List<Case>()).Select(cs => cs.Id).ToList();
+            var notes = await _notifications.Query().IgnoreQueryFilters()
+                .Where(n => n.Recipient == email ||
+                            (n.CaseId != null && customerCaseIds.Contains(n.CaseId.Value)))
+                .ToListAsync();
+            foreach (var n in notes)
+                n.Recipient = null;
+            if (notes.Count > 0)
+                await _notifications.SaveChangesAsync();
+        }
+
+        // Mark purged (excludes this row from future recycle-bin queries).
+        target.Purged = true;
+        target.PurgedAtUtc = DateTime.UtcNow;
+
+        // Customer + account + cases + comments are one graph; a single
+        // SaveChanges persists the whole anonymized row.
         await _customers.SaveChangesAsync();
     }
 
@@ -860,11 +1057,18 @@ public class CustomerService : ICustomerService
                 })
                 .ToList()) ?? new List<ActiveCaseInfoDto>(),
             CreatedAtUtc = c.CreatedAtUtc,
+            UpdatedAtUtc = c.UpdatedAtUtc,
             LastActivityAtUtc = lastActivityAt,
             LastActivityDescription = lastActivityDesc,
             LastActivityCaseId = lastActivityCaseId,
             HasAccount = c.Account != null,
             AccountActive = c.Account != null && c.Account.IsActive,
+            // Soft-delete / recycle metadata so the UI can render deleted-mode
+            // detail without a second call.
+            IsDeleted = c.IsDeleted,
+            DeletedAtUtc = c.DeletedAtUtc,
+            DeletedById = c.DeletedById,
+            Purged = c.Purged,
         };
     }
 

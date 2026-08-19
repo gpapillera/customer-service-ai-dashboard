@@ -54,6 +54,9 @@ public class AppDbContext : DbContext
     /// <summary>Allowed email domains for direct (non-redirected) delivery.</summary>
     public DbSet<EmailDomain> EmailDomains => Set<EmailDomain>();
 
+    /// <summary>Refresh tokens for the cookie-based auth + rotation flow.</summary>
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+
     /// <summary>Editable, per-type email templates with personalization tokens.</summary>
     public DbSet<EmailTemplate> EmailTemplates => Set<EmailTemplate>();
 
@@ -84,6 +87,7 @@ public class AppDbContext : DbContext
                 .HasForeignKey(c => c.CustomerId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(c => c.Account).WithOne(a => a.Customer!)
                 .HasForeignKey<CustomerAccount>(a => a.CustomerId);
+            e.HasQueryFilter(c => !c.IsDeleted);
         });
 
         builder.Entity<CustomerAccount>(e =>
@@ -113,6 +117,7 @@ public class AppDbContext : DbContext
                 .HasForeignKey(c => c.CategoryId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(c => c.AssignedToUser!).WithMany()
                 .HasForeignKey(c => c.AssignedToUserId).OnDelete(DeleteBehavior.SetNull);
+            e.HasQueryFilter(c => !c.IsDeleted);
         });
 
         builder.Entity<CaseComment>(e =>
@@ -186,6 +191,18 @@ public class AppDbContext : DbContext
             // The marker references a case but must not block case deletion.
             e.HasOne<Case>().WithMany().HasForeignKey(r => r.CaseId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<RefreshToken>(e =>
+        {
+            e.HasKey(r => r.Id);
+            e.Property(r => r.Id).ValueGeneratedOnAdd();
+            e.HasIndex(r => r.Token).IsUnique();
+            e.Property(r => r.Token).IsRequired().HasMaxLength(128);
+            e.Property(r => r.SubjectId).IsRequired().HasMaxLength(100);
+            e.Property(r => r.SubjectType).IsRequired().HasMaxLength(20);
+            e.Property(r => r.Role).IsRequired().HasMaxLength(50);
+            e.Property(r => r.ReplacedByToken).HasMaxLength(128);
         });
     }
 }

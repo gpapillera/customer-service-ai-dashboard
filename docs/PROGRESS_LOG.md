@@ -2,6 +2,263 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase C+: Cookie Auth + Refresh Tokens] (2026-08-19)
+**Status:** ✅ COMPLETE (backend `dotnet test` 138/138 green; frontend `ng test` 47/47 green; frontend `ng build` clean; full login→protected→refresh→SSE→logout flow verified live in browser, light + dark)
+
+### Why
+Fork B of the Phase C hardening: move the JWT out of the browser's `sessionStorage`
+(XSS-readable) into `HttpOnly` cookies, add rotatable refresh tokens with revocation,
+and shorten the access-token lifetime from 8h to 15m. Goal: compromise of the SPA
+(sessionStorage theft, XSS token exfil) can no longer yield a usable token, and a
+stolen refresh token is useless after one use.
+
+### Backward-compatibility guarantees (no app-breakage)
+- **Dual-source JWT:** `AddJwtBearer` `OnMessageReceived` reads the token from the
+  `access_token` cookie OR the `Authorization` header (header wins only if cookie
+  absent). The old header-based frontend path still works, so there is no hard
+  lockout window during rollout.
+- **`Secure` follows the request scheme, not an env var:** `TokenCookieService`
+  sets `Secure` only when `HttpContext.Request.IsHttps`. On the plaintext Angular
+  dev proxy (HTTP) the cookie is non-Secure so the browser keeps it; on HTTPS it is
+  Secure. (Tying it to `ASPNETCORE_ENVIRONMENT` wrongly emitted `Secure` on dev HTTP
+  and the browser silently dropped the cookie — that trap is avoided.)
+- **Session survives hard refresh:** `AuthService`/`CustomerAuthService` still persist
+  the user record in `sessionStorage['cs_user']`, so `isAuthenticated()` (now keyed
+  off the in-memory user, not a token) stays true after a reload; the HttpOnly cookie
+  is sent automatically on the next API call.
+- **Silent refresh:** both interceptors catch a `401`, call the refresh endpoint
+  once (single-flight guard), and retry — sessions don't randomly die at the 15m mark.
+- **SSE feed:** `realtime.service.ts` uses `fetch(..., { credentials: 'include' })`
+  plus the legacy header, so the live case-assignment stream keeps authenticating.
+
+### What changed (files)
+- `Domain/Entities/RefreshToken.cs` (new) — server-side refresh token (hash stored).
+- `Infrastructure/Data/AppDbContext.cs` — `RefreshTokens` DbSet + model config.
+- `Program.cs` — `EnsureRefreshTokensTable` (raw-SQL, mirrors other `Ensure*Table`
+  helpers); CORS `AllowCredentials()` added (required for cookie auth); JWT
+  `OnMessageReceived` reads cookie OR header; registered `IRefreshTokenService`
+  + `ITokenCookieService`.
+- `Application/Services/RefreshTokenService.cs` (new) + `Interfaces/IRefreshTokenService.cs`
+  (new) — create/validate/rotate (atomic single-use + revoke-old).
+- `Api/Services/TokenCookieService.cs` (new) — `HttpOnly; SameSite=Lax; Secure=IsHttps`
+  cookie options + append/clear helpers.
+- `AuthService.cs` / `CustomerAuthService.cs` — access token shortened to
+  `Jwt:AccessTokenMinutes` (default 15); `LoginAsync` issues a refresh token; added
+  `RefreshAsync` (rotate) + `LogoutAsync` (revoke + clear cookies).
+- `AuthController.cs` / `CustomerAuthController.cs` — append cookies on login;
+  new `POST /api/auth/refresh` + `POST /api/auth/logout` (and customer equivalents).
+- `Dtos/AuthDtos.cs` — `RefreshToken` field on both login responses; `RefreshResponse`
+  / `CustomerRefreshResponse` DTOs.
+- `appsettings.json` — added `Jwt:AccessTokenMinutes: 15`, `Jwt:RefreshTokenDays: 14`;
+  CORS policy now `AllowCredentials()`.
+- Frontend `auth.service.ts` / `customer-auth.service.ts` — stop writing the raw token
+  to `sessionStorage`; `isAuthenticated()` keyed off session user; `logout()` calls
+  backend logout (clears cookies); added `refresh()`; removed dead `decode`/`TOKEN_KEY`.
+- Frontend `auth/token.interceptor.ts` + `customer/customer-token.interceptor.ts` —
+  `withCredentials: true` on every request (keep legacy header for dual-source);
+  silent single-flight refresh on `401`.
+- Frontend `shared/realtime.service.ts` — SSE `fetch` now `credentials: 'include'`.
+- `tests/CustomerService.Tests/SecurityHardeningTests.cs` — 3 new tests: login sets
+  `HttpOnly` cookies; refresh rotates + revokes old (replay → 401); refresh without
+  cookie → 401. (Cookie DB isolated per test to avoid cross-test interference.)
+- `README.md` — config table updated (access/refresh lifetimes, CORS credentials note)
+  + cookie-auth explainer.
+
+### Verification
+- `curl` over a real socket: login → 200 + `Set-Cookie: access_token=…; httponly;
+  samesite=lax` (no `Secure` on HTTP); protected call with cookie, no header → 200;
+  without cookie → 401; refresh rotates (new cookies) and old refresh replay → 401;
+  SSE with cookie → 200; logout → 200.
+- Browser (Chromium, `:4200` → `:5274` proxy): logged in as `admin`/`Passw0rd!`,
+  dashboard + Cases table loaded live data, hard reload preserved the session,
+  light + dark themes both render correctly, **zero console errors** throughout.
+
+## [Phase C: Backend Security Hardening] (2026-08-19)
+**Status:** ✅ COMPLETE (backend `dotnet test` 135/135 green; backend `dotnet build` clean; fail-fast key guard verified live; security headers + rate-limit verified live over a real socket)
+
+### Why
+A focused security audit of the existing auth/CORS/secret surface found the app was
+**not production-safe as shipped**, even though the auth skeleton was real. The single
+critical issue: `Jwt:Key` was a hardcoded, publicly-known fallback (`"dev-insecure-..."`)
+AND that same value was committed in `appsettings.json`, which is the base config
+inherited by Production — so anyone reading the repo could forge an Admin token today.
+Two more cleartext secrets were also committed (SQL Server password; Gmail app password).
+
+### What changed (files)
+- `Program.cs` — (1) **fail-fast startup guard**: throws `InvalidOperationException`
+  if `Jwt:Key` is missing or still the insecure default (fail-closed, not fail-open);
+  (2) removed the `?? "dev-insecure-..."` fallback; (3) CORS origins now read from
+  `Cors:AllowedOrigins` (default `http://localhost:4200`), still no credentials;
+  (4) added **rate limiting** on the 6 anonymous auth endpoints via the built-in .NET 8
+  `RateLimiter` (no new dependency), policy `auth` = 5 req/min per client IP → 429;
+  (5) `UseHttpsRedirection()` + `UseHsts()` in non-Development; (6) new
+  `SecurityHeadersMiddleware` stamps `X-Content-Type-Options: nosniff`,
+  `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer` on every response.
+- `AuthService.cs` / `CustomerAuthService.cs` — removed the `?? "dev-insecure-..."`
+  fallback; read `Jwt:Key` directly (validated at startup).
+- `AuthController.cs` / `CustomerAuthController.cs` — `[EnableRateLimiting("auth")]`
+  on the 6 anonymous endpoints (`login`, `reset-password`, `validate-invite`,
+  `accept-invite`, `login`, `register`).
+- `Middleware/SecurityHeadersMiddleware.cs` — new.
+- `appsettings.json` — redacted SQL Server password → `CHANGE-ME-USE-ENV`; redacted
+  `Jwt:Key` → `CHANGE-ME-USE-USER-SECRETS-OR-ENV`; added `Cors:AllowedOrigins`;
+  scoped `AllowedHosts` from `*` to `localhost,127.0.0.1`.
+- `appsettings.Development.json` — redacted Gmail `SenderPassword` →
+  `CHANGE-ME-USE-USER-SECRETS-OR-ENV` (also fixed a pre-existing invalid trailing comma).
+- `tests/CustomerService.Tests/SecurityHardeningTests.cs` (new) — proves: key guard
+  throws on default key; login returns 429 after 5 attempts; security headers present;
+  public DTOs expose no `Role`/`IsActive`/`PasswordHash`/`Id` fields (mass-assignment
+  audit — already clean, now a regression guard).
+- `README.md` — Configuration table corrected; added a "Production secrets" warning.
+
+### DTO mass-assignment audit (Task 7) — result: NOT exploitable
+Public request DTOs (`LoginRequest`, `ResetPasswordRequest`, `RegisterCustomerDto`,
+`AcceptInviteRequest`, `CustomerLoginRequest`) contain no privileged settable fields.
+The customer JWT role is hard-coded to `"Customer"` server-side, never from input. A
+reflection test now guards this invariant.
+
+### Deliberately deferred (NOT done — documented as known gaps)
+1. **Frontend token storage.** UI keeps the JWT in `sessionStorage` (XSS-exfil-prone).
+   Correct production store is an httpOnly + Secure + SameSite cookie. Belongs to the
+   frontend Phase C work — flagged, not silently skipped.
+2. **JWT lifetime (8h) + no refresh tokens.** Shortening needs refresh-token machinery;
+   deferred rather than ship a half-built auth refresh.
+3. **Privileged-action audit log.** Admin purge/restore/role changes log only to
+   `ILogger`, no durable who/when/what trail. Compliance-grade, deferred.
+4. **Full CSP.** Deferred because the Angular SPA's asset policy needs coordinated
+   frontend tuning; the two unambiguous headers (nosniff, frame-options) are in.
+
+### Verification
+- `dotnet build CustomerServiceApi.sln` → 0 errors.
+- `dotnet test CustomerServiceApi.sln` → 135 passed, 0 failed.
+- Live: running the API with the default `Jwt:Key` throws `InvalidOperationException` at
+  startup (proven). Running with a valid env key: `curl` shows
+  `X-Content-Type-Options: nosniff` + `X-Frame-Options: DENY` on responses, and 6 rapid
+  `POST /api/auth/login` attempts return `401,401,401,401,429,429`.
+
+## [Phase A+B: Soft-delete / Recycle bin / Restore / Purge (GDPR erasure) + frontend recycle UI] (2026-08-19)
+**Status:** ✅ COMPLETE (backend `dotnet test` 131/131 green; backend `dotnet build` clean; frontend `npm run build` green; full recycle/restore/purge flow verified LIVE against the running API with curl)
+
+### Why
+Real users need a recycle bin + GDPR-style erasure, not hard deletes. Backend
+(A1–A10) and frontend (B1–B8) implement: soft-delete with global EF query filter
+hiding binned rows, Admin-only recycle endpoints, per-item restore (customer
+restore with a case-picker that can restore a SUBSET of binned cases), and
+irreversible purge (keep-row anonymize + kill login credentials).
+
+### Root-cause bugs found ONLY by live API testing (unit tests with the fake repo
+missed all of these — the fake returns reference-tracked entities, so a
+no-tracking load still "worked" there):
+1. **`IRepository.Query()` was `_set.AsNoTracking()`.** Every mutation method
+   (Customer/Case `DeleteAsync`, `RestoreAsync`, `PurgeAsync`) loaded via
+   `Query()` then mutated + `SaveChangesAsync()` — but the loaded entity was
+   DETACHED, so the save was a no-op. Soft-delete silently did nothing.
+   **Fix:** added `IRepository.QueryTracked()` (returns the tracked `_set`) and
+   switched all load-then-mutate paths to it. (Also added `QueryTracked()` to
+   the test `FakeRepository`.)
+2. **`RestoreAsync` empty-list vs null contract mismatch.** Controller doc said
+   "null or empty restores all", but the service used `(caseIdsToRestore is null
+   || .Contains(...))` — an empty `[]` restored NOTHING. **Fix:** treat null OR
+   empty as restore-all. Frontend `restore(id, [])` and the picker (returns `[]`
+   only when fully deselected) now behave correctly.
+3. **No `GET /api/customers/{id}/deleted-cases` endpoint** for the B7 restore
+   case-picker. **Fix:** added `ICustomerService.GetDeletedCasesAsync` + controller
+   route (Admin) returning this customer's binned, non-purged cases.
+4. **`GetByIdAsync` (customer + case) applied the global soft-delete filter**, so
+   a soft-deleted row 404'd — breaking the drawer → deleted-detail navigation.
+   **Fix:** Admin callers now `IgnoreQueryFilters()` (other roles stay hidden).
+5. **`CaseDto`/`CustomerDto` `ToDto` did not project `isDeleted`/`deletedAtUtc`/
+   `deletedById`/`purged`/`customerIsDeleted`.** The deleted-detail detection on
+   the frontend had nothing to read. **Fix:** projected all deleted-state fields
+   in both `ToDto` methods (the recycle endpoints already set them manually).
+6. **`PurgeAsync` notification-scrub query was untranslatable LINQ** — embedded
+   `target.Cases.Any(cs => cs.Id == n.CaseId.Value)` inside an EF query. **Fix:**
+   materialize the customer's case ids to a local list, then `.Contains(...)`.
+
+### What changed (files)
+- Backend: `IRepository.cs`, `Repository.cs` (QueryTracked), `CustomerService.cs`
+  (Delete/Restore/Purge tracked loads, GetDeletedCasesAsync, GetByIdAsync admin
+  filter bypass, ToDto deleted fields, notification-scrub fix, restore-all
+  semantics, prior A8/A10), `CaseService.cs` (tracked loads, GetByIdAsync admin
+  filter bypass, ToDto deleted fields), `ICustomerService.cs`
+  (GetDeletedCasesAsync), `CustomersController.cs` (deleted-cases route, prior
+  A10), `CustomerService.Tests/Fakes/FakeRepository.cs` (QueryTracked).
+- Frontend: `models.ts` (soft-delete + purge flags on Customer/Case),
+  `customer.service.ts` (`recycleBin`/restore/purge/`customerDeletedCases`),
+  `case.service.ts` (`recycleBin`/`restoreCase`/`purgeCase`), `shared/
+  deleted-drawer.component.*` (reusable right drawer), `customers/customer-list`
+  (trash icon + drawer), `cases/case-list` (trash icon + drawer w/ customer
+  context), `customers/customer-detail` (deleted-mode banner + restore/purge),
+  `customers/restore-case-picker.component.*` (B7 checkbox picker),
+  `cases/case-detail` (deleted-mode banner + gated restore/purge),
+  `styles.scss` (shared deleted-banner / purge-btn / trash-btn tokens, theme-aware).
+
+### Verified live (curl against `dotnet run` on :5274, admin token)
+- DELETE customer → 204; recycle-bin lists it; `GET /customers/{id}` returns
+  isDeleted=True (Admin); normal list hides it (404); both binned cases listed
+  by `/deleted-cases`.
+- Restore with `caseIds=[one]` → that case restored, the other STAYS binned
+  (subset restore correct). Restore-all (`[]`) restores both.
+- Case purge → subject scrubbed to `[deleted]`, purged=True.
+- Customer purge → name "Deleted User", email "", purged=True, accountActive=
+  False (credentials killed). Notification PII scrub runs without error.
+
+### Known follow-ups (deferred)
+- Security hardening pass (separate session, per Glen): hardcoded JWT fallback
+  key in Program.cs, CORS policy review, auth-rate-limiting, HTTPS enforcement.
+
+## [Customers sidenav badge — count created OR updated since visit + kill stale backfill] (2026-08-18)
+**Status:** ✅ COMPLETE (backend `dotnet build` clean; frontend `npm run build` green; 47/47 tests pass incl. 8 new nav-badge customer specs)
+
+### Why
+The Customers sidenav badge (path `/customers`) only counted customers whose
+`createdAtUtc` was newer than the section's "last visited" localStorage
+timestamp. Two gaps vs. the stated requirement ("appear when a new customer is
+added OR new info is updated at customer account level"):
+1. No `updatedAtUtc` existed, so account-profile edits (name/email/phone/company/
+   address) never triggered the badge.
+2. The "last visited" baseline could be stale (e.g. from a previous session days
+   ago), so on first load the badge backfilled old customers as "new" — this is
+   the "2" Glen saw on the admin Customers tab with no two new customers.
+
+### What changed
+- **Backend:** added `Customer.UpdatedAtUtc` (nullable, UTC). Stamped in
+  `CustomerService.UpdateAsync` **only when a real profile field changed** (the
+  existing `changed` diff already guarded no-op saves, so an unchanged record
+  stays `null`). Exposed on `CustomerDto` + mapped in `ToDto`.
+- **Backend bootstrap:** new additive `EnsureCustomerUpdatedAtUtcColumn`
+  (SQLite + SqlServer, mirrors `EnsureCaseAssignedAtUtcColumn`) + registered in
+  `SeedDatabase`. Seed rows stay `UpdatedAtUtc: null` (no backfill).
+- **Frontend:** `Customer.updatedAtUtc` added to `models.ts`. `nav-badge.service.ts`
+  `newCustomersSince` now counts created **OR** updated since visit; a customer
+  edited after creation still counts once (deduped by id in the single filter).
+- **Frontend — stale-backfill fix:** introduced `appLoadFloor = Date.now()` at
+  service construction. `getVisited()` now clamps any stored baseline older than
+  the floor to "no baseline", and a new `anchorBaselines()` writes a floor
+  baseline for `/dashboard`, `/customers`, `/cases` on first load **and** on every
+  user switch. Result: a freshly-opened/switched account starts with empty badges
+  and only counts items created/edited AFTER it actually appears — no stale
+  backfill. Genuine visits still write a real baseline via `setVisited`.
+- **Tests:** `nav-badge.service.spec.ts` gained a parallel `newCustomersSince`
+  fixture + 4 specs (created-after / updated-after / no-double-count /
+  no-baseline).
+
+### Files
+- `backend/.../Domain/Entities/Customer.cs`: `UpdatedAtUtc` property.
+- `backend/.../Application/Dtos/CustomerDtos.cs`: `UpdatedAtUtc` field.
+- `backend/.../Application/Services/CustomerService.cs`: stamp in `UpdateAsync`, map in `ToDto`.
+- `backend/.../Api/Program.cs`: `EnsureCustomerUpdatedAtUtcColumn` + registration.
+- `frontend/src/app/shared/models.ts`: `Customer.updatedAtUtc`.
+- `frontend/src/app/shared/nav-badge.service.ts`: `newCustomersSince` (created OR updated), `appLoadFloor`, `getVisited` floor-clamp, `anchorBaselines`.
+- `frontend/src/app/shared/nav-badge.service.spec.ts`: new customer predicate + 4 specs.
+
+### Verification
+- `dotnet build CustomerServiceApi.sln` clean (0 errors; only pre-existing xUnit
+  analyzer warnings in test files). `npm run build` green (pre-existing 1.62 MB
+  bundle-budget warning only). `ng test` 47/47 pass.
+- Note: the overdue-follow-up email notifications Glen saw are the **case-level**
+  notification center (bell), correctly NOT the Customers tab — left untouched.
+
 ## [Cases table — fix column drag landing (pointer-derived drop index) + no-wrap headers/short cells] (2026-08-18)
 **Status:** ✅ COMPLETE (frontend `npm run build` green; 6/6 service unit tests pass; verified live in-browser as admin in BOTH light + dark mode)
 
