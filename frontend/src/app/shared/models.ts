@@ -31,12 +31,22 @@ export interface Customer {
   activeCaseCount: number;
   activeCases: ActiveCaseInfo[];
   createdAtUtc?: string;
+  /** UTC timestamp of the last account-level profile edit (null if never edited). */
+  updatedAtUtc?: string | null;
   lastActivityAtUtc?: string;
   lastActivityDescription?: string;
   /** Id of the case that produced the most recent activity (deep-link target). */
   lastActivityCaseId?: number | null;
   hasAccount: boolean;
   accountActive: boolean;
+  /** True when soft-deleted and sitting in the recycle bin (recycle endpoint only). */
+  isDeleted?: boolean;
+  /** UTC timestamp the customer was soft-deleted, or null. */
+  deletedAtUtc?: string | null;
+  /** Id of the user who soft-deleted the customer, or null. */
+  deletedById?: string | null;
+  /** True once purged (PII anonymized) — excluded from the bin, not restorable. */
+  purged?: boolean;
 }
 
 /** Minimal active case info (subject + status). */
@@ -88,6 +98,16 @@ export interface Case {
   daysOverdue: number | null;
   /** Total number of comments on the case thread. */
   commentCount: number;
+  /** True when soft-deleted and sitting in the recycle bin (recycle endpoint only). */
+  isDeleted?: boolean;
+  /** UTC timestamp the case was soft-deleted, or null. */
+  deletedAtUtc?: string | null;
+  /** Id of the user who soft-deleted the case, or null. */
+  deletedById?: string | null;
+  /** True once purged (subject/description scrubbed) — excluded from the bin. */
+  purged?: boolean;
+  /** True when the owning customer account is also soft-deleted (gates restore). */
+  customerIsDeleted?: boolean;
 }
 
 /** Payload for creating a case. */

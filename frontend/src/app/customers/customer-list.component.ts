@@ -1,4 +1,4 @@
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -19,6 +19,8 @@ import { ConfirmDialogComponent, ConfirmDialogData } from '../shared/confirm-dia
 import { Customer } from '../shared/models';
 import { AuthService } from '../auth/auth.service';
 import { LayoutComponent } from '../shared/layout/layout.component';
+import { DeletedDrawerComponent, RecycleItem } from '../shared/deleted-drawer.component';
+import { Router } from '@angular/router';
 
 /**
  * Customer list with debounced search and quick actions (view / edit / delete).
@@ -40,6 +42,7 @@ import { LayoutComponent } from '../shared/layout/layout.component';
     MatTooltipModule,
     RevealDirective,
     CsIconComponent,
+    DeletedDrawerComponent,
   ],
   templateUrl: './customer-list.component.html',
   styleUrl: './customer-list.component.scss',
@@ -48,6 +51,7 @@ export class CustomerListComponent implements OnInit {
   private readonly service = inject(CustomerService);
   private readonly dialog = inject(MatDialog);
   private readonly routeLoading = inject(RouteLoadingService);
+  private readonly router = inject(Router);
   readonly auth = inject(AuthService);
 
   readonly customers = signal<Customer[]>([]);
@@ -169,6 +173,34 @@ export class CustomerListComponent implements OnInit {
       '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6',
     ];
     return palette[id % palette.length];
+  }
+
+  /** Recycle-bin rows (mapped from the deleted-customer DTOs). */
+  readonly recycleItems = signal<RecycleItem[]>([]);
+
+  /** The recycle-bin drawer (bound from the template #recycleDrawer ref). */
+  @ViewChild('recycleDrawer') private recycleDrawerRef?: DeletedDrawerComponent;
+
+  /** Opens the recycle-bin drawer (Admin only). */
+  openRecycleBin(): void {
+    this.service.recycleBin().subscribe({
+      next: (list) => {
+        this.recycleItems.set(
+          list.map((c) => ({
+            id: c.id,
+            title: c.name,
+            subtitle: c.customerDisplayId ?? undefined,
+            deletedAtUtc: c.deletedAtUtc ?? null,
+          })),
+        );
+        this.recycleDrawerRef?.show();
+      },
+    });
+  }
+
+  /** Navigate to a deleted customer's read-only detail view. */
+  onRecycleItemClick(item: RecycleItem): void {
+    this.router.navigate(['/customers', item.id], { queryParams: { deleted: 1 } });
   }
 
   /** Returns the account icon name for a customer. */

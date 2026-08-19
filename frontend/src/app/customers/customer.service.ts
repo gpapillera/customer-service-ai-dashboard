@@ -82,4 +82,28 @@ export class CustomerService {
   recordView(id: number): Observable<unknown> {
     return this.http.post<unknown>(`${this.baseUrl}/${id}/view`, {});
   }
+
+  /** Returns the soft-deleted customers in the recycle bin (Admin). */
+  recycleBin(): Observable<Customer[]> {
+    return this.http.get<Customer[]>(`${this.baseUrl}/recycle-bin`);
+  }
+
+  /**
+   * Restores a soft-deleted customer from the recycle bin (Admin), optionally
+   * restoring a selected subset of its soft-deleted cases. Pass `caseIds: []`
+   * to restore all of the customer's binned cases.
+   */
+  restore(id: number, caseIds?: number[]): Observable<void> {
+    return this.http.post<void>(`${this.baseUrl}/restore/${id}`, { caseIds: caseIds ?? [] });
+  }
+
+  /** Permanently purges a soft-deleted customer (keep-row anonymize, Admin). */
+  purge(id: number): Observable<void> {
+    return this.http.post<void>(`${this.baseUrl}/purge/${id}`, {});
+  }
+
+  /** Returns a customer's soft-deleted (non-purged) cases for the restore picker (Admin). */
+  customerDeletedCases(id: number): Observable<Case[]> {
+    return this.http.get<Case[]>(`${this.baseUrl}/${id}/deleted-cases`);
+  }
 }

@@ -19,6 +19,7 @@ import { CaseFormComponent, CaseFormDialogData } from '../cases/case-form.compon
 import { ConfirmDialogComponent, ConfirmDialogData } from '../shared/confirm-dialog.component';
 import { Customer, Case, Notification, CustomerActivityItem } from '../shared/models';
 import { AuthService } from '../auth/auth.service';
+import { RestoreCasePickerComponent, RestoreCasePickerData } from './restore-case-picker.component';
 import {
   DatePreset, DATE_PRESETS, DATE_PRESET_LABELS, filterByDatePreset, datePresetNeedsInput,
 } from '../shared/date-filter';
@@ -73,6 +74,10 @@ export class CustomerDetailComponent implements OnInit {
   readonly customer = signal<Customer | null>(null);
   readonly cases = signal<Case[]>([]);
   readonly loading = signal(true);
+  /** True when reached via /customers/:id?deleted=1 (recycle-bin detail view). */
+  readonly deleted = signal(false);
+  /** True once the loaded customer has been purged (PII erased, not restorable). */
+  readonly isPurged = computed(() => this.customer()?.purged === true);
 
   // ── Emails / Activity side panel (mirrors the case detail page) ──
   /** Full email log for this customer (account + case), newest first. */
@@ -134,6 +139,8 @@ export class CustomerDetailComponent implements OnInit {
   datePresetNeedsInput = datePresetNeedsInput;
 
   ngOnInit(): void {
+    // Recycle-bin entry sets ?deleted=1 -> read-only deleted-mode view.
+    this.deleted.set(this.route.snapshot.queryParamMap.get('deleted') === '1');
     this.load();
   }
 
@@ -214,6 +221,57 @@ export class CustomerDetailComponent implements OnInit {
   }
   priorityClass(p: string): string {
     return 'priority-' + p.toLowerCase();
+  }
+
+  /** Restores a soft-deleted customer from the recycle bin, with a case-picker. */
+  restoreCustomer(): void {
+    const c = this.customer();
+    if (!c || this.isPurged()) return;
+    const ref = this.dialog.open<RestoreCasePickerComponent, RestoreCasePickerData, number[] | null>(
+      RestoreCasePickerComponent,
+      {
+        data: { customerId: c.id, customerName: c.name },
+        width: '480px',
+        maxWidth: '92vw',
+        autoFocus: false,
+      },
+    );
+    ref.afterClosed().subscribe((chosen) => {
+      if (chosen === null) return; // cancelled
+      this.service.restore(c.id, chosen).subscribe({
+        next: () => this.router.navigate(['/customers', c.id]),
+        error: () => { /* surface via a toast later */ },
+      });
+    });
+  }
+
+  /** Permanently purges a soft-deleted customer after confirmation. */
+  purgeCustomer(): void {
+    const c = this.customer();
+    if (!c || this.isPurged()) return;
+    const ref = this.dialog.open<ConfirmDialogComponent, ConfirmDialogData, boolean>(
+      ConfirmDialogComponent,
+      {
+        data: {
+          title: 'Permanently erase customer',
+          message: `Erase ${c.name}'s data? This scrubs all personal info and cannot be undone.`,
+          confirmText: 'Erase',
+          cancelText: 'Cancel',
+          icon: 'delete_forever',
+        },
+        width: '420px',
+        maxWidth: '92vw',
+        autoFocus: false,
+      },
+    );
+    ref.afterClosed().subscribe((confirmed) => {
+      if (confirmed) {
+        this.service.purge(c.id).subscribe({
+          next: () => this.router.navigate(['/customers']),
+          error: () => { /* surface via a toast later */ },
+        });
+      }
+    });
   }
 
   /** Deletes the customer after a confirmation dialog. */

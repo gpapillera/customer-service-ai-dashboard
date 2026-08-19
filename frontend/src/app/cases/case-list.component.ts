@@ -34,6 +34,8 @@ import { CaseFormComponent } from './case-form.component';
 import { Case } from '../shared/models';
 import { CATEGORIES } from '../shared/categories';
 import { RealtimeService } from '../shared/realtime.service';
+import { DeletedDrawerComponent, RecycleItem } from '../shared/deleted-drawer.component';
+import { AuthService } from '../auth/auth.service';
 import { DatePreset, DATE_PRESETS, formatDatePreset, filterByDatePreset, positionHeaderDropdown } from '../shared/date-filter';
 import { SearchFilterToolbarComponent } from './search-filter-toolbar/search-filter-toolbar.component';
 import { LayoutComponent } from '../shared/layout/layout.component';
@@ -60,6 +62,7 @@ import { CaseTableSettingsService, MIN_COL_WIDTH } from './case-table-settings.s
     KbdNavDirective,
     SearchFilterToolbarComponent,
     DragDropModule,
+    DeletedDrawerComponent,
   ],
   templateUrl: './case-list.component.html',
   styleUrl: './case-list.component.scss',
@@ -81,9 +84,38 @@ export class CaseListComponent implements OnInit, OnDestroy {
   private readonly routeLoading = inject(RouteLoadingService);
   /** Real-time assignment push (SSE). Drives instant refresh on assignment change. */
   private readonly realtime = inject(RealtimeService);
+  readonly auth = inject(AuthService);
   readonly cases = signal<Case[]>([]);
   /** Internal data-fetch state. */
   private readonly dataLoading = signal(true);
+  /** Recycle-bin rows (mapped from the deleted-case DTOs). */
+  readonly recycleItems = signal<RecycleItem[]>([]);
+  /** The recycle-bin drawer (bound from the template #recycleDrawer ref). */
+  @ViewChild('recycleDrawer') private recycleDrawerRef?: DeletedDrawerComponent;
+
+  /** Opens the recycle-bin drawer (Admin only). */
+  openRecycleBin(): void {
+    this.service.recycleBin().subscribe({
+      next: (list) => {
+        this.recycleItems.set(
+          list.map((c) => ({
+            id: c.id,
+            title: c.subject,
+            subtitle: c.customerName || 'Deleted User',
+            deletedAtUtc: c.deletedAtUtc ?? null,
+            // Hint when the owning account is still deleted (restore gated).
+            warning: c.customerIsDeleted ? 'Restore the customer account first' : undefined,
+          })),
+        );
+        this.recycleDrawerRef?.show();
+      },
+    });
+  }
+
+  /** Navigate to a deleted case's read-only detail view. */
+  onRecycleItemClick(item: RecycleItem): void {
+    this.router.navigate(['/cases', item.id], { queryParams: { deleted: 1 } });
+  }
   /** True while the list is loading OR a route navigation is in progress. */
   readonly loading = computed(() => this.dataLoading() || this.routeLoading.loading());
   readonly categories = CATEGORIES;

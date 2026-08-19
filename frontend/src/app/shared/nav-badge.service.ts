@@ -43,6 +43,12 @@ export class NavBadgeService {
   // user dismisses the red dot for every other account.
   private readonly LS_PREFIX = 'cs_nav_badge_';
 
+  // Floor for "last visited" timestamps. Any stored baseline older than this is
+  // treated as absent on first load, so a stale localStorage value (e.g. from a
+  // previous session days ago) can't backfill old customers/cases as "new".
+  // Set once at service construction = the moment the app opened.
+  private readonly appLoadFloor = Date.now();
+
   constructor() {
     // Reset the badge for the section the user navigates to.
     this.router.events
@@ -96,8 +102,18 @@ export class NavBadgeService {
         if (userId === prevUserId) return;
         prevUserId = userId;
         this.badges.set({});
+        // Anchor this account's baselines to the app-load floor so it never
+        // inherits a baseline older than this session (which would backfill
+        // stale customers/cases as "new").
+        this.anchorBaselines();
         this.refresh();
       });
+
+    // On first load (and on every user switch), anchor each section's baseline
+    // to the app-load floor so a freshly-appeared account never inherits a
+    // baseline older than this session — which would otherwise backfill stale
+    // customers/cases as "new". Clicking a section later writes a real baseline.
+    this.anchorBaselines();
 
     // Initial fetch + periodic polling. The immediate refresh ensures badges
     // populate on first load (e.g. a restored session where currentUser$ already
@@ -150,11 +166,16 @@ export class NavBadgeService {
         return created > since || assigned > since;
       }).length;
     };
-    const newCustomersSince = (list: { createdAtUtc?: string | null }[], since: number | null): number => {
+    const newCustomersSince = (list: { createdAtUtc?: string | null; updatedAtUtc?: string | null }[], since: number | null): number => {
       if (!since) return 0;
-      return list.filter(
-        (cu) => cu.createdAtUtc && new Date(cu.createdAtUtc).getTime() > since,
-      ).length;
+      return list.filter((cu) => {
+        const created = cu.createdAtUtc ? new Date(cu.createdAtUtc).getTime() : -1;
+        const updated = cu.updatedAtUtc ? new Date(cu.updatedAtUtc).getTime() : -1;
+        // A customer counts as "new for me" if it was created OR had its
+        // account-level profile edited since my last visit. Deduped by id via
+        // the single filter (an edit after creation only ever counts once).
+        return created > since || updated > since;
+      }).length;
     };
 
     forkJoin({
@@ -193,11 +214,17 @@ export class NavBadgeService {
     } catch { /* quota or SSR */ }
   }
 
-  /** Returns the epoch-ms timestamp of the last visit, or null. */
+  /** Returns the epoch-ms timestamp of the last visit, or null.
+   *  Clamped to appLoadFloor so a stored baseline from before this app
+   *  session opened (stale localStorage / shared key) is treated as "no
+   *  baseline yet" → that section's badge starts empty instead of backfilling
+   *  old items as "new since I last looked". */
   private getVisited(path: string): number | null {
     try {
       const v = localStorage.getItem(this.keyFor(path));
-      return v ? Number(v) : null;
+      if (!v) return null;
+      const ts = Number(v);
+      return ts >= this.appLoadFloor ? ts : null;
     } catch {
       return null;
     }
@@ -212,6 +239,27 @@ export class NavBadgeService {
   private keyFor(path: string): string {
     const userId = this.auth.currentUser()?.id ?? '';
     return `${this.LS_PREFIX}${userId}:${path}`;
+  }
+
+  /**
+   * Writes a baseline "last visited" timestamp for every sidenav section if
+   * one doesn't already exist at-or-after the app-load floor. Run on first
+   * load and on every user switch: it guarantees a section that was never
+   * actually opened this session starts with an empty badge (no stale
+   * backfill), while a section the user genuinely visited this session keeps
+   * its real baseline. Sections with their own poll/reset logic
+   * (/conversations, /messages) are skipped — the server owns those counts.
+   */
+  private anchorBaselines(): void {
+    const paths = ['/dashboard', '/customers', '/cases'];
+    for (const path of paths) {
+      const existing = this.getVisited(path);
+      if (existing == null) {
+        try {
+          localStorage.setItem(this.keyFor(path), this.appLoadFloor.toString());
+        } catch { /* quota or SSR */ }
+      }
+    }
   }
 
   /** Returns the badge count for a route path (0 if none). */

@@ -11,6 +11,11 @@
   <button mat-flat-button color="primary" class="new-case-btn" (click)="openNew()">
     <cs-icon name="add"></cs-icon> New Case
   </button>
+  @if (auth.getRole() === 'Admin') {
+    <button type="button" class="trash-btn" (click)="openRecycleBin()" matTooltip="Recycle bin" matTooltipPosition="above" aria-label="Open recycle bin">
+      <cs-icon name="delete"></cs-icon>
+    </button>
+  }
 </div>
 
 <app-search-filter-toolbar
@@ -210,4 +215,11 @@
     </table>
   </div>
 }
+
+<app-deleted-drawer
+  #recycleDrawer
+  title="Deleted cases"
+  [items]="recycleItems()"
+  (itemClick)="onRecycleItemClick($event)"
+></app-deleted-drawer>
 </div>

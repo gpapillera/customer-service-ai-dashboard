@@ -9,6 +9,11 @@
   <button mat-flat-button color="primary" class="new-customer-btn" (click)="openNew()">
     <cs-icon name="add"></cs-icon> New customer
   </button>
+  @if (auth.getRole() === 'Admin') {
+    <button type="button" class="trash-btn" (click)="openRecycleBin()" matTooltip="Recycle bin" matTooltipPosition="above" aria-label="Open recycle bin">
+      <cs-icon name="delete"></cs-icon>
+    </button>
+  }
 </div>
 
 <div class="search-bar">
@@ -151,3 +156,10 @@
     }
   </div>
 }
+
+<app-deleted-drawer
+  #recycleDrawer
+  title="Deleted customers"
+  [items]="recycleItems()"
+  (itemClick)="onRecycleItemClick($event)"
+></app-deleted-drawer>

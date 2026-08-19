@@ -27,6 +27,7 @@ import { RealtimeService } from '../shared/realtime.service';
 import { DatePreset, DATE_PRESETS, DATE_PRESET_LABELS, filterByDatePreset, datePresetNeedsInput } from '../shared/date-filter';
 import { AuthService } from '../auth/auth.service';
 import { SaveFlashService } from '../shared/save-flash.service';
+import { ConfirmDialogComponent, ConfirmDialogData } from '../shared/confirm-dialog.component';
 
 /** One row in the case Activity timeline: an email, call log, comment, or state change. */
 export interface ActivityItem {
@@ -126,6 +127,12 @@ export class CaseDetailComponent implements OnInit {
   readonly loading = signal(true);
   /** Set when the case cannot be loaded (e.g. 403 for an Agent). */
   readonly loadError = signal<string | null>(null);
+  /** True when reached via /cases/:id?deleted=1 (recycle-bin detail view). */
+  readonly deleted = signal(false);
+  /** True once the loaded case has been purged (PII scrubbed, not restorable). */
+  readonly isPurged = computed(() => this.case()?.purged === true);
+  /** True when the owning customer is still soft-deleted (case restore is gated). */
+  readonly customerStillDeleted = computed(() => this.case()?.customerIsDeleted === true);
   /** Agents available for assignment (GET /api/users). */
   readonly agents = signal<Agent[]>([]);
   readonly assigning = signal(false);
@@ -311,6 +318,45 @@ export class CaseDetailComponent implements OnInit {
     this.router.navigateByUrl('/cases');
   }
 
+  /** Restores a soft-deleted case from the recycle bin (Admin). */
+  restoreCase(): void {
+    const c = this.case();
+    if (!c || this.isPurged() || this.customerStillDeleted()) return;
+    this.caseService.restoreCase(c.id).subscribe({
+      next: () => this.router.navigate(['/cases', c.id]),
+      error: () => { /* surface via a toast later */ },
+    });
+  }
+
+  /** Permanently purges a soft-deleted case after confirmation (Admin). */
+  purgeCase(): void {
+    const c = this.case();
+    if (!c || this.isPurged()) return;
+    const ref = this.dialog.open<ConfirmDialogComponent, ConfirmDialogData, boolean>(
+      ConfirmDialogComponent,
+      {
+        data: {
+          title: 'Permanently erase case',
+          message: `Erase "${c.subject}"? This scrubs all case content and cannot be undone.`,
+          confirmText: 'Erase',
+          cancelText: 'Cancel',
+          icon: 'delete_forever',
+        },
+        width: '420px',
+        maxWidth: '92vw',
+        autoFocus: false,
+      },
+    );
+    ref.afterClosed().subscribe((confirmed) => {
+      if (confirmed) {
+        this.caseService.purgeCase(c.id).subscribe({
+          next: () => this.router.navigate(['/cases']),
+          error: () => { /* surface via a toast later */ },
+        });
+      }
+    });
+  }
+
   /** True while the close animation is playing (keeps the element mounted). */
   readonly closing = signal(false);
 
@@ -412,6 +458,8 @@ export class CaseDetailComponent implements OnInit {
     const id = Number(this.route.snapshot.paramMap.get('id'));
     const scrollToCommentId = this.route.snapshot.queryParamMap.get('scrollToComment');
     const fromTab = this.route.snapshot.queryParamMap.get('from');
+    // Recycle-bin entry sets ?deleted=1 -> read-only deleted-mode view.
+    this.deleted.set(this.route.snapshot.queryParamMap.get('deleted') === '1');
     // Deep link from the Customers page: ?activity=1 scrolls to + pulses the
     // case Activity card (so the customer's latest activity is in view).
     const focusActivity = this.route.snapshot.queryParamMap.get('activity') === '1';
@@ -848,7 +896,8 @@ export class CaseDetailComponent implements OnInit {
   }
 
   /** Formats a UTC date string for display. */
-  formatDate(value: string): string {
+  formatDate(value?: string | null): string {
+    if (!value) return '—';
     return new Date(value).toLocaleString();
   }
 

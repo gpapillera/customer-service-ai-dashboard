@@ -4,15 +4,17 @@ import { BehaviorSubject, Observable, tap } from 'rxjs';
 import { LoginRequest, LoginResponse, StaffProfile, UpdateStaffProfile } from '../shared/models';
 import { NotificationStateService } from '../shared/notification-state.service';
 
-const TOKEN_KEY = 'cs_token';
 const USER_KEY = 'cs_user';
 
 /**
- * Handles authentication: login, token storage, and current-user state.
+ * Handles authentication: login, current-user state, and logout.
  *
- * The JWT is kept in sessionStorage (simple for an MVP; note this is less
- * secure than an httpOnly cookie for production — see README).
- * See docs/DIY.md §4 for the auth flow this service supports.
+ * The JWT is stored in an HttpOnly cookie by the API (not in the browser),
+ * so XSS cannot exfiltrate it. The Angular dev proxy makes `/api` same-origin
+ * with the SPA, so the cookie is sent automatically on every request once
+ * `withCredentials` is set on the client. A short-lived access cookie is paired
+ * with a rotatable refresh cookie (see backend TokenCookieService + refresh
+ * endpoints). See docs/DIY.md §4 and the Phase C cookie-auth notes.
  */
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -47,13 +49,13 @@ export class AuthService {
 
   /** Clears the session and notifies subscribers. */
   logout(): void {
-    // Clear the current user's per-user notification read-state BEFORE wiping
-    // the user record, so NotificationStateService can still resolve the
-    // user-scoped key (cs_read_overdue_ids_{userId}) and remove it. Calling
-    // reset() after cs_user is gone would only touch the legacy unscoped key,
-    // orphaning the scoped key and leaking this user's acknowledgements.
+    // Best-effort backend logout (clears the HttpOnly cookies + revokes the
+    // refresh token). Fire-and-forget: even if it fails the local session is
+    // wiped below. `withCredentials` is required so the cookies are sent.
+    this.http
+      .post('/api/auth/logout', {}, { withCredentials: true })
+      .subscribe({ error: () => {} });
     this.notifications.reset();
-    sessionStorage.removeItem(TOKEN_KEY);
     sessionStorage.removeItem(USER_KEY);
     this._currentUser.next(null);
     this.currentUser.set(null);
@@ -61,12 +63,16 @@ export class AuthService {
 
   /** Returns the raw JWT, or null if not authenticated. */
   getToken(): string | null {
-    return sessionStorage.getItem(TOKEN_KEY);
+    // The JWT now lives in an HttpOnly cookie (set by the API on login/refresh)
+    // and is readable only by the server — not by JS. Returning null here keeps
+    // the interceptor on the cookie path while still attaching a header when a
+    // legacy token is somehow present (dual-source safety for the SSE fetch).
+    return null;
   }
 
-  /** True when a token is present. */
+  /** True when a user session is present. */
   isAuthenticated(): boolean {
-    return !!this.getToken();
+    return this.currentUser() !== null;
   }
 
   /** The current user's role, or empty string. */
@@ -79,6 +85,16 @@ export class AuthService {
   /** Returns the signed-in staff member's own profile (JWT-scoped). */
   getProfile(): Observable<StaffProfile> {
     return this.http.get<StaffProfile>('/api/users/me');
+  }
+
+  /**
+   * Silently rotates the server-side refresh cookie into a fresh session. The
+   * new access + refresh cookies are set by the API on the response; nothing
+   * needs to be stored client-side. Used by the interceptor on a 401.
+   */
+  refresh(): Observable<void> {
+    return this.http
+      .post<void>('/api/auth/refresh', {}, { withCredentials: true });
   }
 
   /** Updates the signed-in staff member's own name (email read-only). */
@@ -102,7 +118,9 @@ export class AuthService {
   }
 
   private setSession(res: LoginResponse): void {
-    sessionStorage.setItem(TOKEN_KEY, res.token);
+    // NOTE: the JWT is no longer stored in the browser. The API sets it as an
+    // HttpOnly cookie (see backend TokenCookieService) so XSS cannot read it.
+    // We keep the user record (minus the raw token) for the UI session.
     sessionStorage.setItem(USER_KEY, JSON.stringify(res));
     this._currentUser.next(res);
     this.currentUser.set(res);

@@ -21,6 +21,19 @@ function newCasesSince(
   }).length;
 }
 
+/** Mirrors NavBadgeService.refresh() newCustomersSince — created OR updated since visit. */
+function newCustomersSince(
+  customers: { createdAtUtc?: string; updatedAtUtc?: string | null }[],
+  sinceMs: number,
+): number {
+  if (!sinceMs) return 0;
+  return customers.filter((cu) => {
+    const created = cu.createdAtUtc ? new Date(cu.createdAtUtc).getTime() : -1;
+    const updated = cu.updatedAtUtc ? new Date(cu.updatedAtUtc).getTime() : -1;
+    return created > sinceMs || updated > sinceMs;
+  }).length;
+}
+
 function baseCase(over: Partial<Case>): Case {
   return {
     id: 1,
@@ -74,5 +87,37 @@ describe('nav badge new-case predicate', () => {
   it('returns 0 when there is no baseline (first visit)', () => {
     const list = [ baseCase({ createdAtUtc: '2026-02-01T00:00:00Z' }) ];
     expect(newCasesSince(list, 'agent-1', 0)).toBe(0);
+  });
+});
+
+describe('nav badge new-customer predicate', () => {
+  const since = Date.parse('2026-01-01T00:00:00Z');
+
+  it('counts customers created after the visit', () => {
+    const list = [
+      { createdAtUtc: '2026-02-01T00:00:00Z', updatedAtUtc: null },
+      { createdAtUtc: '2025-12-01T00:00:00Z', updatedAtUtc: null },
+    ];
+    expect(newCustomersSince(list, since)).toBe(1);
+  });
+
+  it('counts customers whose profile was updated after the visit', () => {
+    const list = [
+      { createdAtUtc: '2025-12-01T00:00:00Z', updatedAtUtc: '2026-02-01T00:00:00Z' },
+      { createdAtUtc: '2025-12-01T00:00:00Z', updatedAtUtc: null },
+    ];
+    expect(newCustomersSince(list, since)).toBe(1);
+  });
+
+  it('does not double-count a customer both created and updated after the visit', () => {
+    const list = [
+      { createdAtUtc: '2026-02-01T00:00:00Z', updatedAtUtc: '2026-02-02T00:00:00Z' },
+    ];
+    expect(newCustomersSince(list, since)).toBe(1);
+  });
+
+  it('returns 0 when there is no baseline (first visit)', () => {
+    const list = [{ createdAtUtc: '2026-02-01T00:00:00Z', updatedAtUtc: null }];
+    expect(newCustomersSince(list, 0)).toBe(0);
   });
 });

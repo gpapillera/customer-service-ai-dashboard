@@ -4,13 +4,12 @@ import { Observable, tap } from 'rxjs';
 
 /**
  * Customer-facing authentication, kept entirely separate from the staff
- * AuthService. The token is stored under a DIFFERENT sessionStorage key
- * ("customer_auth_token") so a customer session and a staff session can never
- * collide or overwrite each other in the same browser.
+ * AuthService. The token is held in an HttpOnly cookie (set by the API on
+ * login/refresh), so the two sessions never share browser storage and XSS
+ * cannot read either token.
  *
- * See docs/DIY.md §8 (customer portal) and the Phase 3 build notes.
+ * See docs/DIY.md §8 (customer portal) and the Phase C cookie-auth notes.
  */
-const TOKEN_KEY = 'customer_auth_token';
 const USER_KEY = 'customer_user';
 
 /** Response from POST /api/customer-auth/login. */
@@ -20,15 +19,6 @@ export interface CustomerLoginResponse {
   customerId: number;
   customerName: string;
   role: string;
-}
-
-/** Decoded JWT payload (only the fields we care about). */
-interface JwtPayload {
-  nameid?: string;
-  CustomerId?: string;
-  role?: string;
-  exp?: number;
-  [key: string]: unknown;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -46,30 +36,34 @@ export class CustomerAuthService {
       .pipe(tap((res) => this.setSession(res)));
   }
 
+  /**
+   * Silently rotates the server-side refresh cookie into a fresh customer
+   * session. New cookies are set by the API on the response.
+   */
+  refresh(): Observable<void> {
+    return this.http.post<void>(`${this.baseUrl}/refresh`, {}, { withCredentials: true });
+  }
+
   /** Clears the customer session. */
   logout(): void {
-    sessionStorage.removeItem(TOKEN_KEY);
+    // Best-effort backend logout (clears the HttpOnly cookies + revokes the
+    // refresh token). Fire-and-forget: even if it fails the local session is
+    // wiped below. `withCredentials` is required so the cookies are sent.
+    this.http
+      .post(`${this.baseUrl}/logout`, {}, { withCredentials: true })
+      .subscribe({ error: () => {} });
     sessionStorage.removeItem(USER_KEY);
     this.currentCustomer.set(null);
   }
 
-  /** Returns the raw JWT, or null if not authenticated. */
+  /** Returns the raw JWT, or null. The token now lives in an HttpOnly cookie. */
   getToken(): string | null {
-    return sessionStorage.getItem(TOKEN_KEY);
+    return null;
   }
 
-  /** True when a token is present (and not obviously expired). */
+  /** True when a customer session is present. */
   isAuthenticated(): boolean {
-    const token = this.getToken();
-    if (!token) {
-      return false;
-    }
-    const payload = this.decode(token);
-    if (payload?.exp && payload.exp * 1000 < Date.now()) {
-      this.logout();
-      return false;
-    }
-    return true;
+    return this.currentCustomer() !== null;
   }
 
   /** The customer's display name, or empty string. */
@@ -83,7 +77,7 @@ export class CustomerAuthService {
   }
 
   private setSession(res: CustomerLoginResponse): void {
-    sessionStorage.setItem(TOKEN_KEY, res.token);
+    // The JWT is now set as an HttpOnly cookie by the API, not stored here.
     sessionStorage.setItem(USER_KEY, JSON.stringify(res));
     this.currentCustomer.set(res);
   }
@@ -95,21 +89,6 @@ export class CustomerAuthService {
     }
     try {
       return JSON.parse(raw) as CustomerLoginResponse;
-    } catch {
-      return null;
-    }
-  }
-
-  /** Decodes the JWT payload (base64url) without verifying the signature. */
-  private decode(token: string): JwtPayload | null {
-    try {
-      const part = token.split('.')[1];
-      if (!part) {
-        return null;
-      }
-      const padded = part.replace(/-/g, '+').replace(/_/g, '/');
-      const json = atob(padded);
-      return JSON.parse(json) as JwtPayload;
     } catch {
       return null;
     }

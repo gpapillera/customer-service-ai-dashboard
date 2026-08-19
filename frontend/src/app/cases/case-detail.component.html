@@ -31,6 +31,28 @@
       <div class="main-col">
         <mat-card class="cs-lift case-card reveal" appReveal>
           <mat-card-content>
+            @if (deleted()) {
+              @if (isPurged()) {
+                <div class="deleted-banner purged">
+                  <cs-icon name="delete_forever"></cs-icon>
+                  <span>Permanently erased. This case can no longer be restored.</span>
+                </div>
+              } @else {
+                <div class="deleted-banner">
+                  <cs-icon name="delete"></cs-icon>
+                  <span>
+                    Deleted{{ c.deletedAtUtc ? ' ' + formatDate(c.deletedAtUtc) : '' }}.
+                    @if (c.deletedById) { <em>by {{ c.deletedById }}</em> }
+                  </span>
+                </div>
+                @if (customerStillDeleted()) {
+                  <div class="deleted-note">
+                    <cs-icon name="info"></cs-icon>
+                    Restore the customer account first, then this case can be restored.
+                  </div>
+                }
+              }
+            }
             <div class="head">
               <div class="head-titles">
                 <div class="subject">{{ c.subject }}</div>
@@ -39,10 +61,20 @@
                   <span class="cs-pill" [class]="statusClass(c.status)" [csTooltip]="statusTooltip(c)"><span class="cs-dot"></span>{{ c.status }}</span>
                 </div>
               </div>
-              @if (canEdit()) {
+              @if (canEdit() && !deleted()) {
                 <button mat-stroked-button class="edit-btn" (click)="edit()">
                   <cs-icon name="edit"></cs-icon> Edit Case
                 </button>
+              }
+              @if (deleted() && !isPurged()) {
+                <div class="deleted-actions">
+                  <button mat-flat-button color="primary" (click)="restoreCase()" [disabled]="customerStillDeleted()">
+                    <cs-icon name="restore"></cs-icon> Restore
+                  </button>
+                  <button mat-stroked-button class="purge-btn" (click)="purgeCase()">
+                    <cs-icon name="delete_forever"></cs-icon> Purge
+                  </button>
+                </div>
               }
             </div>
 

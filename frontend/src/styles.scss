@@ -111,6 +111,10 @@ body {
   --cs-active-case-border: #6ee7b7;
   --cs-active-case-dot: #10b981;
 
+  /* Filter-chip hover (defined per-theme so it's distinct in both). */
+  --cs-chip-hover-bg: #f1f5f9;
+  --cs-chip-hover-border: #cbd5e1;
+
   /* Zero-active-case pill — amber, distinguishable on light bg */
   --cs-zero-active-text: #d97706;
   --cs-zero-active-border: #fcd34d;
@@ -171,6 +175,11 @@ body {
   --cs-zero-active-text: #22d3ee;
   --cs-zero-active-border: #67e8f9;
   --cs-zero-active-dot: #22d3ee;
+
+  /* Filter-chip hover — lighter slate on dark so it lifts clearly off the
+     --cs-surface (#1e293b) base (a same-value hover would be invisible). */
+  --cs-chip-hover-bg: #334155;
+  --cs-chip-hover-border: #475569;
 }
 
 /* ---- Reusable "alive" animations ---- */
@@ -513,6 +522,89 @@ kbd {
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.08);
   color: var(--cs-text-muted);
   line-height: 1.4;
+}
+
+/* ── Soft-delete / recycle-bin visual language (shared across detail pages) ── */
+.deleted-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.85rem;
+  margin-bottom: 1rem;
+  border-radius: var(--cs-radius-sm, 12px);
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: var(--cs-text);
+
+  cs-icon {
+    color: #f59e0b;
+    flex-shrink: 0;
+  }
+
+  &.purged {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.35);
+
+    cs-icon {
+      color: #ef4444;
+    }
+  }
+}
+
+.deleted-note {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  color: var(--cs-text-muted);
+  margin: -0.5rem 0 1rem;
+
+  cs-icon {
+    color: var(--cs-accent);
+    flex-shrink: 0;
+  }
+}
+
+.deleted-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+/* "Purge" / destructive secondary button (kept on-brand, red-tinted). */
+.purge-btn {
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.5);
+
+  &:hover {
+    background: rgba(239, 68, 68, 0.1);
+  }
+
+  cs-icon {
+    color: #ef4444;
+  }
+}
+
+/* Trash / recycle-bin toggle button on list page headers. */
+.trash-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--cs-border);
+  border-radius: var(--cs-radius-sm, 12px);
+  background: transparent;
+  color: var(--cs-text-muted);
+  cursor: pointer;
+  transition: background 0.18s var(--cs-ease), color 0.18s var(--cs-ease),
+    border-color 0.18s var(--cs-ease);
+
+  &:hover {
+    background: var(--cs-surface-2, rgba(127, 127, 127, 0.1));
+    color: var(--cs-text);
+    border-color: var(--cs-accent);
+  }
 }
 
 

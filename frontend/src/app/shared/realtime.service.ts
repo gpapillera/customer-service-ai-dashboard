@@ -66,6 +66,9 @@ export class RealtimeService {
     }
     this.controller = new AbortController();
     fetch('/api/cases/events', {
+      // Send cookies so the access_token cookie authenticates the SSE stream
+      // (the API reads JWT from cookie OR Authorization header — dual-source).
+      credentials: 'include',
       headers: { Authorization: `Bearer ${token}`, Accept: 'text/event-stream' },
       signal: this.controller.signal,
     })

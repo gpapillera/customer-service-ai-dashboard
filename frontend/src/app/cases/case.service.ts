@@ -128,4 +128,22 @@ export class CaseService {
   caseViews(id: number): Observable<ViewEvent[]> {
     return this.http.get<ViewEvent[]>(`${this.baseUrl}/${id}/views`);
   }
+
+  /** Returns the soft-deleted cases in the recycle bin (Admin), with customer context. */
+  recycleBin(): Observable<Case[]> {
+    return this.http.get<Case[]>(`${this.baseUrl}/recycle-bin`);
+  }
+
+  /**
+   * Restores a soft-deleted case from the recycle bin (Admin). The owning
+   * customer must be active — if it's still deleted the backend returns 400.
+   */
+  restoreCase(id: number): Observable<void> {
+    return this.http.post<void>(`${this.baseUrl}/restore/${id}`, {});
+  }
+
+  /** Permanently purges a soft-deleted case (keep-row anonymize, Admin). */
+  purgeCase(id: number): Observable<void> {
+    return this.http.post<void>(`${this.baseUrl}/purge/${id}`, {});
+  }
 }

@@ -1,0 +1,59 @@
+<mat-drawer-container class="deleted-drawer-container" autosize>
+  <mat-drawer
+    mode="over"
+    position="end"
+    [opened]="open()"
+    (openedChange)="onOpenedChange($event)"
+  >
+    <aside class="deleted-drawer" role="dialog" aria-label="Recycle bin">
+      <header class="drawer-header">
+        <div class="drawer-title">
+          <cs-icon name="delete" [size]="18"></cs-icon>
+          <span>{{ title }}</span>
+        </div>
+        <button
+          type="button"
+          class="drawer-close"
+          (click)="close()"
+          [attr.aria-label]="'Close ' + title"
+        >
+          <cs-icon name="close" [size]="18"></cs-icon>
+        </button>
+      </header>
+
+      @if (items.length === 0) {
+        <div class="drawer-empty">
+          <cs-icon name="check_circle" [size]="28"></cs-icon>
+          <p>Nothing in the recycle bin.</p>
+        </div>
+      } @else {
+        <ul class="drawer-list">
+          @for (item of items; track item.id) {
+            <li>
+              <button
+                type="button"
+                class="drawer-row"
+                (click)="onRowClick(item)"
+              >
+                <div class="row-main">
+                  <span class="row-title">{{ item.title }}</span>
+                  @if (item.subtitle) {
+                    <span class="row-subtitle">{{ item.subtitle }}</span>
+                  }
+                </div>
+                <div class="row-meta">
+                  @if (item.deletedAtUtc) {
+                    <span class="row-deleted">Deleted {{ formatDateTime(item.deletedAtUtc) }}</span>
+                  }
+                  @if (item.warning) {
+                    <span class="row-warning">{{ item.warning }}</span>
+                  }
+                </div>
+              </button>
+            </li>
+          }
+        </ul>
+      }
+    </aside>
+  </mat-drawer>
+</mat-drawer-container>

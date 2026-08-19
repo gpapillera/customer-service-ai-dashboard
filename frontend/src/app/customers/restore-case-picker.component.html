@@ -1,0 +1,55 @@
+<div class="modal-head">
+  <h2>Restore customer</h2>
+  <button mat-icon-button type="button" (click)="cancel()" aria-label="Close">
+    <cs-icon name="close"></cs-icon>
+  </button>
+</div>
+
+<div class="picker-body">
+  <p class="picker-intro">
+    Restoring <strong>{{ data.customerName }}</strong> will also bring back their
+    deleted cases. Choose which binned cases to restore:
+  </p>
+
+  @if (loading()) {
+    <div class="center"><mat-spinner diameter="32"></mat-spinner></div>
+  } @else if (cases().length === 0) {
+    <p class="muted">This customer has no deleted cases — only the account will be restored.</p>
+  } @else {
+    <label class="select-all">
+      <mat-checkbox
+        [checked]="allSelected()"
+        (change)="toggleAll($event.checked)"
+        color="primary"
+      ></mat-checkbox>
+      <span>Select all ({{ cases().length }})</span>
+    </label>
+
+    <ul class="case-list">
+      @for (c of cases(); track c.id) {
+        <li>
+          <label class="case-row">
+            <mat-checkbox
+              [checked]="isChecked(c.id)"
+              (change)="toggle(c.id, $event.checked)"
+              color="primary"
+            ></mat-checkbox>
+            <span class="case-info">
+              <span class="case-subject">{{ c.subject }}</span>
+              <span class="case-sub">
+                {{ c.categoryName }} · deleted {{ formatDate(c.deletedAtUtc) }}
+              </span>
+            </span>
+          </label>
+        </li>
+      }
+    </ul>
+  }
+</div>
+
+<div class="actions">
+  <button mat-button type="button" class="text-btn" (click)="cancel()">Cancel</button>
+  <button mat-flat-button color="primary" type="button" (click)="confirm()">
+    <cs-icon name="restore"></cs-icon> Restore
+  </button>
+</div>

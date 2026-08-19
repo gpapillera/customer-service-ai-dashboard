@@ -2,6 +2,9 @@
   "/api": {
     "target": "http://localhost:5274",
     "secure": false,
-    "changeOrigin": true
+    "changeOrigin": true,
+    "headers": {
+      "host": "localhost"
+    }
   }
 }

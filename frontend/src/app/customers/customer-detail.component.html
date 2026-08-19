@@ -52,17 +52,41 @@
             </div>
           </dl>
           <div class="actions">
-            @if (auth.getRole() !== 'Agent') {
-              <button mat-stroked-button color="primary" (click)="edit()">
-                <cs-icon name="edit"></cs-icon> Edit
-              </button>
-              <button mat-stroked-button class="delete-btn" (click)="deleteCustomer()">
-                <cs-icon name="delete"></cs-icon> Delete
+            @if (deleted()) {
+              <!-- Deleted-mode: read-only, with Restore / Purge. -->
+              @if (isPurged()) {
+                <div class="deleted-banner purged">
+                  <cs-icon name="delete_forever"></cs-icon>
+                  <span>Permanently erased. This record can no longer be restored.</span>
+                </div>
+              } @else {
+                <div class="deleted-banner">
+                  <cs-icon name="delete"></cs-icon>
+                  <span>
+                    Deleted{{ c.deletedAtUtc ? ' ' + formatDateTime(c.deletedAtUtc) : '' }}.
+                    @if (c.deletedById) { <em>by {{ c.deletedById }}</em> }
+                  </span>
+                </div>
+                <button mat-flat-button color="primary" (click)="restoreCustomer()">
+                  <cs-icon name="restore"></cs-icon> Restore
+                </button>
+                <button mat-stroked-button class="purge-btn" (click)="purgeCustomer()">
+                  <cs-icon name="delete_forever"></cs-icon> Purge
+                </button>
+              }
+            } @else {
+              @if (auth.getRole() !== 'Agent') {
+                <button mat-stroked-button color="primary" (click)="edit()">
+                  <cs-icon name="edit"></cs-icon> Edit
+                </button>
+                <button mat-stroked-button class="delete-btn" (click)="deleteCustomer()">
+                  <cs-icon name="delete"></cs-icon> Delete
+                </button>
+              }
+              <button mat-flat-button color="primary" (click)="newCase()">
+                <cs-icon name="add"></cs-icon> New Case
               </button>
             }
-            <button mat-flat-button color="primary" (click)="newCase()">
-              <cs-icon name="add"></cs-icon> New Case
-            </button>
           </div>
         </mat-card-content>
       </mat-card>
