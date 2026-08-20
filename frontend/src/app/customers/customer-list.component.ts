@@ -22,6 +22,7 @@ import { withAuthRetry } from '../shared/auth-retry';
 import { LayoutComponent } from '../shared/layout/layout.component';
 import { DeletedDrawerComponent, RecycleItem } from '../shared/deleted-drawer.component';
 import { Router } from '@angular/router';
+import { SaveFlashService } from '../shared/save-flash.service';
 
 /**
  * Customer list with debounced search and quick actions (view / edit / delete).
@@ -53,6 +54,7 @@ export class CustomerListComponent implements OnInit {
   private readonly dialog = inject(MatDialog);
   private readonly routeLoading = inject(RouteLoadingService);
   private readonly router = inject(Router);
+  private readonly saveFlash = inject(SaveFlashService);
   readonly auth = inject(AuthService);
 
   readonly customers = signal<Customer[]>([]);
@@ -162,7 +164,10 @@ export class CustomerListComponent implements OnInit {
     });
     ref.afterClosed().subscribe((confirmed) => {
       if (confirmed) {
-        this.service.delete(id).subscribe(() => this.load());
+        this.service.delete(id).subscribe(() => {
+          this.saveFlash.show(`Customer '${name}' deleted`);
+          this.load();
+        });
       }
     });
   }

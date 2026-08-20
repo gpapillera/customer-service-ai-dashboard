@@ -253,9 +253,10 @@ export interface ViewEvent {
 /** A single entry in the customer's merged activity timeline (case + account events). */
 export interface CustomerActivityItem {
   id: number;
-  /** opened | updated | resolved | log | comment | email (case) | account_invite | account_reset | account_activated | account_updated | viewed */
+  /** opened | updated | resolved | log | comment | email (case) | account_invite | account_reset | account_activated | account_updated | viewed | account_deleted | account_restored | case_deleted | case_restored */
   kind: 'opened' | 'updated' | 'resolved' | 'log' | 'comment' | 'email'
-    | 'account_invite' | 'account_reset' | 'account_activated' | 'account_updated' | 'viewed';
+    | 'account_invite' | 'account_reset' | 'account_activated' | 'account_updated' | 'viewed'
+    | 'account_deleted' | 'account_restored' | 'case_deleted' | 'case_restored';
   label: string;
   detail: string;
   atUtc: string;

@@ -13,6 +13,7 @@ import { CsIconComponent } from '../shared/cs-icon.component';
 import { RevealDirective } from '../shared/reveal.directive';
 import { CustomerService } from './customer.service';
 import { Customer } from '../shared/models';
+import { SaveFlashService } from '../shared/save-flash.service';
 
 /**
  * Create / edit customer form, rendered inside a MatDialog (same modal
@@ -45,6 +46,7 @@ export class CustomerFormComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   readonly router = inject(Router);
   private readonly dialogRef = inject(MatDialogRef<CustomerFormComponent>);
+  private readonly saveFlash = inject(SaveFlashService);
   /** Optional customer id when opened in edit mode (from dialog data or route). */
   private readonly dialogCustomerId = inject<number | undefined>(MAT_DIALOG_DATA, { optional: true });
 
@@ -93,7 +95,11 @@ export class CustomerFormComponent implements OnInit {
     const value = this.form.getRawValue();
     const id = this.dialogCustomerId ?? this.route.snapshot.paramMap.get('id');
 
-    const onDone = (savedId: number) => this.dialogRef.close(savedId);
+    const isEditMode = !!id;
+    const onDone = (savedId: number) => {
+      this.saveFlash.show(isEditMode ? 'Customer updated' : 'Customer created');
+      this.dialogRef.close(savedId);
+    };
     const onErr = () => {
       this.saving.set(false);
       this.error.set('Could not save customer. Please try again.');

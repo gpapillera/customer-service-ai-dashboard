@@ -91,7 +91,8 @@ export class CustomerService {
   /**
    * Restores a soft-deleted customer from the recycle bin (Admin), optionally
    * restoring a selected subset of its soft-deleted cases. Pass `caseIds: []`
-   * to restore all of the customer's binned cases.
+   * to restore the customer only (no cases); pass `undefined`/null to restore
+   * all of the customer's binned cases; pass a non-empty list to restore only those.
    */
   restore(id: number, caseIds?: number[]): Observable<void> {
     return this.http.post<void>(`${this.baseUrl}/restore/${id}`, { caseIds: caseIds ?? [] });

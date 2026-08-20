@@ -23,6 +23,7 @@ import { RestoreCasePickerComponent, RestoreCasePickerData } from './restore-cas
 import {
   DatePreset, DATE_PRESETS, DATE_PRESET_LABELS, filterByDatePreset, datePresetNeedsInput,
 } from '../shared/date-filter';
+import { SaveFlashService } from '../shared/save-flash.service';
 
 /** Human-readable labels for notification/email types (mirrors case-detail). */
 const EMAIL_TYPE_LABELS: Record<string, string> = {
@@ -68,6 +69,7 @@ export class CustomerDetailComponent implements OnInit {
   private readonly dialog = inject(MatDialog);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly saveFlash = inject(SaveFlashService);
   private readonly destroyRef = inject(DestroyRef);
   readonly auth = inject(AuthService);
 
@@ -239,7 +241,20 @@ export class CustomerDetailComponent implements OnInit {
     ref.afterClosed().subscribe((chosen) => {
       if (chosen === null) return; // cancelled
       this.service.restore(c.id, chosen).subscribe({
-        next: () => this.router.navigate(['/customers', c.id]),
+        next: () => {
+          this.saveFlash.show(`Customer '${c.name}' restored`);
+          // We're already on /customers/:id — navigating to the same route does
+          // NOT re-run ngOnInit (route-reuse keeps the component), so deleted()
+          // would stay true and the list would never refresh. Clear it and
+          // reload here instead of relying on the navigation.
+          this.deleted.set(false);
+          this.load();
+          // Re-fetch the activity panel so the new "Customer restored" row
+          // (and any restored-case rows) appear immediately.
+          this.service.customerActivity(c.id).subscribe((list) => this.activity.set(list));
+          // Drop the ?deleted=1 flag so a manual refresh doesn't re-enter deleted mode.
+          this.router.navigate(['/customers', c.id], { queryParams: {} });
+        },
         error: () => { /* surface via a toast later */ },
       });
     });
@@ -267,7 +282,10 @@ export class CustomerDetailComponent implements OnInit {
     ref.afterClosed().subscribe((confirmed) => {
       if (confirmed) {
         this.service.purge(c.id).subscribe({
-          next: () => this.router.navigate(['/customers']),
+          next: () => {
+            this.saveFlash.show(`Customer '${c.name}' permanently erased`);
+            this.router.navigate(['/customers']);
+          },
           error: () => { /* surface via a toast later */ },
         });
       }
@@ -297,6 +315,7 @@ export class CustomerDetailComponent implements OnInit {
     ref.afterClosed().subscribe((confirmed) => {
       if (confirmed) {
         this.service.delete(c.id).subscribe(() => {
+          this.saveFlash.show(`Customer '${c.name}' deleted`);
           this.router.navigate(['/customers']);
         });
       }
@@ -390,6 +409,10 @@ export class CustomerDetailComponent implements OnInit {
       case 'account_reset': return 'lock_reset';
       case 'account_activated': return 'verified_user';
       case 'account_updated': return 'edit';
+      case 'account_deleted':
+      case 'case_deleted': return 'delete';
+      case 'account_restored':
+      case 'case_restored': return 'restore_from_trash';
       case 'viewed': return 'visibility';
       default: return 'circle';
     }
