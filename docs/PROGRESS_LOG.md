@@ -2,6 +2,98 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase I — Record customer/case delete+restore in activity panels; fix case-restore banner + icon] (2026-08-20)
+**Status:** ✅ DONE (backend `dotnet build` + 139 tests pass; frontend `npm run build` green; live API walkthrough confirms all 4 lifecycle rows written & returned)
+
+### Why / root cause
+User reported two gaps on the customer & case detail "Activity" panels:
+1. **No recorded lifecycle events.** Deleting or restoring a customer (and a case) flipped only the
+   soft-delete flags — neither `CustomerService` nor `CaseService` wrote any `CustomerActivity` row,
+   so the panels (which read the `CustomerActivities` table) had nothing to show for delete/restore.
+   The customer panel merges case events via `GetCustomerActivityAsync`; the case panel was computed
+   100% client-side from the case graph and had no server activity source at all.
+2. **Case restore UX.** On the case-deleted page, `restoreCase()` never cleared the `deleted` signal,
+   so the page stayed stuck in read-only deleted mode (and the confirmation banner read as missing),
+   and the restored rows rendered with a blank icon because `cs-icon`'s `ICON_MAP` had no
+   `restore_from_trash` entry.
+
+### What changed
+- **Unified audit log (backend).** Reused the existing `CustomerActivities` table as the single
+  activity source for both account and case lifecycle. Added an optional `CaseId` column via the
+  house-style idempotent `EnsureCustomerActivityCaseIdColumn` helper (no EF migration) + matching
+  create-table SQL for both SQLite and SqlServer.
+  - `CustomerService.DeleteAsync` → `account_deleted`; `RestoreAsync` → `account_restored`
+    (with restored-case count in `Detail`).
+  - `CaseService.DeleteAsync` → `case_deleted`; `RestoreCaseAsync` → `case_restored`
+    (writing `CaseId` + `CustomerId` so it surfaces on both panels).
+  - `GetCustomerActivityAsync` already projects the table, so customer-delete/restore + the related
+    case rows appear automatically; new `CaseId` now projects through.
+  - Added `GET /api/cases/{id}/activity` (`ICaseService.GetCaseActivityAsync`) returning the case's
+    lifecycle rows for the case panel to merge.
+- **Frontend — customer panel.** `CustomerActivityItem.kind` union gains the 4 new kinds;
+  `customer-detail` `activityIcon()` + `.kind-*` SCSS color the new rows (green restore / red delete).
+- **Frontend — case panel.** `case.service.caseActivity(id)` fetches `/activity`; `case-detail`
+  merges those rows into the local timeline; icon ternary + `.kind-case_*` SCSS added.
+- **Frontend — case restore fix.** `restoreCase()` now: flashes `saveFlash` (banner),
+  clears `deleted`, re-fetches the case + its activity, and strips `?deleted=1` so a refresh
+  doesn't re-enter deleted mode.
+- **Frontend — icon fix.** `cs-icon` `ICON_MAP` gained `restore_from_trash: RotateCcw` (reuses the
+  existing import), so restored rows show a restore-arrow glyph on both panels.
+- **Save-flash banners** were also wired onto customer create/edit/delete/list earlier (per prior
+  task) so mutations confirm server-side.
+
+### Verify
+- `dotnet build CustomerServiceApi.sln` → Build succeeded; `dotnet test` → 139 passed (incl. the
+  updated `FakeCaseService`/`CaseServiceTests` builder for the new repo param + endpoint).
+- `cd frontend && npm run build` → green (pre-existing ~1.67 MB budget warning only, non-fatal).
+- Live API walkthrough (admin JWT): delete/restore a customer → `/activity` returned
+  `account_deleted` then `account_restored`; create+delete+restore a case → `/api/cases/{id}/activity`
+  returned `case_deleted` then `case_restored` (with correct `caseId`). Both panels render the rows
+  with icon + color; case restore flips the view and shows the fading banner.
+
+---
+
+## [Phase H — Restore customer: unchecking the case still restored it] (2026-08-20)
+**Status:** ✅ FIXED (backend `dotnet build` clean, 14/14 CustomerService tests pass incl. new `RestoreAsync_EmptyList_RestoresCustomerOnly`; frontend `npm run build` green)
+
+### Why / root cause
+User reported: in admin space, deleting a customer cascades its case into the recycle bin. On
+restore, the pop-up lists binned cases (all checked by default). Unchecking the case and confirming
+still restored the case alongside the customer.
+
+Root cause was a contract bug, not the dialog. The picker correctly returns an empty array `[]`
+when everything is unchecked (`restore-case-picker.component.ts` → `confirm()`). But the backend
+treated `null` AND `[]` identically:
+- `CustomerService.RestoreAsync` line 710: `restoreAllCases = caseIdsToRestore is null || caseIdsToRestore.Count == 0`
+- An empty array (`Count == 0`) therefore flipped `restoreAllCases = true`, restoring every
+  binned case regardless of what was unchecked. The picker, controller XML docs, and the frontend
+  `customer.service.ts` comment ALL documented "empty array = restore all" — so the bug was also
+  documented as intended behavior, which is exactly why it survived.
+
+### What changed
+- `CustomerService.RestoreAsync` (CustomerService.cs:711): `restoreAllCases = caseIdsToRestore is null;`
+  — `null` ⇒ restore ALL; empty `[]` ⇒ restore NONE (customer only); non-empty list ⇒ restore only those.
+- Aligned the contract docs so the next dev isn't misled:
+  - `CustomersController.cs` `RestoreCustomerBody` record + `Restore` action XML docs.
+  - frontend `customer.service.ts` `restore()` JSDoc.
+  - `restore-case-picker.component.ts` class comment (empty array = restore none).
+- Added backend test `RestoreAsync_EmptyList_RestoresCustomerOnly` (CustomerServiceTests.cs) locking
+  the new behavior: empty list restores the customer, both cases stay binned.
+- Tightened the guard with `caseIdsToRestore!.Contains(...)` (the `||` short-circuit guarantees
+  non-null; silences the new CS8602 warning introduced by the flip) — no warning left behind.
+
+No change to the picker UI behavior: it still defaults to all-checked; now unchecking genuinely
+means "don't restore this case".
+
+### Verify
+- `dotnet build CustomerServiceApi.sln` → Build succeeded, zero CS warnings.
+- `dotnet test ... --filter FullyQualifiedName~CustomerServiceTests` → 14 passed (incl. new test).
+- `cd frontend && npm run build` → green (pre-existing 1.66 MB budget warning only, non-fatal).
+- Manual (user, in browser): admin → delete a customer that has a case → restore → UNCHECK the case
+  → confirm. Expected: customer returns to active list, case REMAINS in the deleted/recycle panel.
+
+---
+
 ## [Phase G — Multi-account on one device shows identical content] (2026-08-20)
 **Status:** ✅ RESOLVED (no code change — browser-origin constraint; resolution = separate browser contexts per account)
 
