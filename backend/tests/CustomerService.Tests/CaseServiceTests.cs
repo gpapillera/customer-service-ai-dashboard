@@ -29,10 +29,11 @@ public class CaseServiceTests
         categories = new FakeRepository<Category>();
         var comments = new FakeRepository<CaseComment>();
         var readStates = new FakeRepository<ConversationReadState>();
+        var activities = new FakeRepository<CustomerActivity>();
         predictor ??= new RuleBasedPriorityPredictor();
         INotificationService notifications = new FakeNotificationService();
         ICaseEventHub events = new FakeCaseEventHub();
-        return new CaseService(cases, customers, categories, comments, readStates, predictor, notifications, events);
+        return new CaseService(cases, customers, categories, comments, readStates, activities, predictor, notifications, events);
     }
 
     private static Customer SeedCustomer(FakeRepository<Customer> repo, int id = 1)

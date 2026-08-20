@@ -20,6 +20,7 @@ public class CaseService : ICaseService
     private readonly IRepository<Category> _categories;
     private readonly IRepository<CaseComment> _comments;
     private readonly IRepository<ConversationReadState> _readStates;
+    private readonly IRepository<CustomerActivity> _activities;
     private readonly IPriorityPredictor _predictor;
     private readonly INotificationService _notifications;
 
@@ -37,6 +38,7 @@ public class CaseService : ICaseService
         IRepository<Category> categories,
         IRepository<CaseComment> comments,
         IRepository<ConversationReadState> readStates,
+        IRepository<CustomerActivity> activities,
         IPriorityPredictor predictor,
         INotificationService notifications,
         ICaseEventHub events)
@@ -46,6 +48,7 @@ public class CaseService : ICaseService
         _categories = categories;
         _comments = comments;
         _readStates = readStates;
+        _activities = activities;
         _predictor = predictor;
         _notifications = notifications;
         _events = events;
@@ -366,6 +369,25 @@ public class CaseService : ICaseService
         caseEntity.DeletedById = callerUserId;
 
         await _cases.SaveChangesAsync();
+
+        // Audit: record the case deletion in the unified activity log (keyed to
+        // its owning customer + the case id) so it shows on BOTH the customer's
+        // activity panel and the case's own activity panel.
+        if (caseEntity.CustomerId != 0)
+        {
+            await _activities.AddAsync(new CustomerActivity
+            {
+                CustomerId = caseEntity.CustomerId,
+                CaseId = caseEntity.Id,
+                Kind = "case_deleted",
+                Label = "Case deleted",
+                Detail = $"\"{caseEntity.Subject}\" moved to recycle bin{(callerUserId != null ? $" by {callerUserId}" : "")}.",
+                AtUtc = DateTime.UtcNow,
+                ActorUserId = callerUserId,
+                ActorRole = callerRole,
+            });
+            await _activities.SaveChangesAsync();
+        }
     }
 
     /// <inheritdoc/>
@@ -390,6 +412,50 @@ public class CaseService : ICaseService
         caseEntity.DeletedAtUtc = null;
         caseEntity.DeletedById = null;
         await _cases.SaveChangesAsync();
+
+        // Audit: record the case restoration in the unified activity log (keyed
+        // to its owning customer + the case id) so it shows on BOTH the
+        // customer's activity panel and the case's own activity panel.
+        if (caseEntity.CustomerId != 0)
+        {
+            await _activities.AddAsync(new CustomerActivity
+            {
+                CustomerId = caseEntity.CustomerId,
+                CaseId = caseEntity.Id,
+                Kind = "case_restored",
+                Label = "Case restored",
+                Detail = $"\"{caseEntity.Subject}\" restored from recycle bin{(callerUserId != null ? $" by {callerUserId}" : "")}.",
+                AtUtc = DateTime.UtcNow,
+                ActorUserId = callerUserId,
+                ActorRole = null,
+            });
+            await _activities.SaveChangesAsync();
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<CustomerActivityItemDto>> GetCaseActivityAsync(int caseId)
+    {
+        // Lifecycle events for this case live in the unified CustomerActivities
+        // audit table (case_deleted / case_restored), keyed by CaseId. No global
+        // soft-delete filter applies to that table, so these rows survive the
+        // case being binned/restored. Returned newest-first to merge cleanly
+        // with the case-graph events the client computes locally.
+        var rows = await _activities.Query()
+            .Where(a => a.CaseId == caseId)
+            .OrderByDescending(a => a.AtUtc)
+            .ToListAsync();
+
+        return rows.Select(a => new CustomerActivityItemDto
+        {
+            Id = -3000 - a.Id, // negative, distinct from customer/account kinds
+            Kind = a.Kind,
+            Label = a.Label,
+            Detail = a.Detail,
+            AtUtc = a.AtUtc,
+            CaseId = a.CaseId,
+            Who = a.ActorRole,
+        }).ToList();
     }
 
     /// <inheritdoc/>

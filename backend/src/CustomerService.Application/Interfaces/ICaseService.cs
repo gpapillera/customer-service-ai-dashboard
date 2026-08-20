@@ -68,6 +68,17 @@ public interface ICaseService
     Task PurgeCaseAsync(int caseId, string? callerRole = null);
 
     /// <summary>
+    /// Returns the lifecycle activity timeline for a single case, newest first.
+    /// Sourced from the unified <c>CustomerActivities</c> audit table filtered
+    /// by <c>CaseId</c> (case_deleted / case_restored events), so the case's own
+    /// activity panel can show delete/restore alongside the case-graph events
+    /// it already computes client-side.
+    /// </summary>
+    /// <param name="caseId">Case id.</param>
+    /// <returns>The case's lifecycle audit rows.</returns>
+    Task<IReadOnlyList<CustomerActivityItemDto>> GetCaseActivityAsync(int caseId);
+
+    /// <summary>
     /// Returns the soft-deleted cases in the recycle bin (Admin only), with
     /// their owning customer's display context (name / display ID / whether
     /// the account is itself deleted, so the UI can gate case restore on

@@ -14,6 +14,13 @@ public class CustomerActivity
     /// <summary>Customer this activity belongs to.</summary>
     public int CustomerId { get; set; }
 
+    /// <summary>
+    /// Optional related case id. Set when the activity is a case-level lifecycle
+    /// event (case_deleted / case_restored) so the case activity panel can
+    /// filter this table by CaseId. Null for account-only events.
+    /// </summary>
+    public int? CaseId { get; set; }
+
     /// <summary>Navigation property back to the customer.</summary>
     public Customer? Customer { get; set; }
 

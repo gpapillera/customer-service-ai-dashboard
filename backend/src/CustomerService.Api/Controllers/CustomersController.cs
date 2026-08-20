@@ -8,12 +8,13 @@ namespace CustomerService.Api.Controllers;
 
 /// <summary>
 /// Optional request body for <c>POST /api/customers/restore/{id}</c>. When
-/// <see cref="CaseIds"/> is null or empty, all of the customer's
-/// soft-deleted cases are restored alongside the account.
+/// <see cref="CaseIds"/> is null, all of the customer's soft-deleted cases are
+/// restored alongside the account; an empty array restores none of them
+/// (account only); a non-empty list restores only the listed cases.
 /// </summary>
 public sealed record RestoreCustomerBody
 {
-    /// <summary>Case ids to restore. Null/empty restores all.</summary>
+    /// <summary>Case ids to restore. Null restores all, empty restores none.</summary>
     public List<int>? CaseIds { get; init; }
 }
 
@@ -248,8 +249,10 @@ public class CustomersController : ControllerBase
     /// </summary>
     /// <param name="id">Customer id.</param>
     /// <param name="body">
-    /// Optional payload: <c>{ "caseIds": [int, ...] }</c>. Omit or send an
-    /// empty array to restore all of the customer's soft-deleted cases.
+    /// Optional payload: <c>{ "caseIds": [int, ...] }</c>. Omit or send null
+    /// to restore all of the customer's soft-deleted cases; send an empty array
+    /// to restore the account only (no cases); send a non-empty list to restore
+    /// only those cases.
     /// </param>
     [HttpPost("restore/{id:int}")]
     [Authorize(Roles = "Admin")]

@@ -163,6 +163,11 @@ public class AppDbContext : DbContext
             e.Property(a => a.Detail).HasMaxLength(500);
             e.Property(a => a.ActorUserId).HasMaxLength(100);
             e.Property(a => a.ActorRole).HasMaxLength(50);
+            // CaseId is nullable: null for account-only events, set for case-level
+            // lifecycle events (case_deleted / case_restored) so the case activity
+            // panel can filter this unified audit table by CaseId. No FK — the
+            // audit row must survive the case being soft-deleted/restored.
+            e.Property(a => a.CaseId).IsRequired(false);
             e.HasOne(a => a.Customer!).WithMany()
                 .HasForeignKey(a => a.CustomerId).OnDelete(DeleteBehavior.Cascade);
         });

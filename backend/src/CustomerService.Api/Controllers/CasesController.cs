@@ -224,6 +224,21 @@ public class CasesController : ControllerBase
     }
 
     /// <summary>
+    /// Returns the lifecycle activity timeline (delete / restore audit rows) for
+    /// a single case, newest first. Sourced from the unified CustomerActivities
+    /// table filtered by CaseId; the case-graph events (opened/updated/resolved/
+    /// comments/logs/emails) are computed client-side on the case detail page.
+    /// </summary>
+    /// <param name="id">Case id.</param>
+    [HttpGet("{id:int}/activity")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<CustomerActivityItemDto>>> GetCaseActivity(int id)
+    {
+        var activity = await _service.GetCaseActivityAsync(id);
+        return Ok(activity);
+    }
+
+    /// <summary>
     /// Permanently purges a soft-deleted case (keep-row anonymize, Admin
     /// only). Irreversible — the subject/description are scrubbed and the row
     /// is marked purged (no physical delete).

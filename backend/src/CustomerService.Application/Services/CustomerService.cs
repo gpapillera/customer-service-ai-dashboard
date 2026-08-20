@@ -682,6 +682,20 @@ public class CustomerService : ICustomerService
         customer.DeletedById = callerUserId;
 
         await _customers.SaveChangesAsync();
+
+        // Audit: record the account deletion in the unified activity log so it
+        // shows on the customer's activity panel (mirrors account_updated).
+        await _activities.AddAsync(new CustomerActivity
+        {
+            CustomerId = customer.Id,
+            Kind = "account_deleted",
+            Label = "Customer deleted",
+            Detail = $"Moved to recycle bin{(callerUserId != null ? $" by {callerUserId}" : "")}.",
+            AtUtc = DateTime.UtcNow,
+            ActorUserId = callerUserId,
+            ActorRole = callerRole,
+        });
+        await _activities.SaveChangesAsync();
     }
 
     /// <inheritdoc/>
@@ -705,19 +719,22 @@ public class CustomerService : ICustomerService
 
         // Restore selected (or all) soft-deleted cases that belong to it.
         // Cases not selected stay in the recycle bin for a later restore.
-        // A null OR empty selection means "restore all" (matches the documented
-        // contract — the controller accepts { caseIds: [] } to mean restore-all).
-        var restoreAllCases = caseIdsToRestore is null || caseIdsToRestore.Count == 0;
+        // A null selection means "restore all"; an empty array means "restore
+        // none" (customer account only). This matches the picker contract, where
+        // unchecking every case must NOT bring the cases back.
+        var restoreAllCases = caseIdsToRestore is null;
+        var restoredCaseCount = 0;
         if (customer.Cases is not null)
         {
             foreach (var cs in customer.Cases)
             {
                 if (cs.IsDeleted && !cs.Purged &&
-                    (restoreAllCases || caseIdsToRestore.Contains(cs.Id)))
+                    (restoreAllCases || caseIdsToRestore!.Contains(cs.Id)))
                 {
                     cs.IsDeleted = false;
                     cs.DeletedAtUtc = null;
                     cs.DeletedById = null;
+                    restoredCaseCount++;
                 }
             }
         }
@@ -725,6 +742,23 @@ public class CustomerService : ICustomerService
         // Cases are part of the same customer graph, so a single SaveChanges
         // persists both the customer and the restored cases.
         await _customers.SaveChangesAsync();
+
+        // Audit: record the account restoration in the unified activity log so
+        // it shows on the customer's activity panel. Include how many (if any)
+        // of its binned cases were brought back with it.
+        await _activities.AddAsync(new CustomerActivity
+        {
+            CustomerId = customer.Id,
+            Kind = "account_restored",
+            Label = "Customer restored",
+            Detail = restoredCaseCount > 0
+                ? $"Restored {restoredCaseCount} case{(restoredCaseCount != 1 ? "s" : "")} with the account{(callerUserId != null ? $" by {callerUserId}" : "")}."
+                : $"Account restored{(callerUserId != null ? $" by {callerUserId}" : "")}.",
+            AtUtc = DateTime.UtcNow,
+            ActorUserId = callerUserId,
+            ActorRole = null,
+        });
+        await _activities.SaveChangesAsync();
     }
 
     /// <inheritdoc/>
@@ -957,7 +991,7 @@ public class CustomerService : ICustomerService
                 Label = a.Label,
                 Detail = a.Detail,
                 AtUtc = a.AtUtc,
-                CaseId = null,
+                CaseId = a.CaseId,
                 Who = a.ActorRole,
             });
         }

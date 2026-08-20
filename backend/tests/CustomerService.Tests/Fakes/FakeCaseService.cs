@@ -29,6 +29,9 @@ public class FakeCaseService : ICaseService
 
     public Task PurgeCaseAsync(int caseId, string? callerRole = null) => Task.CompletedTask;
 
+    public Task<IReadOnlyList<CustomerActivityItemDto>> GetCaseActivityAsync(int caseId) =>
+        Task.FromResult<IReadOnlyList<CustomerActivityItemDto>>(new List<CustomerActivityItemDto>());
+
     public Task<IReadOnlyList<CaseDto>> GetDeletedAsync() =>
         Task.FromResult<IReadOnlyList<CaseDto>>(new List<CaseDto>());
 

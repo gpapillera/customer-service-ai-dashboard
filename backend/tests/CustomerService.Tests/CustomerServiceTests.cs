@@ -239,6 +239,37 @@ public class CustomerServiceTests
         Assert.Equal(2, cases.Query().Count());
     }
 
+    [Fact]
+    public async Task RestoreAsync_EmptyList_RestoresCustomerOnly()
+    {
+        var svc = BuildService(out var customers, out var cases);
+        var customer = SeedCustomer(customers, 1, "Alpha");
+        var case1 = SeedCase(cases, 1, 1, "agent-001");
+        var case2 = SeedCase(cases, 2, 1, "agent-002");
+
+        // Mirror the EF Include graph so DeleteAsync cascades to both cases.
+        customer.Cases = new List<Case> { case1, case2 };
+
+        // Soft-delete the customer (cascades to both cases).
+        await svc.DeleteAsync(1, callerRole: "Admin", callerUserId: "admin-001");
+
+        // Restore the customer with an EMPTY case selection — must NOT bring
+        // any cases back (this is the picker "uncheck everything" path).
+        await svc.RestoreAsync(1, new List<int>(), callerUserId: "admin-001");
+
+        // Customer is back...
+        Assert.False(customer.IsDeleted);
+        Assert.Equal("admin-001", customer.RestoredById);
+
+        // ...but BOTH cases stay binned (empty list == restore none).
+        Assert.True(case1.IsDeleted);
+        Assert.True(case2.IsDeleted);
+
+        // ...and every row still exists in the store (no physical removal).
+        Assert.Equal(1, customers.Query().Count());
+        Assert.Equal(2, cases.Query().Count());
+    }
+
     // ---- Task A8: PurgeAsync (keep-row anonymize / GDPR erasure) ----
 
     private static CustomerService.Application.Services.CustomerService BuildServiceWithNotifications(

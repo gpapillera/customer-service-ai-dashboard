@@ -334,6 +334,7 @@ public class Program
         EnsureCustomerSoftDeleteColumns(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
         EnsureCaseSoftDeleteColumns(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
         EnsureCustomerActivitiesTable(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
+        EnsureCustomerActivityCaseIdColumn(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
         EnsureViewEventsTable(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
         EnsureRefreshTokensTable(ctx, app.Configuration["Database:Provider"]).GetAwaiter().GetResult();
         SeedDataInitializer.Initialize(ctx);
@@ -1194,6 +1195,7 @@ public class Program
                     create.CommandText = $@"CREATE TABLE [{table}] (
                         [Id] INTEGER PRIMARY KEY AUTOINCREMENT,
                         [CustomerId] INTEGER NOT NULL,
+                        [CaseId] INTEGER NULL,
                         [Kind] TEXT NOT NULL,
                         [Label] TEXT NOT NULL,
                         [Detail] TEXT NULL,
@@ -1212,7 +1214,7 @@ public class Program
                 var exists = ctx.Database.ExecuteSqlRaw(
                     $"IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='{table}') " +
                     $"CREATE TABLE [{table}] (" +
-                    $"[Id] int IDENTITY(1,1) NOT NULL, [CustomerId] int NOT NULL, " +
+                    $"[Id] int IDENTITY(1,1) NOT NULL, [CustomerId] int NOT NULL, [CaseId] int NULL, " +
                     $"[Kind] nvarchar(50) NOT NULL, [Label] nvarchar(100) NOT NULL, " +
                     $"[Detail] nvarchar(500) NULL, [AtUtc] datetime2 NOT NULL, " +
                     $"[ActorUserId] nvarchar(100) NULL, [ActorRole] nvarchar(50) NULL, " +
@@ -1228,6 +1230,47 @@ public class Program
             Console.WriteLine($"WARN: could not ensure {table} table: {ex.Message}");
         }
     }
+    /// <summary>
+    /// Ensures the optional <c>CaseId</c> column exists on <c>CustomerActivities</c>.
+    /// Added so case-level lifecycle events (case_deleted / case_restored) can be
+    /// stored in the same unified audit table as account events. Idempotent +
+    /// provider-aware. Swap for EF migrations in production.
+    /// </summary>
+    private static async Task EnsureCustomerActivityCaseIdColumn(AppDbContext ctx, string? provider)
+    {
+        const string table = "CustomerActivities";
+        const string column = "CaseId";
+        try
+        {
+            if (provider != null && provider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase))
+            {
+                var conn = ctx.Database.GetDbConnection();
+                if (conn.State != System.Data.ConnectionState.Open)
+                    await conn.OpenAsync();
+                using var check = conn.CreateCommand();
+                check.CommandText = $"SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name='{column}';";
+                var count = Convert.ToInt32(await check.ExecuteScalarAsync());
+                if (count == 0)
+                {
+                    using var alter = conn.CreateCommand();
+                    alter.CommandText = $"ALTER TABLE {table} ADD COLUMN {column} INTEGER NULL;";
+                    await alter.ExecuteNonQueryAsync();
+                }
+            }
+            else
+            {
+                var exists = ctx.Database.ExecuteSqlRaw(
+                    $"IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='{table}' AND COLUMN_NAME='{column}') " +
+                    $"ALTER TABLE {table} ADD [{column}] int NULL;");
+                _ = exists;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"WARN: could not ensure {table}.{column} column: {ex.Message}");
+        }
+    }
+
 
     /// <summary>
     /// Creates the <c>ViewEvents</c> table if it is missing (read/view audit
