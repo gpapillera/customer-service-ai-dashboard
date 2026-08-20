@@ -4,6 +4,14 @@
   justify-content: space-between;
   margin-bottom: 1rem;
 }
+/* Right-aligned cluster holding the trash (recycle) toggle + "New" button.
+   The trash sits to the LEFT of the "New" button so both stay pinned to the
+   right edge instead of being spread apart by flex `space-between`. */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
 
 .search-bar {
   margin-bottom: 1.25rem;

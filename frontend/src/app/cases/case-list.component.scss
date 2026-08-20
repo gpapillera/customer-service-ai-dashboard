@@ -5,6 +5,15 @@
   gap: 1rem;
   margin-bottom: 1.5rem;
 }
+/* Right-aligned cluster holding the trash (recycle) toggle + "New Case"
+   button. The trash sits to the LEFT of the "New Case" button so both stay
+   pinned to the right edge instead of being spread apart by flex
+   `space-between`. */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
 .page-header .titles h1 {
   margin: 0;
   font-size: 1.6rem;
