@@ -2,6 +2,65 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase G — Multi-account on one device shows identical content] (2026-08-20)
+**Status:** ✅ RESOLVED (no code change — browser-origin constraint; resolution = separate browser contexts per account)
+
+### Why / root cause
+User reported: on ONE device, signed in as admin + maria + grace simultaneously, all three
+tabs showed the SAME content (admin's "Juan Dela Cruz = 3 cases" also appeared under an agent
+account). This is NOT a code bug and is separate from Phase F. Proven live with curl using a
+single shared cookie jar:
+- log in admin  -> /users/me=admin, /customers=21, /email-config=200
+- then "Tab B" logs in maria in the SAME jar -> /users/me flips to maria, /customers=10, /email-config=403
+The API authenticates from the HttpOnly `access_token` cookie on `localhost` (one cookie store per
+origin). A second login in the same browser OVERWRITES that cookie, so every tab then authorizes as
+whoever logged in last. sessionStorage is per-tab, but the cookie (the real auth) is shared, so
+per-tab storage cannot hold two identities. Browser security model — not fixable in app code.
+
+### What changed
+- Nothing in code. Root cause is environmental, not a defect.
+- Documented the constraint so it isn't re-diagnosed as a bug.
+
+### Resolution chosen (user decision: Option A — no build)
+Run each account in its OWN browser context so each gets an independent cookie jar:
+- Window 1: normal window -> admin
+- Window 2: Incognito/Private window -> maria
+- Window 3: a different Chrome profile, or a different browser (Firefox normal) -> grace
+Each context authorizes as its own user -> distinct data. This is the standard way to test
+multi-account web apps; there is no code fix that beats it.
+(NOTE: Option B — a reconcile() banner warning when the server identity silently changes — was
+offered but not built. Option C — per-tab token storage — rejected as it defeats the HttpOnly
+cookie XSS protection the project added. YAGNI.)
+
+---
+
+## [Phase F — SPA identity vs API cookie split (admin saw Agent data + 403s)] (2026-08-20)
+**Status:** ✅ FIXED (frontend `npm run build` green; root cause proven live via curl against `:5274` — every reported number matched exactly)
+
+### Why / root cause
+The SPA's displayed identity came from `sessionStorage['cs_user']` (set only at login), while the API authenticates from the HttpOnly `access_token` cookie (`Program.cs` JwtBearer `OnMessageReceived` reads `Cookies["access_token"]`). Those two sources are independent. A stale admin `sessionStorage` entry had outlived the real cookie (which belonged to `maria`/Agent) — so the UI showed "Ada Admin" while every API call was authorized as Maria. That one split produced all reported symptoms:
+- Sidenav "Ada" but My-account "Maria Santos" (two identity sources disagree).
+- Customers=10 (not 21), Cases=16 (not all) → server-side Agent scoping returns only Maria's slice.
+- Email-config 403, Conversations 403, Agent KPIs "could not load", agent-workload card missing → all Admin-only endpoints rejecting the Maria cookie.
+- Deleted customer/case drawers wouldn't open → their Admin-only GETs 403'd (same cause; drawer HTML/click wiring is correct — verified).
+
+Live proof (admin cookie vs maria cookie):
+`/users/me` → Ada vs Maria; `/email-config` → 200 vs 403; `/customers` → 21 vs 10; `/cases` → 28 vs 16; `/users/agent-workload` → 200 vs 403; `/cases/all-conversations` → 200 vs 403.
+
+### What changed
+- `auth/auth.service.ts`: added `reconcile()` — if a cached user exists, calls `GET /api/users/me`; adopts the server's id/role when they differ, or `clearLocalSession()` on 401/403. The UI can no longer display an identity the API will reject.
+- `auth/token.interceptor.ts`: after a successful silent `refresh()`, calls `auth.reconcile()` so a freshly-minted cookie re-syncs the UI.
+- `app/app.config.ts`: added `ENVIRONMENT_INITIALIZER` that calls `auth.reconcile()` at bootstrap.
+
+Server-side Agent scoping left untouched (correct by design). No new dependency; no refactor.
+
+### Verify
+- Log in as `admin` → sidenav + My-account both Ada; Customers=21, all live Cases, agent workload card renders, both deleted drawers open, email config + conversations + agent KPIs load.
+- Log in as `maria` → correctly sees 10 customers / 16 cases and 403s on Admin-only endpoints (expected).
+- NOTE: to clear the *current* broken browser session, log in as admin again (sets both cookie + sessionStorage) and/or clear site data once.
+
+---
+
 ## [Phase E — Non-recoverable auth failure → clean redirect to /login] (2026-08-20)
 **Status:** ✅ COMPLETE (frontend `npm run build` green; verified live in-browser: killing the session redirects to /login?reason=session_expired and the "Session expired" banner renders — no more mystery spinners)
 
