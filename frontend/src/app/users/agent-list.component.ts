@@ -13,6 +13,8 @@ import { UserService } from './user.service';
 import { Agent, UpdateAgent } from '../shared/models';
 import { Dashboard } from '../shared/models';
 import { LayoutComponent } from '../shared/layout/layout.component';
+import { AuthService } from '../auth/auth.service';
+import { withAuthRetry } from '../shared/auth-retry';
 
 /**
  * Admin-only list of Agent-role users with open-case counts. Clicking a card
@@ -39,6 +41,7 @@ import { LayoutComponent } from '../shared/layout/layout.component';
 })
 export class AgentListComponent implements OnInit {
   private readonly userService = inject(UserService);
+  private readonly auth = inject(AuthService);
 
   /** Sidenav open state — brand logo hidden when open. */
   readonly sidenavOpen = inject(LayoutComponent).opened;
@@ -108,9 +111,11 @@ export class AgentListComponent implements OnInit {
     this.error.set(null);
     this.draft.set({ fullName: agent.fullName, email: agent.email });
     this.kpis.set(null);
-    this.userService.getAgentKpis(agent.id).subscribe({
+    this.userService.getAgentKpis(agent.id).pipe(
+      withAuthRetry(this.auth),
+    ).subscribe({
       next: (d) => this.kpis.set(d),
-      error: () => this.error.set('Could not load KPIs.'),
+      error: (err) => this.error.set(err?.error?.error ?? err?.error?.title ?? 'Could not load KPIs.'),
     });
   }
 

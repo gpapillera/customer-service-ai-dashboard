@@ -2,6 +2,7 @@ import { Component, computed, inject, OnInit, OnDestroy, signal, HostListener, E
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { Observable } from 'rxjs';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -15,6 +16,7 @@ import { CaseService } from './case.service';
 import { RealtimeService } from '../shared/realtime.service';
 import { Conversation } from '../shared/models';
 import { LayoutComponent } from '../shared/layout/layout.component';
+import { AuthService } from '../auth/auth.service';
 
 /**
  * Agent "Messages" tab (Phase 9). Lists the agent's cases that have a comment
@@ -48,6 +50,7 @@ export class ConversationsListComponent implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly navBadgeService = inject(NavBadgeService);
   private readonly elementRef = inject(ElementRef);
+  private readonly auth = inject(AuthService);
   /** Real-time assignment push (SSE). */
   private readonly realtime = inject(RealtimeService);
   /** Instant refresh: when an assignment changes, re-fetch the Messages list
@@ -198,8 +201,16 @@ export class ConversationsListComponent implements OnInit, OnDestroy {
   private pollTimer: ReturnType<typeof setInterval> | null = null;
   private readonly POLL_MS = 30_000;
 
+  /** Returns the conversation list for the signed-in role: agents see their
+   *  own assigned-thread cases; admins fall back to the global view. */
+  private loadConversations(): Observable<Conversation[]> {
+    return this.auth.getRole() === 'Admin'
+      ? this.service.allConversations()
+      : this.service.myConversations();
+  }
+
   ngOnInit(): void {
-    this.service.myConversations().subscribe({
+    this.loadConversations().subscribe({
       next: (list) => {
         this.conversations.set(list);
         this.loading.set(false);
@@ -223,7 +234,7 @@ export class ConversationsListComponent implements OnInit, OnDestroy {
 
   /** Silent refresh — does not show loading spinner. */
   private refresh(): void {
-    this.service.myConversations().subscribe({
+    this.loadConversations().subscribe({
       next: (list) => {
         this.conversations.set(list);
         this.navBadgeService.refresh();

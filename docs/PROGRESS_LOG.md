@@ -2,6 +2,36 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase D — Recycle-bin hardening, deleted-mode UX, and auth-resilience] (2026-08-20)
+**Status:** ✅ COMPLETE (frontend `npm run build` green; backend `dotnet build` clean; verified live in-browser as admin — recycle bins open, Conversations loads 14, Agent KPI overlay shows 6 cards, Dashboard Agent Workload visible; zero console errors)
+
+### Why (three real gaps found by exercising the running app)
+1. **Recycle bin could dead-end / not open reliably.** A purged customer left its soft-deleted cases stranded in the case recycle-bin forever (un-restorable, "restore the customer first" dead-end); and the drawer's outside-click-to-close never worked because the container's `pointer-events: none` also killed Material's backdrop.
+2. **Deleted-mode was writeable + misleading copy.** A binned case still offered Assignee/log/comment controls, and the delete dialog said "can't be undone" when it actually moves to the restore-able recycle bin.
+3. **Transient auth failures stuck the UI.** Secondary fetches (agent KPI overlay, dashboard workload, recycle-bin opens, conversation poll) fired after the 15-min access cookie aged out; a single failed refresh left a permanent "Could not load…" / empty widget.
+
+### What changed (grouped by commit)
+- **Backend — purge cascade + deleted-state correctness**
+  - `Program.cs`: rate-limiter now exempts loopback in Development (the Angular proxy funnels all browsers via 127.0.0.1, so a tight limit was 429-ing legitimate logins — a real dev bug; real client IPs still rate-limited via X-Forwarded-For + connection IP).
+  - `CaseDtos.cs`: added `CustomerIsPurged` (UI shows "customer permanently deleted" instead of the restore-gated hint).
+  - `CallLogService.cs`: soft-deleted cases now return clean 404 (KeyNotFound) instead of masking as a Forbidden/500.
+  - `CaseService.cs`: case recycle-bin excludes cases whose owning customer is purged (defense-in-depth over the purge cascade).
+  - `CustomerService.cs`: purge now cascades to the customer's own binned cases (scrub + purge, so they don't linger un-restorable); live customer detail counts only NON-deleted cases (matches list view); deleted-customer resolution mirrored in `GetCustomerEmailsAsync` + `GetCustomerActivityAsync` so an Admin's recycle-bin views work.
+- **Frontend — recycle-bin drawer UX** (`deleted-drawer.component.html/.scss`): added an explicit `.drawer-scrim` (click-catcher, z-index 999) for outside-click-to-close; container `pointer-events: none` retained so the CLOSED drawer never blocks the page; native Material backdrop hidden to avoid double-dim.
+- **Frontend — header layout** (`case-list` + `customer-list` `.html/.scss`): wrapped the trash (recycle) toggle + "New" button in a right-aligned `.header-actions` flex cluster so the trash sits LEFT of "New" and both stay pinned to the right edge (previously spread apart by `space-between`).
+- **Frontend — deleted-mode write guards + copy**
+  - `case-detail.component.ts`: `canEdit` now returns `false` when `deleted()` (read-only in bin); `case-detail.component.html`: Assignee card hidden in deleted mode.
+  - `customer-detail.component.ts` + `customer-list.component.ts`: delete dialog copy corrected to "moves them to the recycle bin, where they can be restored."
+- **Frontend — auth-resilience + admin-aware Conversations (A1)**
+  - `shared/auth-retry.ts` (new): `withAuthRetry()` operator — retries the call once via `AuthService.refresh()` on 401/403, then rethrows. Single retry only (a second 401 after a good refresh means the session is genuinely dead → app redirects to login).
+  - Wired into `agent-list` (KPI overlay, also surfaces the real server error now), `dashboard` (Agent Workload, no longer silently swallowed), `case-list` + `customer-list` (`openRecycleBin`).
+  - `conversations-list.component.ts`: admin-aware — agents hit `myConversations()`, admins fall back to `allConversations()` (the global view exists server-side), eliminating the deterministic 403 that produced "Could not load conversations" for admins.
+
+### Verification
+- `npm run build` → 0 errors (pre-existing 1.66 MB budget warning only). `dotnet build CustomerServiceApi.sln` → clean.
+- Live (admin, localhost:4200 → :5274, Option A — user watched results in their own VS Code tab): Conversations → 14 loaded, no warning; Agents → card click → "Performance" overlay with 6 KPI cards, no "Could not load KPIs"; Cases + Customers → recycle-bin drawers open (scrim closes on outside click); Dashboard → Agent Workload visible. All 5 admin endpoints 200 via curl. No console errors.
+- Note: Option B (agent drives the user's real on-screen browser via cua-driver) is BLOCKED on this Zorin Wayland desktop — the compositor lacks `zwlr_layer_shell_v1` / `zwlr_foreign_toplevel_manager_v1` / `ext-data-control`, so cua-driver can enumerate windows but cannot screenshot or draw an overlay (`X11Error: Drawable`). Option A (user watches localhost:4200 in their own preview) is the working path.
+
 ## [Phase C+: Cookie Auth + Refresh Tokens] (2026-08-19)
 **Status:** ✅ COMPLETE (backend `dotnet test` 138/138 green; frontend `ng test` 47/47 green; frontend `ng build` clean; full login→protected→refresh→SSE→logout flow verified live in browser, light + dark)
 

@@ -36,6 +36,7 @@ import { CATEGORIES } from '../shared/categories';
 import { RealtimeService } from '../shared/realtime.service';
 import { DeletedDrawerComponent, RecycleItem } from '../shared/deleted-drawer.component';
 import { AuthService } from '../auth/auth.service';
+import { withAuthRetry } from '../shared/auth-retry';
 import { DatePreset, DATE_PRESETS, formatDatePreset, filterByDatePreset, positionHeaderDropdown } from '../shared/date-filter';
 import { SearchFilterToolbarComponent } from './search-filter-toolbar/search-filter-toolbar.component';
 import { LayoutComponent } from '../shared/layout/layout.component';
@@ -95,7 +96,9 @@ export class CaseListComponent implements OnInit, OnDestroy {
 
   /** Opens the recycle-bin drawer (Admin only). */
   openRecycleBin(): void {
-    this.service.recycleBin().subscribe({
+    this.service.recycleBin().pipe(
+      withAuthRetry(this.auth),
+    ).subscribe({
       next: (list) => {
         this.recycleItems.set(
           list.map((c) => ({

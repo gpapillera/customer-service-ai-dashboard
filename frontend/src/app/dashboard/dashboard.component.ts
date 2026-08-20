@@ -19,6 +19,7 @@ import { AuthService } from '../auth/auth.service';
 import { ThemeService } from '../shared/theme.service';
 import { DashboardSettingsService } from '../shared/dashboard-settings.service';
 import { RealtimeService } from '../shared/realtime.service';
+import { withAuthRetry } from '../shared/auth-retry';
 
 /**
  * Dashboard: 6 KPI cards, weekly trend line, priority donut, horizontal
@@ -244,9 +245,11 @@ export class DashboardComponent implements OnInit, AfterViewInit {
 
   /** Loads per-agent workload data for the Admin dashboard Agent Workload section. */
   private loadAgentWorkload(): void {
-    this.service.getAgentWorkload().subscribe({
+    this.service.getAgentWorkload().pipe(
+      withAuthRetry(this.auth),
+    ).subscribe({
       next: (data) => this.agentWorkload.set(data),
-      error: () => { /* silently ignore — the section simply won't render */ },
+      error: () => { /* transient failure: section stays hidden until next dashboard load */ },
     });
   }
 
