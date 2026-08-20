@@ -137,6 +137,49 @@ export class AuthService {
     this.currentUser.set(res);
   }
 
+  /**
+   * Reconciles the locally-cached identity (sessionStorage) with the identity
+   * the API actually authenticates (the HttpOnly access_token cookie). These
+   * are two independent sources: a prior session's localStorage entry can
+   * outlive the real cookie, so the UI would show one user while every API
+   * call is authorized as another (e.g. sidenav "Ada Admin" but /api/users/me
+   * returns "Maria Santos", and all Admin-only endpoints 403).
+   *
+   * Call this at app bootstrap and after every silent refresh (the refresh
+   * mints a fresh cookie that may belong to a different user than the cached
+   * one). If the API returns a user that differs from the cached record — or
+   * the call is unauthorized — we wipe the local session so the UI can never
+   * display an identity the API will reject.
+   */
+  reconcile(): void {
+    const cached = this._currentUser.value;
+    if (!cached) return; // nothing to reconcile; guard handles unauthenticated
+    this.getProfile().subscribe({
+      next: (profile) => {
+        if (profile.id !== cached.id || profile.role !== cached.role) {
+          // The cookie belongs to a different user than we think we are.
+          // Trust the server: adopt the real identity so the UI matches the
+          // authorization the API will actually apply.
+          const corrected: LoginResponse = {
+            ...cached,
+            id: profile.id,
+            userName: profile.userName,
+            fullName: profile.fullName,
+            role: profile.role,
+            agentDisplayId: profile.agentDisplayId,
+            profilePictureUrl: profile.profilePictureUrl,
+          };
+          this.setSession(corrected);
+        }
+      },
+      error: () => {
+        // Cookie is missing/expired/invalid for the cached user — drop the
+        // stale local session so the guard/redirect can send us to /login.
+        this.clearLocalSession();
+      },
+    });
+  }
+
   private loadUser(): LoginResponse | null {
     const raw = sessionStorage.getItem(USER_KEY);
     return raw ? (JSON.parse(raw) as LoginResponse) : null;

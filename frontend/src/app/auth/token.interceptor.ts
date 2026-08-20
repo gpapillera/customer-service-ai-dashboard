@@ -94,6 +94,10 @@ export class TokenInterceptor implements HttpInterceptor {
       this.refreshInFlight = this.auth.refresh().pipe(
         switchMap(() => {
           this.refreshInFlight = null;
+          // The refresh minted a fresh access cookie that may belong to a
+          // different user than the cached session. Re-sync the UI identity
+          // with the server so the SPA never shows a stale user.
+          this.auth.reconcile();
           return [true];
         }),
         catchError((err) => {
