@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
-import { Case, CreateCase, UpdateCase, Category, Agent, Conversation, CustomerCaseComment, ViewEvent } from '../shared/models';
+import { Case, CreateCase, UpdateCase, Category, Agent, Conversation, CustomerCaseComment, ViewEvent, CustomerActivityItem } from '../shared/models';
 import { CATEGORIES } from '../shared/categories';
 
 /**
@@ -145,5 +145,10 @@ export class CaseService {
   /** Permanently purges a soft-deleted case (keep-row anonymize, Admin). */
   purgeCase(id: number): Observable<void> {
     return this.http.post<void>(`${this.baseUrl}/purge/${id}`, {});
+  }
+
+  /** Returns the case's lifecycle activity audit rows (delete / restore), newest first. */
+  caseActivity(id: number): Observable<CustomerActivityItem[]> {
+    return this.http.get<CustomerActivityItem[]>(`${this.baseUrl}/${id}/activity`);
   }
 }

@@ -128,6 +128,7 @@ const ICON_MAP: Record<string, LucideIconData> = {
   verified_user: BadgeCheck,
   circle: Circle,
   restart: RotateCcw,
+  restore_from_trash: RotateCcw,
   drag_indicator: GripVertical,
   open_with: MoveHorizontal,
 };

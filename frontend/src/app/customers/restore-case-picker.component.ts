@@ -19,7 +19,8 @@ export interface RestoreCasePickerData {
  * Account-restore helper: when an admin restores a soft-deleted customer, this
  * dialog lists the customer's binned cases and lets them pick which ones to
  * bring back. All are selected by default. Returning an empty array means
- * "restore all" (matches the backend contract), returning `null` means cancel.
+ * "restore none of the cases" (customer account only — matches the backend
+ * contract), returning `null` means cancel.
  */
 @Component({
   selector: 'app-restore-case-picker',

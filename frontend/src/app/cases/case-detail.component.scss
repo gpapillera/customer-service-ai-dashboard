@@ -864,6 +864,8 @@
 .kind-comment { background: var(--cs-warning-bg); color: var(--cs-warning); }
 .kind-email { background: var(--cs-neutral-bg); color: var(--cs-text-muted); }
 .kind-viewed { background: var(--cs-info-bg); color: var(--cs-info); }
+.kind-case_deleted { background: var(--cs-danger-bg); color: var(--cs-danger); }
+.kind-case_restored { background: var(--cs-success-bg); color: var(--cs-success); }
 
 /* Pulse highlight when deep-linked from the Customers page (?activity=1) */
 @keyframes act-pulse {

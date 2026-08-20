@@ -22,7 +22,7 @@ import { CaseService } from './case.service';
 import { CallLogService } from './call-log.service';
 import { EmailLogService } from '../email/email-log.service';
 import { CaseFormComponent, CaseFormDialogData } from './case-form.component';
-import { Case, CallLog, Agent, CustomerCaseComment, Notification, ViewEvent } from '../shared/models';
+import { Case, CallLog, Agent, CustomerCaseComment, Notification, ViewEvent, CustomerActivityItem } from '../shared/models';
 import { RealtimeService } from '../shared/realtime.service';
 import { DatePreset, DATE_PRESETS, DATE_PRESET_LABELS, filterByDatePreset, datePresetNeedsInput } from '../shared/date-filter';
 import { AuthService } from '../auth/auth.service';
@@ -32,7 +32,8 @@ import { ConfirmDialogComponent, ConfirmDialogData } from '../shared/confirm-dia
 /** One row in the case Activity timeline: an email, call log, comment, or state change. */
 export interface ActivityItem {
   key: string;
-  kind: 'opened' | 'updated' | 'log' | 'comment' | 'email' | 'viewed';
+  kind: 'opened' | 'updated' | 'log' | 'comment' | 'email' | 'viewed'
+    | 'case_deleted' | 'case_restored';
   label: string;
   detail: string;
   atUtc: string;
@@ -124,6 +125,8 @@ export class CaseDetailComponent implements OnInit {
   readonly comments = signal<CustomerCaseComment[]>([]);
   /** Viewed/opened audit rows for this case (recorded on open; coalesced server-side). */
   readonly caseViews = signal<ViewEvent[]>([]);
+  /** Lifecycle audit rows for this case (delete / restore), from the unified activity log. */
+  readonly caseActivity = signal<CustomerActivityItem[]>([]);
   readonly loading = signal(true);
   /** Set when the case cannot be loaded (e.g. 403 for an Agent). */
   readonly loadError = signal<string | null>(null);
@@ -226,8 +229,21 @@ export class CaseDetailComponent implements OnInit {
       items.push({ key: `viewed-${v.id}`, kind: 'viewed', label: 'Viewed', detail: `Viewed by ${v.viewerName}`, atUtc: v.atUtc, who: v.viewerRole ?? undefined });
     }
 
+    // Lifecycle audit rows: case delete / restore, from the unified activity log.
+    for (const a of this.caseActivity()) {
+      items.push({ key: `activity-${a.id}`, kind: a.kind as ActivityItem['kind'], label: a.label, detail: a.detail, atUtc: a.atUtc, who: a.who ?? undefined });
+    }
+
     return items.sort((a, b) => new Date(b.atUtc).getTime() - new Date(a.atUtc).getTime());
   });
+
+  /** Loads the lifecycle activity audit rows for this case into `caseActivity`. */
+  private loadCaseActivity(id: number): void {
+    this.caseService.caseActivity(id).subscribe({
+      next: (rows) => this.caseActivity.set(rows),
+      error: () => { /* best-effort: activity panel simply omits lifecycle rows */ },
+    });
+  }
 
   /** Loads the viewed/opened audit rows for this case into `caseViews`. */
   private loadCaseViews(id: number): void {
@@ -327,7 +343,21 @@ export class CaseDetailComponent implements OnInit {
     const c = this.case();
     if (!c || this.isPurged() || this.customerStillDeleted()) return;
     this.caseService.restoreCase(c.id).subscribe({
-      next: () => this.router.navigate(['/cases', c.id]),
+      next: () => {
+        this.saveFlash.show(`Case "${c.subject}" restored`);
+        // We're already on /cases/:id — navigating to the same route does NOT
+        // re-run ngOnInit (route-reuse keeps the component), so clear the
+        // deleted-mode flag and reload the case here instead of relying on the
+        // navigation. Otherwise the page stays stuck on the deleted view.
+        this.deleted.set(false);
+        this.loadCaseActivity(c.id);
+        this.caseService.get(c.id).subscribe({
+          next: (fresh) => this.case.set(fresh),
+          error: () => { /* keep last known case on refetch failure */ },
+        });
+        // Drop ?deleted=1 so a manual refresh doesn't re-enter deleted mode.
+        this.router.navigate(['/cases', c.id], { queryParams: {} });
+      },
       error: () => { /* surface via a toast later */ },
     });
   }
@@ -487,6 +517,9 @@ export class CaseDetailComponent implements OnInit {
             error: () => { /* audit is best-effort; never block the page */ },
           });
         }
+        // Load this case's lifecycle audit rows (delete / restore) for the
+        // activity panel. Best-effort: a failure simply omits those rows.
+        this.loadCaseActivity(id);
       },
       error: () => {
         this.loading.set(false);
