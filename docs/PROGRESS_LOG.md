@@ -2,6 +2,33 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase J — Case-deleted page: customer link respects account state] (2026-08-20)
+**Status:** ✅ DONE (frontend `npm run build` green; `tsc --noEmit` clean; dev server hot-reloaded)
+
+### Why / root cause
+On the case-deleted (recycle-bin) detail page, the Customer field is a clickable link that always
+pointed at the **active** customer page: `[routerLink]="['/customers', c.customerId]"` with no query
+params. When the case's owning account was ALSO still soft-deleted (not yet restored), clicking the
+name landed on `/customers/{id}` — the active view — which is the wrong/inaccessible state for a
+binned account.
+
+### What changed
+- `case-detail.component.ts`: added `customerLinkParams()` — returns `{ deleted: '1' }` when
+  `customerStillDeleted()` is true (account still in the recycle bin), otherwise `{}`. Reactive
+  (computed over `case()`), so it tracks restore/refresh automatically.
+- `case-detail.component.html`: the customer link now binds `[queryParams]="customerLinkParams()"`,
+  so it opens `/customers/{id}?deleted=1` while the account is deleted and the plain active page
+  once the account is restored.
+
+### Verify
+- `cd frontend && npm run build` → green (pre-existing ~1.67 MB budget warning only, non-fatal).
+- `npx tsc --noEmit -p tsconfig.app.json` → exit 0.
+- Manual (user, in browser): open a deleted case whose customer is still deleted → click the
+  customer name → lands on the deleted-mode customer page (`?deleted=1`). After restoring the
+  account, the same link drops the param and opens the active page.
+
+---
+
 ## [Phase I — Record customer/case delete+restore in activity panels; fix case-restore banner + icon] (2026-08-20)
 **Status:** ✅ DONE (backend `dotnet build` + 139 tests pass; frontend `npm run build` green; live API walkthrough confirms all 4 lifecycle rows written & returned)
 

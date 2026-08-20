@@ -136,6 +136,13 @@ export class CaseDetailComponent implements OnInit {
   readonly isPurged = computed(() => this.case()?.purged === true);
   /** True when the owning customer is still soft-deleted (case restore is gated). */
   readonly customerStillDeleted = computed(() => this.case()?.customerIsDeleted === true);
+
+  /** RouterLink query params for the customer name: carries ?deleted=1 when the
+   *  account is still in the recycle bin, so the link lands on the deleted-mode
+   *  customer page instead of the (inaccessible) active page. */
+  customerLinkParams(): Record<string, string> {
+    return this.customerStillDeleted() ? { deleted: '1' } : {};
+  }
   /** Agents available for assignment (GET /api/users). */
   readonly agents = signal<Agent[]>([]);
   readonly assigning = signal(false);
