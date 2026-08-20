@@ -2,6 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -40,6 +41,7 @@ export class CustomerLoginComponent {
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(CustomerAuthService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly dialog = inject(MatDialog);
 
   readonly form = this.fb.nonNullable.group({
@@ -51,6 +53,20 @@ export class CustomerLoginComponent {
   error: string | null = null;
   /** When set, shows the "check your email" success panel instead of the form. */
   readonly signedUpEmail = signal<string | null>(null);
+
+  /** Set when the app bounces the user here after a non-recoverable auth failure.
+   *  Reads the live query-param stream (not the snapshotted value) so it still
+   *  shows when redirected to /customer/login?reason=session_expired while a
+   *  login component instance is already mounted. */
+  readonly sessionExpired = signal(
+    this.route.snapshot.queryParamMap.get('reason') === 'session_expired',
+  );
+
+  constructor() {
+    this.route.queryParams.subscribe((p) => {
+      this.sessionExpired.set(p['reason'] === 'session_expired');
+    });
+  }
 
   submit(): void {
     if (this.form.invalid) {

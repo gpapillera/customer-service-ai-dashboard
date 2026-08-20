@@ -35,6 +35,13 @@
           <div class="error-banner" role="alert">{{ error }}</div>
         }
 
+        @if (sessionExpired()) {
+          <div class="session-expired-banner" role="alert">
+            <cs-icon name="clock"></cs-icon>
+            <span>Your session expired. Please sign in again to continue.</span>
+          </div>
+        }
+
         <button
           mat-flat-button
           color="primary"

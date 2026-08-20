@@ -127,6 +127,25 @@
   margin: 0.25rem 0 0.5rem;
 }
 
+.session-expired-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--cs-info-bg, #eff6ff);
+  color: var(--cs-info, #1d4ed8);
+  border-radius: var(--cs-radius-sm);
+  padding: 0.6rem 0.8rem;
+  font-size: 0.85rem;
+  margin: 0.25rem 0 0.5rem;
+  border: 1px solid var(--cs-info-border, rgba(29, 78, 216, 0.25));
+}
+
+.session-expired-banner cs-icon {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+}
+
 .foot {
   margin-top: 1.25rem;
   text-align: center;

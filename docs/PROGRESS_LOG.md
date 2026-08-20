@@ -2,6 +2,28 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase E — Non-recoverable auth failure → clean redirect to /login] (2026-08-20)
+**Status:** ✅ COMPLETE (frontend `npm run build` green; verified live in-browser: killing the session redirects to /login?reason=session_expired and the "Session expired" banner renders — no more mystery spinners)
+
+### Why / root cause
+A dead session (access cookie expired, refresh cookie gone) left the app stuck on spinners forever, and a stale `sessionStorage` record let you "log in" past the guard onto a page whose every API call was dead. Two real bugs were found by reproducing it live:
+
+1. **Infinite logout/refresh loop (the wedge).** On a 401 the interceptor called `auth.logout()`, which itself fires `POST /api/auth/logout`. With no cookies that POST 401s → re-enters the interceptor → `handle401` again → `logout()` again → 401 → … forever. The `router.navigate(['/login'])` was reached but the recursive 401 storm starved it, so the page never landed on login. (The old code also had no cap on refresh retries, so even a silent-refresh-then-still-401 case looped.)
+2. **Login banner read a stale snapshot.** The `?reason=session_expired` banner keyed off `route.snapshot.queryParamMap` at construction, but when the user is redirected while a login component instance is already mounted the snapshot doesn't update → banner never showed.
+
+### What changed
+- `auth/token.interceptor.ts` + `customer/customer-token.interceptor.ts`:
+  - `handle401` now caps refresh at ONE attempt. A second 401 after a successful refresh is terminal → `clearLocalSession()` (no HTTP) + `navigate(['/login' or '/customer/login'], { queryParams: { reason: 'session_expired' } })`.
+  - Auth endpoints (`/api/auth/refresh`, `/api/auth/logout`, `/api/customer-auth/*`) are excluded from `handle401` so a failed refresh/logout can't re-enter the interceptor (kills the loop at its source).
+  - Terminal path uses `AuthService.clearLocalSession()` (new) instead of `logout()`, so no HTTP call re-enters the interceptor.
+- `auth/auth.service.ts` + `customer/customer-auth.service.ts`: new `clearLocalSession()` — wipes `sessionStorage` + signals only, no backend call (keeps `logout()` as the user-initiated full logout with best-effort backend revocation).
+- `auth/login/login.component.ts` + `customer/customer-login.component.ts`: `sessionExpired` is now a `signal` fed by a live `route.queryParams` subscription (not the construction snapshot), so the banner shows on redirect-to-login even when a login instance is already mounted.
+- `auth/login/login.component.html/.scss` + `customer/customer-login.component.html/.scss`: "Session expired" info banner (clock icon + "Your session expired. Please sign in again to continue."), theme-aware, mirrored on both login screens.
+
+### Verification
+- `npm run build` → 0 errors (pre-existing 1.66 MB budget warning only).
+- Live: signed in as admin, force-cleared cookies via `POST /api/auth/logout`, then triggered an authenticated navigation → app redirected to `/login?reason=session_expired` (confirmed via `location.href`) and the `.session-expired-banner` element is present in the DOM (confirmed via `document.querySelector`). No console errors, no spinner hang. The 15-min idle path that previously hung now lands cleanly on login.
+
 ## [Phase D — Recycle-bin hardening, deleted-mode UX, and auth-resilience] (2026-08-20)
 **Status:** ✅ COMPLETE (frontend `npm run build` green; backend `dotnet build` clean; verified live in-browser as admin — recycle bins open, Conversations loads 14, Agent KPI overlay shows 6 cards, Dashboard Agent Workload visible; zero console errors)
 

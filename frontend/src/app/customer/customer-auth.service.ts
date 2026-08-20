@@ -52,6 +52,17 @@ export class CustomerAuthService {
     this.http
       .post(`${this.baseUrl}/logout`, {}, { withCredentials: true })
       .subscribe({ error: () => {} });
+    this.clearLocalSession();
+  }
+
+  /**
+   * Wipes the local session WITHOUT an HTTP call. Used by the customer auth
+   * interceptor when a session is non-recoverable: calling the full `logout()`
+   * there would itself fire `/api/customer-auth/logout`, which (with no valid
+   * cookies) 401s and re-enters the interceptor — an infinite logout/refresh
+   * loop. This breaks that recursion.
+   */
+  clearLocalSession(): void {
     sessionStorage.removeItem(USER_KEY);
     this.currentCustomer.set(null);
   }

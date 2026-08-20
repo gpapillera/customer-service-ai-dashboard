@@ -34,6 +34,12 @@ export class CustomerTokenInterceptor implements HttpInterceptor {
       return next.handle(req);
     }
 
+    // Auth endpoints must never trigger a refresh/redirect loop: a failed
+    // refresh or logout is terminal on its own, and retrying it would recurse.
+    if (req.url.startsWith('/api/customer-auth/refresh') || req.url.startsWith('/api/customer-auth/logout')) {
+      return next.handle(req);
+    }
+
     const authReq = this.withCredentials(req);
 
     return next.handle(authReq).pipe(
@@ -56,10 +62,25 @@ export class CustomerTokenInterceptor implements HttpInterceptor {
       : req.clone({ withCredentials: true });
   }
 
+  /**
+   * Handles a 401 by attempting ONE silent refresh and retrying the original
+   * request. The retry is terminal: a second 401 after a successful refresh
+   * means the session is dead, so we log out and bounce to
+   * /customer/login?reason=session_expired instead of looping forever (which
+   * left components stuck on a permanent spinner). `attempt` caps refresh at one.
+   */
   private handle401(
     original: HttpRequest<unknown>,
     next: HttpHandler,
+    attempt = 0,
   ): Observable<HttpEvent<unknown>> {
+    if (attempt >= 1) {
+      this.refreshInFlight = null;
+      this.auth.clearLocalSession();
+      this.router.navigate(['/customer/login'], { queryParams: { reason: 'session_expired' } });
+      return throwError(() => new Error('Session expired'));
+    }
+
     if (!this.refreshInFlight) {
       this.refreshInFlight = this.auth.refresh().pipe(
         switchMap(() => {
@@ -68,8 +89,8 @@ export class CustomerTokenInterceptor implements HttpInterceptor {
         }),
         catchError((err) => {
           this.refreshInFlight = null;
-          this.auth.logout();
-          this.router.navigate(['/customer/login']);
+          this.auth.clearLocalSession();
+          this.router.navigate(['/customer/login'], { queryParams: { reason: 'session_expired' } });
           return throwError(() => err);
         }),
       );
@@ -79,6 +100,12 @@ export class CustomerTokenInterceptor implements HttpInterceptor {
       filter((success) => success),
       take(1),
       switchMap(() => next.handle(this.withCredentials(original))),
+      catchError((err) => {
+        if (err instanceof HttpErrorResponse && err.status === 401) {
+          return this.handle401(original, next, attempt + 1);
+        }
+        return throwError(() => err);
+      }),
     );
   }
 }

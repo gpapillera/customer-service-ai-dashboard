@@ -38,6 +38,12 @@ export class TokenInterceptor implements HttpInterceptor {
       return next.handle(req);
     }
 
+    // Auth endpoints must never trigger a refresh/redirect loop: a failed
+    // refresh or logout is terminal on its own, and retrying it would recurse.
+    if (req.url.startsWith('/api/auth/refresh') || req.url.startsWith('/api/auth/logout')) {
+      return next.handle(req);
+    }
+
     // Ensure credentials are sent (cookies) on every staff request.
     const authReq = this.withCredentials(req);
 
@@ -62,10 +68,28 @@ export class TokenInterceptor implements HttpInterceptor {
       : req.clone({ withCredentials: true });
   }
 
+  /**
+   * Handles a 401 by attempting ONE silent refresh and retrying the original
+   * request. The retry is the terminal attempt: if it 401s again the session is
+   * genuinely dead, so we log out and bounce to /login?reason=session_expired
+   * instead of looping forever (which previously left components stuck on a
+   * permanent spinner). `attempt` caps the refresh at exactly one.
+   */
   private handle401(
     original: HttpRequest<unknown>,
     next: HttpHandler,
+    attempt = 0,
   ): Observable<HttpEvent<unknown>> {
+    // Already refreshed once and the retry still failed — session is dead.
+    // Clear the local session (no HTTP — avoids re-entering this interceptor)
+    // and bounce to /login?reason=session_expired. Terminal: no second refresh.
+    if (attempt >= 1) {
+      this.refreshInFlight = null;
+      this.auth.clearLocalSession();
+      this.router.navigate(['/login'], { queryParams: { reason: 'session_expired' } });
+      return throwError(() => new Error('Session expired'));
+    }
+
     if (!this.refreshInFlight) {
       this.refreshInFlight = this.auth.refresh().pipe(
         switchMap(() => {
@@ -74,8 +98,8 @@ export class TokenInterceptor implements HttpInterceptor {
         }),
         catchError((err) => {
           this.refreshInFlight = null;
-          this.auth.logout();
-          this.router.navigate(['/login']);
+          this.auth.clearLocalSession();
+          this.router.navigate(['/login'], { queryParams: { reason: 'session_expired' } });
           return throwError(() => err);
         }),
       );
@@ -85,6 +109,14 @@ export class TokenInterceptor implements HttpInterceptor {
       filter((success) => success),
       take(1),
       switchMap(() => next.handle(this.withCredentials(original))),
+      // The one retry: a second 401 after a successful refresh means the
+      // session cannot be recovered — recurse with attempt=1 -> terminal redirect.
+      catchError((err) => {
+        if (err instanceof HttpErrorResponse && err.status === 401) {
+          return this.handle401(original, next, attempt + 1);
+        }
+        return throwError(() => err);
+      }),
     );
   }
 }

@@ -136,6 +136,24 @@
   font-size: 0.95rem;
 }
 
+.session-expired-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--cs-info-bg, #eff6ff);
+  color: var(--cs-info, #1d4ed8);
+  padding: 0.6rem 0.85rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  border: 1px solid var(--cs-info-border, rgba(29, 78, 216, 0.25));
+}
+
+.session-expired-banner cs-icon {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+}
+
 .hint {
   text-align: center;
   color: var(--cs-text-muted);
