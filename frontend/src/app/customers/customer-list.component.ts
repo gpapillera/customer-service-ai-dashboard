@@ -18,6 +18,7 @@ import { CustomerFormComponent } from './customer-form.component';
 import { ConfirmDialogComponent, ConfirmDialogData } from '../shared/confirm-dialog.component';
 import { Customer } from '../shared/models';
 import { AuthService } from '../auth/auth.service';
+import { withAuthRetry } from '../shared/auth-retry';
 import { LayoutComponent } from '../shared/layout/layout.component';
 import { DeletedDrawerComponent, RecycleItem } from '../shared/deleted-drawer.component';
 import { Router } from '@angular/router';
@@ -150,7 +151,7 @@ export class CustomerListComponent implements OnInit {
     >(ConfirmDialogComponent, {
       data: {
         title: 'Delete customer',
-        message: `Delete ${name}${caseCount > 0 ? ` (${caseCount} case${caseCount !== 1 ? 's' : ''})` : ''}? This can't be undone.`,
+        message: `Delete customer '${name}'${caseCount > 0 ? ` (${caseCount} case${caseCount !== 1 ? 's' : ''})` : ''}? This moves them to the recycle bin, where they can be restored.`,
         confirmText: 'Delete',
         cancelText: 'Cancel',
         icon: 'delete',
@@ -183,7 +184,9 @@ export class CustomerListComponent implements OnInit {
 
   /** Opens the recycle-bin drawer (Admin only). */
   openRecycleBin(): void {
-    this.service.recycleBin().subscribe({
+    this.service.recycleBin().pipe(
+      withAuthRetry(this.auth),
+    ).subscribe({
       next: (list) => {
         this.recycleItems.set(
           list.map((c) => ({

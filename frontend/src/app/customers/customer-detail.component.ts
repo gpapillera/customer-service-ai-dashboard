@@ -285,7 +285,7 @@ export class CustomerDetailComponent implements OnInit {
     >(ConfirmDialogComponent, {
       data: {
         title: 'Delete customer',
-        message: `Delete ${c.name}${c.caseCount > 0 ? ` (${c.caseCount} case${c.caseCount !== 1 ? 's' : ''})` : ''}? This can't be undone.`,
+        message: `Delete customer '${c.name}'${c.caseCount > 0 ? ` (${c.caseCount} case${c.caseCount !== 1 ? 's' : ''})` : ''}? This moves them to the recycle bin, where they can be restored.`,
         confirmText: 'Delete',
         cancelText: 'Cancel',
         icon: 'delete',

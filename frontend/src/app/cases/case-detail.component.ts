@@ -268,6 +268,10 @@ export class CaseDetailComponent implements OnInit {
   readonly canEdit = computed(() => {
     const c = this.case();
     if (!c) return false;
+    // A soft-deleted case lives in the recycle bin and is read-only until
+    // restored — block every write control (log/status/priority/comment) so
+    // no request is sent to a case the backend will reject with a 404.
+    if (this.deleted()) return false;
     if (this.auth.getRole() !== 'Agent') return true;
     return c.assignedToUserId === this.auth.currentUser()?.id;
   });
