@@ -1,5 +1,6 @@
 using System.Data;
 using System.IO;
+using System.Net;
 using System.Text;
 using System.Threading.RateLimiting;
 using CustomerService.Application.Interfaces;
@@ -250,19 +251,57 @@ public class Program
 
         // Rate limiting on anonymous auth endpoints (brute-force protection).
         // Built-in .NET 8 limiter - no extra dependency. Keyed by client IP.
+        // DEV GOTCHA (this was a real bug): in Development every browser
+        // request reaches the API from 127.0.0.1 (the Angular dev proxy), so
+        // ALL clients shared ONE fixed-window bucket. A tight limit blocked
+        // legitimate logins after a few attempts - correct credentials came
+        // back 429. Worse, IPv4 (127.0.0.1) and IPv6 ([::1]) localhost are
+        // DIFFERENT buckets, so probing one path silently saturated the other.
+        // Fix: loopback clients are NOT rate-limited in Development (brute-force
+        // protection is meaningless for localhost). Real (non-loopback) clients
+        // always get the real-IP-keyed limiter - so the protection still exists
+        // for genuine traffic.
         builder.Services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+            // Real client IP: prefer X-Forwarded-For (first hop) behind a
+            // reverse proxy, else the direct connection address.
+            static string ClientIp(HttpContext context)
+            {
+                var xff = context.Request.Headers["X-Forwarded-For"].ToString();
+                if (!string.IsNullOrWhiteSpace(xff))
+                {
+                    var first = xff.Split(',')[0].Trim();
+                    if (first.Length > 0) return first;
+                }
+                return context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+            }
+
+            static bool IsLoopback(HttpContext context)
+            {
+                var ip = context.Connection.RemoteIpAddress;
+                return ip is not null && IPAddress.IsLoopback(ip);
+            }
+
             options.AddPolicy("auth", context =>
-                RateLimitPartition.GetFixedWindowLimiter(
-                    context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            {
+                // Loopback in Development: no limiter (don't block local testing).
+                if (builder.Environment.IsDevelopment() && IsLoopback(context))
+                {
+                    return RateLimitPartition.GetNoLimiter<string>(ClientIp(context));
+                }
+
+                return RateLimitPartition.GetFixedWindowLimiter(
+                    ClientIp(context),
                     _ => new FixedWindowRateLimiterOptions
                     {
                         PermitLimit = 5,
                         Window = TimeSpan.FromMinutes(1),
                         QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
                         QueueLimit = 0,
-                    }));
+                    });
+            });
         });
 
         return builder;

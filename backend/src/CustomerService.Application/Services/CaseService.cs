@@ -423,11 +423,16 @@ public class CaseService : ICaseService
         // Bypass the global soft-delete filter and return only binned,
         // not-yet-purged cases with their owning customer for the drawer's
         // "Deleted User (C-00012)" context and the restore-gating hint.
+        // Also exclude cases whose owning customer is purged: a purged customer
+        // is unrecoverable, so such cases can never be restored and must not
+        // show as a dead-end in the bin (defense-in-depth over the purge
+        // cascade in CustomerService.PurgeAsync).
         var binned = await _cases.Query()
             .IgnoreQueryFilters()
             .Include(c => c.Customer)
             .Include(c => c.Category)
             .Where(c => c.IsDeleted && !c.Purged)
+            .Where(c => c.Customer == null || !c.Customer.Purged)
             .OrderByDescending(c => c.DeletedAtUtc)
             .ToListAsync();
 
@@ -440,6 +445,7 @@ public class CaseService : ICaseService
             dto.Purged = c.Purged;
             // Restore-gating: a case can only be revived once its account is.
             dto.CustomerIsDeleted = c.Customer is not null && c.Customer.IsDeleted;
+            dto.CustomerIsPurged = c.Customer is not null && c.Customer.Purged;
             // After purge the customer's name is "Deleted User"; surface a
             // readable customer label either way.
             dto.CustomerName = c.Customer is not null ? c.Customer.Name : "Deleted User";

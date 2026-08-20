@@ -34,7 +34,12 @@ public class CallLogService : ICallLogService
             && !string.IsNullOrEmpty(callerUserId))
         {
             var c = await _cases.GetByIdAsync(caseId);
-            if (c is null || c.AssignedToUserId != callerUserId)
+            // A soft-deleted case is unreachable through the normal query path,
+            // so it resolves to null here — treat it exactly like a missing case
+            // rather than letting the Agent-scope check below mask the cause.
+            if (c is null)
+                throw new KeyNotFoundException($"Case {caseId} not found.");
+            if (c.AssignedToUserId != callerUserId)
                 throw new ForbiddenException("You can only view logs for cases assigned to you.");
         }
 
@@ -60,6 +65,12 @@ public class CallLogService : ICallLogService
         var c = await _cases.GetByIdAsync(dto.CaseId);
         if (c is null)
             throw new KeyNotFoundException($"Case {dto.CaseId} not found.");
+        // A soft-deleted case can't receive new call logs. The repository query
+        // already hides binned rows, so this is the same "missing" outcome from
+        // the caller's perspective — return a clean 404 rather than letting it
+        // look like an unhandled server error in the logs.
+        if (c.IsDeleted)
+            throw new KeyNotFoundException($"Case {dto.CaseId} has been deleted and can't receive call logs.");
 
         // SERVER-SIDE AGENT SCOPING (Phase 6): an Agent may only add logs to a
         // case assigned to them (unassigned/other-agent cases are forbidden).

@@ -398,11 +398,18 @@ public class CustomerService : ICustomerService
         var q = _customers.Query();
         if (string.Equals(callerRole, nameof(UserRole.Admin), StringComparison.OrdinalIgnoreCase))
             q = q.IgnoreQueryFilters();
+        // A live customer detail must report a case count that matches the list
+        // view: only NON-soft-deleted cases. ToDto computes CaseCount from the
+        // loaded Cases collection, so we scope every case Include to live cases
+        // (IsDeleted == false). We still ignore the *customer* filter so an Admin
+        // can open a binned customer's read-only deleted-mode detail — that's the
+        // one place a deleted customer is legitimately loaded — without pulling
+        // that customer's soft-deleted cases back into the count.
         var c = await q
             .Include(x => x.Account)
-            .Include(x => x.Cases).ThenInclude(cs => cs.CallLogs)
-            .Include(x => x.Cases).ThenInclude(cs => cs.Comments)
-            .Include(x => x.Cases).ThenInclude(cs => cs.Notifications)
+            .Include(x => x.Cases.Where(cs => !cs.IsDeleted)).ThenInclude(cs => cs.CallLogs)
+            .Include(x => x.Cases.Where(cs => !cs.IsDeleted)).ThenInclude(cs => cs.Comments)
+            .Include(x => x.Cases.Where(cs => !cs.IsDeleted)).ThenInclude(cs => cs.Notifications)
             .FirstOrDefaultAsync(x => x.Id == id);
         if (c is null) return null;
 
@@ -836,6 +843,22 @@ public class CustomerService : ICustomerService
                 await _notifications.SaveChangesAsync();
         }
 
+        // Cascade the purge to this customer's own binned (soft-deleted but not
+        // yet purged) cases. A purged customer is unrecoverable, so any of its
+        // deleted cases must also be purged + scrubbed — otherwise they'd linger
+        // in the case recycle-bin forever, un-restorable, with a misleading
+        // "restore the customer first" dead-end. Mirrors PurgeCaseAsync's scrub.
+        if (target.Cases is not null)
+        {
+            foreach (var cs in target.Cases.Where(cs => cs.IsDeleted && !cs.Purged))
+            {
+                cs.Subject = "[deleted]";
+                cs.Description = "[deleted]";
+                cs.Purged = true;
+                cs.PurgedAtUtc = DateTime.UtcNow;
+            }
+        }
+
         // Mark purged (excludes this row from future recycle-bin queries).
         target.Purged = true;
         target.PurgedAtUtc = DateTime.UtcNow;
@@ -852,7 +875,12 @@ public class CustomerService : ICustomerService
     /// </summary>
     public async Task<IReadOnlyList<NotificationDto>> GetCustomerEmailsAsync(int customerId, string? callerRole = null, string? callerUserId = null)
     {
-        var c = await _customers.GetByIdAsync(customerId)
+        // Mirror GetCustomerActivityAsync: resolve a soft-deleted customer too
+        // (the controller's GetById check already passed via IgnoreQueryFilters),
+        // so an Admin viewing a deleted customer's recycle-bin emails works.
+        var c = await _customers.Query()
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(x => x.Id == customerId)
             ?? throw new KeyNotFoundException($"Customer {customerId} not found.");
 
         // Agent scoping (Phase 6): must share a case with this customer.
@@ -889,6 +917,12 @@ public class CustomerService : ICustomerService
             .Include(x => x.Cases).ThenInclude(cs => cs.CallLogs)
             .Include(x => x.Cases).ThenInclude(cs => cs.Comments)
             .Include(x => x.Cases).ThenInclude(cs => cs.Notifications)
+            // Mirror GetByIdAsync: an Admin viewing a soft-deleted customer's
+            // recycle-bin activity must still resolve it (the controller's
+            // GetById check already passed via IgnoreQueryFilters). Without
+            // this, a deleted customer's detail page throws "Customer N not
+            // found." and the middleware logs it as an Unhandled exception.
+            .IgnoreQueryFilters()
             .FirstOrDefaultAsync(x => x.Id == customerId)
             ?? throw new KeyNotFoundException($"Customer {customerId} not found.");
 

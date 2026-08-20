@@ -162,6 +162,14 @@ public class CaseDto
     /// first"). Only meaningful for binned cases.
     /// </summary>
     public bool CustomerIsDeleted { get; set; }
+
+    /// <summary>
+    /// True when the case's owning customer has been permanently purged. A
+    /// purged customer is unrecoverable, so the case can never be restored —
+    /// the UI should show "customer permanently deleted" rather than the
+    /// restorable gating hint. Only meaningful for binned cases.
+    /// </summary>
+    public bool CustomerIsPurged { get; set; }
 }
 
 /// <summary>
