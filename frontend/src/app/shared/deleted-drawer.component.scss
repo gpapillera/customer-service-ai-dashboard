@@ -6,20 +6,39 @@
   // The container is a passthrough — only the drawer panel is visible.
   position: fixed;
   inset: 0;
+  // `none` so the CLOSED drawer never intercepts page clicks. The panel itself
+  // re-enables pointer events, and the open-state scrim (separate element)
+  // handles outside-click-to-close.
   pointer-events: none;
   visibility: hidden;
   z-index: 1000;
 
-  // Material draws the backdrop + panel even when the host is empty; make the
-  // container itself transparent so only the panel shows.
   background: transparent;
 
-  // When the drawer is open, Material sets the container visible via the
-  // internal [opened] state — we just need the container to not block the page
-  // except through the real backdrop.
-  &.mat-drawer-container {
-    background: transparent;
+  // When the drawer is open, make the container visible (the panel shows) but
+  // keep the container itself click-through — the scrim below catches
+  // outside clicks.
+  &.drawer-open {
+    visibility: visible;
   }
+
+  // Material draws its own full-screen backdrop; we use our own scrim instead
+  // (the native one is unreachable because of the container's pointer-events),
+  // so hide it to avoid double dimming.
+  ::ng-deep .mat-drawer-backdrop {
+    display: none !important;
+  }
+}
+
+/* Explicit click-catcher behind the panel. Sits one layer below the panel's
+   container (999 < 1000) but above page content, so a click on the dimmed
+   area closes the drawer while the panel stays interactive. */
+.drawer-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 999;
+  pointer-events: auto;
 }
 
 .deleted-drawer {

@@ -1,4 +1,11 @@
-<mat-drawer-container class="deleted-drawer-container" autosize>
+@if (open()) {
+  <!-- Click-catcher: closes the drawer when the user clicks anywhere outside
+       the panel. Material's own backdrop is disabled by the container's
+       `pointer-events: none` (needed so the closed drawer never blocks the
+       page), so we provide our own. -->
+  <div class="drawer-scrim" (click)="close()" aria-hidden="true"></div>
+}
+<mat-drawer-container class="deleted-drawer-container" [class.drawer-open]="open()" autosize>
   <mat-drawer
     mode="over"
     position="end"
