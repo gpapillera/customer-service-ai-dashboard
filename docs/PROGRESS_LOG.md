@@ -2,6 +2,33 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Phase K — Global on-brand thin scrollbar] (2026-08-21)
+**Status:** ✅ DONE (frontend `npm run build` green; `tsc --noEmit` clean)
+
+### Why / root cause
+The activity side-panel used a thin, on-brand scrollbar styled via a ~22-line block
+duplicated in BOTH `case-detail.component.scss` and `customer-detail.component.scss`
+(each scoped to `.side-panel`). Two copies of identical CSS is a maintenance trap —
+change one, forget the other, drift. And the styling was limited to the activity
+panels, so every other scrollable surface (lists, drawers, dialogs, content area)
+kept the browser-default scrollbar.
+
+### What changed
+- Deleted the duplicated `.side-panel` scrollbar block from `case-detail.component.scss`
+  and `customer-detail.component.scss`.
+- Added ONE equivalent rule to `frontend/src/styles.scss`, promoted from `.side-panel`
+  to `*` so it applies to every scrollable element. It uses the existing
+  `--cs-border-strong` / `--cs-accent` tokens, so it adapts to light + dark
+  automatically (no per-theme duplication).
+
+### Verify
+- `cd frontend && npm run build` → green (pre-existing ~1.67 MB budget warning only, non-fatal).
+- `npx tsc --noEmit -p tsconfig.app.json` → exit 0.
+- Visual (user, in browser): every scrollable surface shows the thin on-brand
+  scrollbar in both light and dark; no duplicate CSS remains.
+
+---
+
 ## [Phase J — Case-deleted page: customer link respects account state] (2026-08-20)
 **Status:** ✅ DONE (frontend `npm run build` green; `tsc --noEmit` clean; dev server hot-reloaded)
 

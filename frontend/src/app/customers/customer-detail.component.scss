@@ -413,29 +413,6 @@
   padding: 0.75rem 0.9rem 1rem;
 }
 
-/* Thin, on-brand scrollbar for the panel body only (scoped — mirrors the
-   case-detail panel so both feel identical). */
-.side-panel {
-  scrollbar-width: thin;
-  scrollbar-color: var(--cs-border-strong) transparent;
-}
-.side-panel ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-.side-panel ::-webkit-scrollbar-track {
-  background: transparent;
-}
-.side-panel ::-webkit-scrollbar-thumb {
-  background-color: var(--cs-border-strong);
-  border-radius: 999px;
-  border: 2px solid transparent;
-  background-clip: content-box;
-}
-.side-panel ::-webkit-scrollbar-thumb:hover {
-  background-color: var(--cs-accent);
-}
-
 .mini-list {
   display: flex;
   flex-direction: column;
