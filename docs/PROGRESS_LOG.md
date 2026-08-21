@@ -2,6 +2,31 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Drawer row — inline title + subtitle with dot separator] (2026-08-21)
+**Status:** ✅ DONE (frontend `npm run build` green; classes wired into template)
+
+### Why / root cause
+The deleted-items drawer rendered each row's title and subtitle as stacked blocks.
+They belong on one line with a subtle separator (the same visual language the rest of
+the app uses for secondary metadata). Previously there was no flex row, so a row with a
+subtitle pushed the subtitle onto its own line and there was no separator glyph at all.
+
+### What changed
+- `frontend/src/app/shared/deleted-drawer.component.scss`:
+  - Added `.row-main` — `display:flex; flex-direction:row; align-items:center; min-width:0`
+    so title + subtitle share a line and text truncates instead of overflowing.
+  - `.row-subtitle` now renders a 3px circle separator (`::before`) with `margin:0 6px`,
+    colored via `--cs-border-strong` (light/dark aware). The dot is on the subtitle span
+    itself, so it only appears when a subtitle exists (template guards it with
+    `@if (item.subtitle)`) — no dangling separator on title-only rows.
+
+### Verify
+- Classes confirmed used in `deleted-drawer.component.html:45` (`.row-main`) and `:48`
+  (`.row-subtitle`) — not orphaned CSS.
+- `cd frontend && npm run build` → green (pre-existing ~1.67 MB budget warning only, non-fatal).
+
+---
+
 ## [Phase K — Global on-brand thin scrollbar] (2026-08-21)
 **Status:** ✅ DONE (frontend `npm run build` green; `tsc --noEmit` clean)
 

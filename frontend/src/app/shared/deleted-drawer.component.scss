@@ -139,6 +139,13 @@
   }
 }
 
+.row-main {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  min-width: 0;
+}
+
 .row-title {
   font-weight: 600;
   font-size: 14px;
@@ -147,6 +154,20 @@
 .row-subtitle {
   font-size: 12px;
   color: var(--cs-text-muted, #9a9a9a);
+  display: inline-flex;
+  align-items: center;
+
+  /* Tiny circle separator between the title and subtitle (only renders when a
+     subtitle exists, since this rule is on the subtitle span itself). */
+  &::before {
+    content: '';
+    flex: none;
+    width: 3px;
+    height: 3px;
+    margin: 0 6px;
+    border-radius: 50%;
+    background: var(--cs-border-strong, #cbd5e1);
+  }
 }
 
 .row-meta {
