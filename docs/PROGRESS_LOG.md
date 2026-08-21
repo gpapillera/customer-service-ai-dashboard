@@ -2,6 +2,40 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Docs — README rewritten to match the actual app] (2026-08-21)
+**Status:** ✅ DONE (README audited against real code: controllers, entities, seed data, ML contract, routes)
+
+### Why / root cause
+The README had drifted from the codebase. Two Roadmap items were checked as done but the files
+don't exist in the repo — no `docker-compose.yml`/`Dockerfile` and no `.github/workflows`, so the
+"Docker one-command stack" getting-started section and the CI/CD "done" claim were false. The ML
+section still listed "keyword flags" + "contact channel" as features, but the real model contract
+(`IPriorityPredictor.PriorityFeatures` + `ml/train_model.py`) is 4 floats: `category_id`,
+`prior_case_count`, `days_since_contact`, `sentiment` (sentiment replaced the old binary keyword
+flag). A whole feature layer was undocumented: customer portal, soft-delete/recycle/restore +
+activity log, in-app notification center + overdue engine, SSE realtime feed, shared comment thread,
+agent management, email log/compose.
+
+### What changed
+- Removed the false Docker Compose getting-started section and moved Docker + CI/CD to the Roadmap
+  as unchecked items, explicitly noting they are not yet present in the repo.
+- Rewrote AI/ML Model section to the real 4-feature sentiment contract + ONNX/rule-based fallback.
+- Added sections: Customer Portal, Realtime & Notifications, and expanded Features/Tech Stack.
+- Updated the mermaid architecture + ER diagrams (added `CustomerAccounts`, `CaseComments`,
+  `CustomerActivities`, `Notifications`) and the Project Structure (real routes: agents, messages,
+  emails, customer-portal, customer-auth).
+- Added a full API controller table from the actual `[Route]` attributes (Auth, Users, CustomerAuth,
+  CustomerPortal, Customers, Cases, CallLogs, Dashboard, Notifications, Ml, Emails, EmailConfig,
+  CaseEvents/SSE).
+- Corrected demo users: `admin`, `agent`, AND `maria` are all seeded staff (all `Passw0rd!`).
+
+### Verify
+- Claims cross-checked against `backend/src/.../Controllers/*`, `Domain/Entities/*`, `SeedData.cs`,
+  `Domain/Interfaces/IPriorityPredictor.cs`, `ml/train_model.py`, and `frontend/src/app/app.routes.ts`.
+- No code changed; docs only. `git status --short` shows `M README.md` only before this log entry.
+
+---
+
 ## [Drawer row — inline title + subtitle with dot separator] (2026-08-21)
 **Status:** ✅ DONE (frontend `npm run build` green; classes wired into template)
 
