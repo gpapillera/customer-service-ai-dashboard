@@ -2,6 +2,36 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [UI — trash/recycle-bin button now clearly danger-tinted in both themes] (2026-08-24)
+**Status:** ✅ DONE (frontend `npm run build` green; HMR-verified on running dev server)
+
+### Why / root cause
+On the Customers and Cases list pages, the recycle-bin toggle button used the shared
+`.trash-btn` class but rendered as a neutral muted-gray icon (only turning purple/accent on
+hover). It did not read as destructive, so its purpose was easy to miss — Glen asked for it to be
+"noticeable" in both light and dark mode.
+
+### What changed
+- `frontend/src/styles.scss` `.trash-btn` (global, shared by both list headers): replaced the
+  neutral `var(--cs-border)` border + transparent bg + `var(--cs-text-muted)` icon with a
+  persistent danger treatment using the per-theme tokens `--cs-danger` / `--cs-danger-bg`
+  (light: `#ef4444`/`#fee2e2`; dark: `#f87171`/`#450a0a`). At rest it is now a red-bordered,
+  soft-red-filled button with a red trash icon; on hover it inverts to solid red with a soft red
+  glow. Because the tokens are defined per-theme in the `:root` / `[data-theme='dark']` blocks,
+  one rule adapts to both themes — no separate dark override.
+- No markup/TS change: both pages already use `.trash-btn`, so the single global rule covers them.
+
+### Verify
+- `npm run build` (frontend) → green. Only the pre-existing non-fatal initial-bundle budget
+  warning (1.67 MB > 1.57 MB) — unchanged from prior builds.
+- Running `ng serve` HMR-rebuilt and pushed the CSS update live; both :4200 and :5274 still up.
+- Token check: `--cs-danger` / `--cs-danger-bg` confirmed present in both light `:root` and
+  `[data-theme='dark']` blocks in styles.scss.
+- Visual confirmation in BOTH themes is the one step Glen must do (Zorin Wayland blocks agent
+  screenshots) — toggle the theme on /customers and /cases and confirm the red reads correctly.
+
+---
+
 ## [Docs — README rewritten to match the actual app] (2026-08-21)
 **Status:** ✅ DONE (README audited against real code: controllers, entities, seed data, ML contract, routes)
 
