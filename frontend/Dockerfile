@@ -1,6 +1,8 @@
 # Build the Angular app and serve the static bundle with Nginx.
-# The API base URL is injected at build time via the ARG below; the Angular
-# app talks to the API through the Nginx proxy (see nginx.conf).
+# The SPA calls the API via relative `/api/...` URLs (see auth.service.ts and the
+# shared services), so no API host is baked in at build time — Nginx proxies
+# `/api/` to the backend service (see nginx.conf). One image works regardless of
+# the API's address on the docker network.
 
 # --- Build stage ---
 FROM node:20-alpine AS build
@@ -8,10 +10,6 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
-# API_URL is read by the Angular build (e.g. via src/environments or a
-# generated config). Defaults to the docker-compose service name.
-ARG API_URL=http://localhost:8080
-ENV API_URL=$API_URL
 RUN npm run build
 
 # --- Serve stage ---
