@@ -2,6 +2,52 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Docker — repaired one-command stack: SQL Server + API + Angular/Nginx] (2026-08-25)
+**Status:** ✅ DONE (files written + ML generation step verified locally; full `docker compose up --build` NOT run — Docker is not installed on this host)
+
+### Why / root cause
+The README Roadmap marked the Docker stack as "[ ] not yet present," but the repo already
+contained `docker-compose.yml`, `backend/Dockerfile`, `frontend/Dockerfile`, and `frontend/nginx.conf`
+(dated Jul 14). The stack was present but BROKEN — so the task became audit-and-fix, not build-from-scratch:
+- `backend/Dockerfile` did `COPY ml/models/priority_model.onnx` from a `./backend` build context, but
+  the model lives at repo-root `ml/` **and is gitignored** (`*.onnx`), so a clean clone build would
+  hard-fail on that COPY.
+- No `Jwt__Key` was set, yet `Program.cs` fails fast on a missing/insecure JWT key → backend container
+  would crash on boot.
+- `frontend/nginx.conf` only proxied `/api/`; the documented `:8080/swagger` was unreachable through Nginx.
+- `frontend/Dockerfile` had a dead `API_URL` build arg (the SPA uses relative `/api` URLs — no host baked in).
+- Frontend Dockerfile `COPY` path used `dist/.../browser` (correct for the `@angular-devkit/build-angular:application` builder; kept).
+
+### What changed
+- `backend/Dockerfile`: **context is now repo root** (set in compose). Added an `ml` build stage
+  (python:3.12-slim + `ml/requirements.txt`) that runs `python ml/train_model.py --output /model/priority_model.onnx`
+  and asserts the artifact is non-empty, then copies the generated `.onnx` into the runtime image. The
+  API still falls back to `RuleBasedPriorityPredictor` if the model is absent. Listens on 8080 (compose
+  passes `--urls http://0.0.0.0:8080`).
+- `frontend/Dockerfile`: removed the unused `ARG API_URL` / `ENV API_URL`; SPA calls relative `/api`.
+- `frontend/nginx.conf`: added a `location /swagger/ { proxy_pass http://backend:8080; ... }` block so
+  Swagger UI works through the stack. SPA fallback kept last.
+- `docker-compose.yml`: root `context:` + `dockerfile: backend/Dockerfile`; explicit `Jwt__Key`
+  (dev-only placeholder, loudly commented as NOT-for-prod); dropped the dead `API_URL` arg; fixed the
+  misleading comments (Swagger path, model-generation, SQL Server default). Added `ML__ModelPath` env.
+- `.dockerignore` (repo root) + `frontend/.dockerignore`: keep build contexts lean (ignore node_modules/bin/obj/.git).
+- `README.md`: flipped the Docker roadmap item to `[x]`, added a real "Docker (one-command stack)" section
+  with run command, what's-in-the-box, and gotchas.
+
+### Verify
+- ML step proven locally: `python3 ml/train_model.py --output /tmp/onnx-check.onnx` produced a valid
+  `priority_model.onnx` (672 bytes) with the exact 4-feature contract the backend `OnnxPriorityPredictor`
+  expects — same command the `ml` build stage runs. (Used existing `/media/.../ml/models/priority_model.onnx`.)
+- Dockerfile syntax / compose YAML validated by write (verified:true).
+- **NOT verified:** the actual `docker compose up --build` run — Docker Engine is not installed on this
+  host. Glen must run `docker compose up --build` on a Docker-enabled machine to confirm the full stack
+  boots (SQL Server health gate, API 401 auth wall, Nginx proxy of /api + /swagger, SPA at :8080).
+- SIDE NOTE for Glen: README's "Testing" section claims "130+ backend tests" / "~47 specs", but
+  `docs/CODE_DOCUMENTATION.md` says backend tests are still a placeholder `UnitTest1` and frontend has none.
+  That's a separate stale-claim; flagged, not touched in this phase.
+
+---
+
 ## [UI — trash/recycle-bin button now clearly danger-tinted in both themes] (2026-08-24)
 **Status:** ✅ DONE (frontend `npm run build` green; HMR-verified on running dev server)
 

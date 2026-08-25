@@ -475,6 +475,28 @@ in `CaseCommentService`.
 
 ---
 
+## Docker (one-command stack)
+
+A full local stack — SQL Server + ASP.NET Core API + Angular SPA (served by Nginx) — is defined in `docker-compose.yml` at the repo root. Run it with:
+
+```bash
+docker compose up --build
+# App:      http://localhost:8080          (Nginx serves the SPA + proxies /api -> backend)
+# Swagger:  http://localhost:8080/swagger  (backend runs in Development env)
+```
+
+What's in the box:
+- **db** — `mcr.microsoft.com/mssql/server:2022-latest`, health-gated, with a named volume (`mssql-data`).
+- **backend** — built from `backend/Dockerfile` (context = repo root so it can reach both `backend/src` and `ml/`). The ONNX priority model is **generated at build time** from `ml/train_model.py` (the model file is gitignored, so a clean clone has none). If generation ever fails, the API still falls back to the rule-based predictor.
+- **frontend** — built from `frontend/Dockerfile`; Nginx serves the static bundle and proxies `/api/` (and `/swagger/`) to the backend on the internal network. The SPA calls the API via relative `/api` URLs, so no API host is baked into the image.
+
+Notes / gotchas:
+- The backend runs as `Development` in this stack so Swagger is available. For a production image, set `ASPNETCORE_ENVIRONMENT=Production` and supply a real `Jwt__Key` (the compose file ships a **dev-only** placeholder key — never use it in production).
+- To use the **SQLite** fallback instead of SQL Server, set `Database__Provider=Sqlite` and remove the `db` service + its `mssql-data` volume reference.
+- Prereqs: Docker Engine + Compose v2. The first build pulls the .NET SDK, Node, and Python (for the ML stage) images, so expect a slow first run.
+
+---
+
 ## Roadmap
 
 - [x] Sentiment scoring on complaint text (replaces keyword flags) as the ML feature
@@ -486,8 +508,8 @@ in `CaseCommentService`.
 - [x] SSE realtime feed for cases/events
 - [x] Role-based dashboard views (Admin vs Agent)
 - [x] Agent management + email log/compose UI
+- [x] **Docker Compose** one-command stack (SQL Server + API + Angular/Nginx) — see [Docker](#docker-one-command-stack)
 - [ ] **Real Email/SMS delivery** (swap the demo senders for a real provider)
-- [ ] **Docker Compose** one-command stack (SQL Server + API + Angular/Nginx) — not yet present in repo
 - [ ] **CI/CD pipeline** for automated build/test — not yet present in repo
 - [ ] Retrain the model on real historical case data
 
