@@ -1,0 +1,12 @@
+# Repo-root context is used by the backend build (it pulls backend/src AND ml/).
+# Keep the build context lean: ignore heavy/unneeded dirs at the root.
+.git/
+**/node_modules/
+**/bin/
+**/obj/
+**/.venv/
+**/venv/
+**/dist/
+**/.angular/
+**/notifications/
+*.md

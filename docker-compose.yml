@@ -2,15 +2,20 @@
 #
 # Usage:
 #   docker compose up --build
-#   - API:      http://localhost:8080/swagger
-#   - Frontend: http://localhost:8080  (Nginx proxies /api -> backend)
+#   - App:      http://localhost:8080          (Nginx serves the SPA + proxies /api -> backend)
+#   - Swagger:  http://localhost:8080/swagger  (backend in Development env)
 #
 # Notes:
-# - The API uses SQL Server by default here (Database__Provider=SqlServer).
-#   To use the SQLite fallback instead, set Database__Provider=Sqlite and
-#   drop the `db` service + its volume reference.
-# - The SA password below is for local demo only. Change it for any real use.
-# - The ONNX model is baked into the backend image at build time.
+# - The backend uses SQL Server by default here (Database__Provider=SqlServer),
+#   health-gated on the `db` service. To use the SQLite fallback instead, set
+#   Database__Provider=Sqlite and drop the `db` service + its volume reference.
+# - The ONNX priority model is GENERATED at backend build time from ml/ (it is
+#   gitignored, so a clean clone has none). If generation fails, the API still
+#   falls back to the rule-based predictor.
+# - Jwt__Key below is a DEV-ONLY placeholder generated for local runs. NEVER use
+#   this stack (or this key) in production — supply a real secret via an env file
+#   or Docker secret and override Jwt__Key.
+# - The SA password is for local demo only. Change it for any real use.
 
 services:
   db:
@@ -31,14 +36,17 @@ services:
 
   backend:
     build:
-      context: ./backend
+      context: .
+      dockerfile: backend/Dockerfile
     depends_on:
       db:
         condition: service_healthy
     environment:
+      ASPNETCORE_ENVIRONMENT: "Development"
       Database__Provider: "SqlServer"
       ConnectionStrings__SqlServer: "Server=db,1433;Database=CustomerServiceDb;User Id=sa;Password=SqlServer!2024Dev;TrustServerCertificate=True;"
-      ASPNETCORE_ENVIRONMENT: "Development"
+      Jwt__Key: "dev-only-insecure-key-9f3c2a7e1b8d4f60a5c1e2d3b4a5c6f7e8d9c0b1a2f3e4d5c6b7a8f9e0d1c2b3"
+      ML__ModelPath: "/app/ml/models/priority_model.onnx"
     # No host port mapping: only reachable on the internal docker network
     # (frontend's Nginx proxies /api -> backend:8080).
     command: ["dotnet", "CustomerService.Api.dll", "--urls", "http://0.0.0.0:8080"]
@@ -46,8 +54,7 @@ services:
   frontend:
     build:
       context: ./frontend
-      args:
-        API_URL: "http://localhost:8080"
+      dockerfile: Dockerfile
     depends_on:
       - backend
     ports:
