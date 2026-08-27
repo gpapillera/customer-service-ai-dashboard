@@ -12,6 +12,7 @@ using CustomerService.ML;
 using CustomerService.Api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.IdentityModel.Tokens;
 
 namespace CustomerService.Api;
@@ -83,6 +84,18 @@ public class Program
         var provider = config["Database:Provider"] ?? "SqlServer";
         builder.Services.AddDbContext<AppDbContext>(options =>
         {
+            // Soft-delete (IsDeleted) global filters on Case/Customer are
+            // intentional; child rows (CallLog/CaseComment/CustomerActivity/
+            // CustomerAccount) deliberately survive a parent soft-delete as
+            // history. EF's RequiredNavigationWithGlobalQueryFilter warning
+            // (10622) is noise here: no read path queries a child as the root
+            // and includes the filtered parent, so no silent row-drop occurs
+            // in practice. See AppDbContext.cs + the recycle-bin paths in
+            // CaseService/CustomerService, which use IgnoreQueryFilters() to
+            // reach binned rows deliberately.
+            options.ConfigureWarnings(w =>
+                w.Ignore(CoreEventId.PossibleIncorrectRequiredNavigationWithQueryFilterInteractionWarning));
+
             if (provider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase))
             {
                 options.UseSqlite(config.GetConnectionString("Sqlite")!);
