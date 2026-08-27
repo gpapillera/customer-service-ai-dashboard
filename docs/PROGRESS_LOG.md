@@ -2,6 +2,26 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Read-only case detail — customer link + blank-page fix] (2026-08-27)
+**Status:** ✅ DONE (frontend prod build clean; 2 file groups changed)
+
+### Why / root cause
+An Agent opening a case that isn't assigned to them correctly sees the read-only banner, but two gaps remained:
+1. `cases/case-detail.component.html` rendered the Customer name as an *unconditional* `<a routerLink>` — clickable even in read-only mode. Clicking navigated to `/customers/{id}`, where the server throws 403 (Phase 6 scope guard: an Agent may only open a customer they share a case with — `CustomerService.GetByIdAsync` L420-429).
+2. `customers/customer-detail` had **no error handling**: `load()`'s error callback only did `loading.set(false)`. With `loading=false` and `customer=null`, the template's `@if (loading()) … @else { @if (customer(); as c) … }` rendered neither branch → blank body, and the header subtitle stayed stuck on "Loading…".
+
+The server behavior is correct and intentionally kept — the fix is purely client-side UX/hygiene.
+
+### What changed
+- `cases/case-detail.component.html`: gated the Customer link on `canEdit()` (admin always; agent only when they own the case). In read-only mode it now renders as plain `<span class="customer-name-static">` text — no dead-end navigation. Legitimate navigation is preserved: if the agent shares *any other* case with that customer, the customer is already in their Customers list.
+- `customers/customer-detail.component.ts`: added `loadError` signal; `load()` now sets it on error and only fans out `loadCases()`/`loadPanelData()` inside the `next` branch (previously they fired unconditionally and produced silent 403s on a forbidden page).
+- `customers/customer-detail.component.html`: added `@else if (loadError())` branch rendering a lock icon + "You do not have permission to view this customer." + Back to Customers link (mirrors `case-detail`'s `loadError` panel).
+- `customers/customer-detail.component.scss`: added `.error-state` (was only defined in `case-detail.component.scss`; component styles are scoped, so it wouldn't apply here otherwise).
+
+### Verify
+- `npm run build` → green (only the pre-existing 1.67 MB bundle-budget warning).
+- Manual: as `agent`/`Passw0rd!`, open an Unassigned case → Customer shows as non-clickable text with read-only banner. Direct-nav to `/customers/{id-not-shared}` → lock panel, not blank page.
+
 ## [Tests — clear xUnit1031 blocking-async warnings] (2026-08-27)
 **Status:** ✅ DONE (test build clean; 0 xUnit1031; full suite 139/139 passing)
 
