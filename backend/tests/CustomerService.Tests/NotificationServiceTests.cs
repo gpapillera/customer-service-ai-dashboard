@@ -58,14 +58,14 @@ public class NotificationServiceTests
     public async Task GenerateOverdueAsync_CreatesOneNotificationPerOverdueCase()
     {
         var (svc, cases, _, sender) = Build();
-        cases.AddAsync(OverdueCase(2, "Package not delivered", "Maria Clara", 2)).Wait();
-        cases.AddAsync(OverdueCase(6, "Integration webhook failing", "Liza Lopez", 3)).Wait();
+        await cases.AddAsync(OverdueCase(2, "Package not delivered", "Maria Clara", 2));
+        await cases.AddAsync(OverdueCase(6, "Integration webhook failing", "Liza Lopez", 3));
         // A stale open case (no deadline, no follow-up) must also be flagged.
-        cases.AddAsync(StaleCase(13, "Feature request: bulk export", "Mark", 5)).Wait();
+        await cases.AddAsync(StaleCase(13, "Feature request: bulk export", "Mark", 5));
         // A resolved case must NOT generate a notification.
         var resolved = OverdueCase(9, "Done", "Nobody", 5);
         resolved.Status = CaseStatus.Resolved;
-        cases.AddAsync(resolved).Wait();
+        await cases.AddAsync(resolved);
 
         var created = await svc.GenerateOverdueAsync();
 
@@ -81,7 +81,7 @@ public class NotificationServiceTests
     public async Task GenerateOverdueAsync_IsIdempotent_DoesNotDuplicate()
     {
         var (svc, cases, _, _) = Build();
-        cases.AddAsync(OverdueCase(2, "Package not delivered", "Maria Clara", 2)).Wait();
+        await cases.AddAsync(OverdueCase(2, "Package not delivered", "Maria Clara", 2));
 
         var first = await svc.GenerateOverdueAsync();
         var second = await svc.GenerateOverdueAsync();
@@ -94,7 +94,7 @@ public class NotificationServiceTests
     public async Task MarkReadAsync_UpdatesStatus_AndMarkAllRead_ClearsAll()
     {
         var (svc, cases, notes, _) = Build();
-        cases.AddAsync(OverdueCase(2, "Package not delivered", "Maria Clara", 2)).Wait();
+        await cases.AddAsync(OverdueCase(2, "Package not delivered", "Maria Clara", 2));
         await svc.GenerateOverdueAsync();
 
         var summary = await svc.GetSummaryAsync();
@@ -135,7 +135,7 @@ public class NotificationServiceTests
         c.AssignedToUser = new User { Id = "agent-001", Email = "agent@example.com" };
         c.Customer!.Email = "maria@example.com";
         c.Customer!.Phone = "+15551234567";
-        cases.AddAsync(c).Wait();
+        await cases.AddAsync(c);
 
         var created = await svc.GenerateOverdueAsync();
 
@@ -152,7 +152,7 @@ public class NotificationServiceTests
         var (svc, cases, _, _) = Build(new() { NotificationChannel.InApp, NotificationChannel.Email });
         var c = OverdueCase(2, "Package not delivered", "Maria Clara", 2);
         c.AssignedToUser = new User { Id = "agent-001", Email = "agent@example.com" };
-        cases.AddAsync(c).Wait();
+        await cases.AddAsync(c);
 
         var first = await svc.GenerateOverdueAsync();
         var second = await svc.GenerateOverdueAsync();
@@ -167,7 +167,7 @@ public class NotificationServiceTests
         var (svc, cases, _, sender) = Build(new() { NotificationChannel.Email });
         var c = OverdueCase(2, "Package not delivered", "Maria Clara", 2);
         c.AssignedToUser = null; // unassigned → no agent email
-        cases.AddAsync(c).Wait();
+        await cases.AddAsync(c);
 
         var created = await svc.GenerateOverdueAsync();
 
@@ -225,7 +225,7 @@ public class NotificationServiceTests
         var (svc, cases, _, sender) = Build(new() { NotificationChannel.Email });
         var overdue = OverdueCase(2, "Package not delivered", "Maria Clara", 2);
         overdue.AssignedToUser = new User { Id = "agent-001", Email = "agent@example.com" };
-        cases.AddAsync(overdue).Wait();
+        await cases.AddAsync(overdue);
 
         var overdueCreated = await svc.GenerateOverdueAsync();
         var resolvedCreated = await svc.NotifyResolvedAsync(new Case
@@ -251,7 +251,7 @@ public class NotificationServiceTests
         var c = OverdueCase(2, "Package not delivered", "Maria Clara", 2);
         c.AssignedToUser = new User { Id = "agent-001", Email = "agent@example.com" };
         c.Customer!.Phone = "+15551234567";
-        cases.AddAsync(c).Wait();
+        await cases.AddAsync(c);
 
         var created = await svc.GenerateOverdueAsync();
 
@@ -311,7 +311,7 @@ public class NotificationServiceTests
             Title = "You've been invited to the Customer Portal",
             Link = "http://localhost:4200/customer/accept-invite?token=STALETOKEN",
         };
-        notes.AddAsync(stale).Wait();
+        await notes.AddAsync(stale);
 
         var dto = await svc.ResendEmailAsync(100);
 
@@ -336,7 +336,7 @@ public class NotificationServiceTests
             Title = "Password Reset — Customer Portal",
             Link = "http://localhost:4200/customer/accept-invite?token=OLDTOKEN",
         };
-        notes.AddAsync(stale).Wait();
+        await notes.AddAsync(stale);
 
         var dto = await svc.ResendEmailAsync(101);
 
@@ -360,7 +360,7 @@ public class NotificationServiceTests
             Message = "A follow-up on case #21 is overdue.",
             Link = "https://example.com/dashboard/21", // non-token link preserved
         };
-        notes.AddAsync(original).Wait();
+        await notes.AddAsync(original);
 
         var dto = await svc.ResendEmailAsync(102);
 

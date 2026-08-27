@@ -145,7 +145,7 @@ public class CustomerServiceTests
             AtUtc = DateTime.UtcNow,
             ActorRole = "Admin",
         };
-        (activities as IRepository<CustomerActivity>).AddAsync(edit).Wait();
+        await (activities as IRepository<CustomerActivity>).AddAsync(edit);
 
         var items = await svc.GetCustomerActivityAsync(1);
 
@@ -170,7 +170,7 @@ public class CustomerServiceTests
             Detail = "Changed: name",
             AtUtc = DateTime.UtcNow,
         };
-        (activities as IRepository<CustomerActivity>).AddAsync(edit).Wait();
+        await (activities as IRepository<CustomerActivity>).AddAsync(edit);
 
         var dto = await svc.GetByIdAsync(1);
 
@@ -301,7 +301,7 @@ public class CustomerServiceTests
         customer.Cases = new List<Case> { case1 };
 
         var note = new Notification { Id = 1, Recipient = "victim@x.com", Type = NotificationType.CustomerInvite };
-        (notifications as IRepository<Notification>).AddAsync(note).Wait();
+        await (notifications as IRepository<Notification>).AddAsync(note);
 
         // Soft-delete first (cascades to case + nullifies comment authorship).
         await svc.DeleteAsync(1, callerRole: "Admin", callerUserId: "admin-001");

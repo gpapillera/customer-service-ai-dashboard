@@ -33,7 +33,7 @@ public class CustomerProfileAuditTests
     {
         var svc = BuildService(out var customers, out var activities);
         var c = new Customer { Id = 1, Name = "Maria", Email = "maria@example.com" };
-        (customers as IRepository<Customer>).AddAsync(c).Wait();
+        await (customers as IRepository<Customer>).AddAsync(c);
 
         await svc.UpdateProfileAsync(1, new UpdateCustomerProfileDto { Name = "Maria Edited", Phone = null, Company = null, Address = null });
 
@@ -51,7 +51,7 @@ public class CustomerProfileAuditTests
     {
         var svc = BuildService(out var customers, out var activities);
         var c = new Customer { Id = 1, Name = "Maria", Email = "maria@example.com" };
-        (customers as IRepository<Customer>).AddAsync(c).Wait();
+        await (customers as IRepository<Customer>).AddAsync(c);
 
         await svc.UpdateProfileAsync(1, new UpdateCustomerProfileDto { Name = "Maria", Phone = null, Company = null, Address = null });
 

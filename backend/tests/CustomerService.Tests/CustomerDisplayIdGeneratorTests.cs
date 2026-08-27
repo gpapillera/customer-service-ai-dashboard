@@ -41,7 +41,7 @@ public class CustomerDisplayIdGeneratorTests
     }
 
     [Fact]
-    public void Next_ProducesUniqueValues_UnderConcurrentCalls()
+    public async Task Next_ProducesUniqueValues_UnderConcurrentCalls()
     {
         ICustomerDisplayIdGenerator gen = new CustomerDisplayIdGenerator();
         gen.SeedFrom(new[] { "C-00099" });
@@ -49,7 +49,7 @@ public class CustomerDisplayIdGeneratorTests
         var results = new System.Collections.Concurrent.ConcurrentBag<string>();
         var tasks = Enumerable.Range(0, 50).Select(_ =>
             Task.Run(() => results.Add(gen.Next()))).ToArray();
-        Task.WaitAll(tasks.ToArray());
+        await Task.WhenAll(tasks);
 
         // 50 generated values must all be distinct (no two threads got the same ID).
         Assert.Equal(50, results.Distinct().Count());

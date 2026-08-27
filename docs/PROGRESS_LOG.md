@@ -2,6 +2,34 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Tests — clear xUnit1031 blocking-async warnings] (2026-08-27)
+**Status:** ✅ DONE (test build clean; 0 xUnit1031; full suite 139/139 passing)
+
+### Why / root cause
+The test project emitted 20 xUnit1031 warnings (one per offending call-site). xUnit1031 fires when a test
+calls a blocking async operation — `.Wait()`, `.Result`, or `Task.WaitAll` — because that can deadlock on a
+context that captures a synchronization context. xUnit's own runner mostly avoids that specific deadlock, so the
+tests were SAFE and passing, but the pattern is fragile: it would seize up if the test host/context ever changed.
+
+Two shapes were present:
+- 19 sites: an already-`async Task` test that blocked a sub-task with `.Wait()` (the "mixed async" anti-pattern) —
+  fixed by `await`ing the call instead.
+- 1 site: `CustomerDisplayIdGeneratorTests.Next_ProducesUniqueValues_UnderConcurrentCalls` was a `public void`
+  using `Task.WaitAll` — fixed by making it `async Task` and `await`ing `Task.WhenAll`.
+
+### What changed (test files only — no production code touched)
+- `NotificationServiceTests.cs`: 14 `.Wait()` → `await`.
+- `CustomerServiceTests.cs`: 3 `.Wait()` → `await`.
+- `CustomerProfileAuditTests.cs`: 2 `.Wait()` → `await`.
+- `CustomerDisplayIdGeneratorTests.cs`: 1 `void`/`Task.WaitAll` → `async Task`/`await Task.WhenAll`.
+- Deliberately NOT changed: `SeedCustomer`/`SeedCase` helper methods still `.Wait()`. They are not `[Fact]`
+  methods so they are not flagged, and xUnit's spawns them on a context where this does not deadlock — leaving
+  them keeps the diff minimal and avoids threading `async` through the helper signatures for zero real benefit.
+
+### Verify
+- `dotnet build tests/CustomerService.Tests/CustomerService.Tests.csproj` → 0 xUnit1031 warnings.
+- `dotnet test ...` → Failed: 0, Passed: 139, Total: 139.
+
 ## [EF Core warnings — scoped 20504 + 10622 cleanup on CustomerService reads] (2026-08-27)
 **Status:** ✅ DONE (build clean, all multi-collection read paths verified warning-free via throw-probe)
 
