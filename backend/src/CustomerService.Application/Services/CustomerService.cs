@@ -348,6 +348,7 @@ public class CustomerService : ICustomerService
             .Include(c => c.Cases).ThenInclude(cs => cs.CallLogs)
             .Include(c => c.Cases).ThenInclude(cs => cs.Comments)
             .Include(c => c.Cases).ThenInclude(cs => cs.Notifications)
+            .AsSplitQuery()
             .ToListAsync();
 
         // Batch-load all relevant notifications once (avoids per-customer N+1):
@@ -410,6 +411,7 @@ public class CustomerService : ICustomerService
             .Include(x => x.Cases.Where(cs => !cs.IsDeleted)).ThenInclude(cs => cs.CallLogs)
             .Include(x => x.Cases.Where(cs => !cs.IsDeleted)).ThenInclude(cs => cs.Comments)
             .Include(x => x.Cases.Where(cs => !cs.IsDeleted)).ThenInclude(cs => cs.Notifications)
+            .AsSplitQuery()
             .FirstOrDefaultAsync(x => x.Id == id);
         if (c is null) return null;
 
@@ -521,6 +523,7 @@ public class CustomerService : ICustomerService
             .Include(c => c.Cases).ThenInclude(cs => cs.CallLogs)
             .Include(c => c.Cases).ThenInclude(cs => cs.Comments)
             .Include(c => c.Cases).ThenInclude(cs => cs.Notifications)
+            .AsSplitQuery()
             .ToListAsync();
 
         // Batch-load all relevant notifications once (avoids per-customer N+1).
@@ -771,6 +774,7 @@ public class CustomerService : ICustomerService
             .Include(c => c.Account)
             .Include(c => c.Cases).ThenInclude(cs => cs.Comments)
             .Include(c => c.Cases).ThenInclude(cs => cs.Notifications)
+            .AsSplitQuery()
             .Where(c => c.IsDeleted && !c.Purged)
             .OrderByDescending(c => c.DeletedAtUtc)
             .ToListAsync();
@@ -956,6 +960,7 @@ public class CustomerService : ICustomerService
             // GetById check already passed via IgnoreQueryFilters). Without
             // this, a deleted customer's detail page throws "Customer N not
             // found." and the middleware logs it as an Unhandled exception.
+            .AsSplitQuery()
             .IgnoreQueryFilters()
             .FirstOrDefaultAsync(x => x.Id == customerId)
             ?? throw new KeyNotFoundException($"Customer {customerId} not found.");
