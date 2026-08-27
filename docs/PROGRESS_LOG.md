@@ -2,6 +2,44 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [EF Core warnings — scoped 20504 + 10622 cleanup on CustomerService reads] (2026-08-27)
+**Status:** ✅ DONE (build clean, all multi-collection read paths verified warning-free via throw-probe)
+
+### Why / root cause
+Two EF Core model/query warnings were surfacing:
+- `CoreEventId.PossibleIncorrectRequiredNavigationWithQueryFilterInteractionWarning` (10622) — soft-delete
+  (`IsDeleted`) global filter on `Case`/`Customer` colliding with required child relationships. Cosmetic; ignored
+  in `Program.cs` via `ConfigureWarnings`.
+- `RelationalEventId.MultipleCollectionIncludeWarning` (20504) — fired at **query-compile time** (not startup)
+  whenever a query loads **more than one collection navigation** off one entity via `Include`/`ThenInclude`.
+  In this codebase that's the `Customer.Cases → {CallLogs, Comments, Notifications}` family of queries in
+  `CustomerService.cs`.
+
+Earlier pass only patched 3 of the offending sites (L346, L408, L522). A full-tree `Include` audit later showed
+TWO more multi-collection queries were still unpatched: `GetDeletedAsync` (L774: Cases→Comments+Notifications) and
+`GetCustomerActivityAsync` (L953: Cases→CallLogs+Comments+Notifications). Those paths weren't exercised in the
+first smoke test (only `/api/customers` + `/api/customers/{id}`), so the warning was still latent.
+
+### What changed
+- `CustomerService.cs`: added `.AsSplitQuery()` to all 5 multi-collection query sites —
+  L346, L408, L522, L774, L953. (L649 and L824 only pull one collection, so they correctly were NOT touched.)
+  `AsSplitQuery()` is the scoped fix: it splits the single cartesian-join into one query per collection, killing
+  the explosion without flipping `QuerySplittingBehavior` globally.
+- `CustomerService.Application.csproj`: added `Microsoft.EntityFrameworkCore.Relational` 8.0.8 (matching the
+  existing core package). `AsSplitQuery()` is an extension in that package's `RelationalQueryableExtensions`; it
+  was not in compile scope in the Application project, which only referenced core EF directly. Runtime already had
+  it transitively — this just makes the extension visible to the compiler.
+
+### Verify
+- `dotnet build CustomerServiceApi.sln` → 0 errors (20 pre-existing xUnit1031 test-analyzer warnings, unrelated).
+- Diagnostic probe: temporarily added `.Throw(RelationalEventId.MultipleCollectionIncludeWarning)` in
+  `Program.cs`, then exercised every multi-collection path with an admin JWT — all returned **200** (a still-tripping
+  path would have returned 500). Proven clean. The throw line was reverted afterward (not a deliverable).
+  Paths hit: `/api/customers`, `/api/customers/1`, `/api/customers/recycle-bin`, `/api/customers/1/activity`,
+  `/api/customers/1/cases`, `/api/customers/1/emails`.
+- Reverted the diagnostic, rebuilt clean, restarted backend. Both servers live: backend `:5274` (auth wall 401),
+  frontend `:4200` (200).
+
 ## [Docker — repaired one-command stack: SQL Server + API + Angular/Nginx] (2026-08-25)
 **Status:** ✅ DONE (files written + ML generation step verified locally; full `docker compose up --build` NOT run — Docker is not installed on this host)
 
