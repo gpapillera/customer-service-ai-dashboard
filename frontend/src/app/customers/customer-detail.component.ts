@@ -76,6 +76,11 @@ export class CustomerDetailComponent implements OnInit {
   readonly customer = signal<Customer | null>(null);
   readonly cases = signal<Case[]>([]);
   readonly loading = signal(true);
+  /** Set when the customer cannot be loaded (e.g. 403 for an Agent who doesn't
+   *  share a case with this customer). Mirrors case-detail's loadError so a
+   *  forbidden deep-link lands on a clear message instead of a blank page with
+   *  a stuck "Loading…" subtitle. */
+  readonly loadError = signal<string | null>(null);
   /** True when reached via /customers/:id?deleted=1 (recycle-bin detail view). */
   readonly deleted = signal(false);
   /** True once the loaded customer has been purged (PII erased, not restorable). */
@@ -150,15 +155,23 @@ export class CustomerDetailComponent implements OnInit {
   private load(): void {
     const id = Number(this.route.snapshot.paramMap.get('id'));
     this.loading.set(true);
+    this.loadError.set(null);
     this.service.get(id).subscribe({
       next: (c) => {
         this.customer.set(c);
         this.loading.set(false);
+        // Only fan out dependent calls on success. If the customer itself is
+        // forbidden (Agent hits the Phase 6 scope guard), these would 403 too —
+        // and with no error handler they'd silently swallow. Skipping them here
+        // keeps a forbidden page cheap and avoids noise.
+        this.loadCases();
+        this.loadPanelData();
       },
-      error: () => this.loading.set(false),
+      error: () => {
+        this.loading.set(false);
+        this.loadError.set('You do not have permission to view this customer.');
+      },
     });
-    this.loadCases();
-    this.loadPanelData();
   }
 
   /** Loads the email + activity feeds for the panel (independent of the profile load). */

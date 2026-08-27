@@ -18,6 +18,32 @@
   padding: 3rem;
 }
 
+/* Permission/error panel: shown when the customer load fails (e.g. an Agent
+   hitting the server-side Phase 6 scope guard for a customer they don't share
+   a case with). Mirrors the error-state block in case-detail.component.scss so
+   the two read-only-detail pages look identical. Without this, the template's
+   @else if (loadError()) branch would render unstyled. */
+.error-state {
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  text-align: center;
+
+  cs-icon {
+    width: 48px;
+    height: 48px;
+    color: var(--cs-text-muted);
+    opacity: 0.6;
+  }
+
+  p {
+    margin: 0;
+    color: var(--cs-text-muted);
+    font-size: 1rem;
+    max-width: 320px;
+  }
+}
+
 .detail-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

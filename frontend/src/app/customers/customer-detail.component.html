@@ -18,6 +18,12 @@
 
 @if (loading()) {
   <div class="center"><mat-spinner diameter="36"></mat-spinner></div>
+} @else if (loadError()) {
+  <div class="center error-state">
+    <cs-icon name="lock"></cs-icon>
+    <p>{{ loadError() }}</p>
+    <a class="back" routerLink="/customers">Back to Customers</a>
+  </div>
 } @else {
   @if (customer(); as c) {
     <div class="detail-grid">
