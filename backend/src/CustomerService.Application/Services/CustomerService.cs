@@ -659,6 +659,7 @@ public class CustomerService : ICustomerService
         // and persisted by SaveChangesAsync.
         var customer = await _customers.QueryTracked()
             .Include(c => c.Cases).ThenInclude(cs => cs.Comments)
+            .AsSplitQuery()
             .FirstOrDefaultAsync(c => c.Id == id)
             ?? throw new KeyNotFoundException($"Customer {id} not found.");
 
@@ -860,6 +861,7 @@ public class CustomerService : ICustomerService
             .IgnoreQueryFilters()
             .Include(c => c.Cases).ThenInclude(cs => cs.Comments)
             .Include(c => c.Account)
+            .AsSplitQuery()
             .FirstOrDefaultAsync(c => c.Id == id && c.IsDeleted && !c.Purged)
             ?? throw new KeyNotFoundException("Customer is not in the recycle bin (or already purged).");
 

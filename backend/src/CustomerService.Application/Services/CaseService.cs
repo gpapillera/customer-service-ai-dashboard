@@ -64,7 +64,8 @@ public class CaseService : ICaseService
             .Include(c => c.Customer)
             .Include(c => c.Category)
             .Include(c => c.CallLogs)
-            .Include(c => c.Comments);
+            .Include(c => c.Comments)
+            .AsSplitQuery();
 
         // SERVER-SIDE AGENT SCOPING (Phase 6). An Agent may only ever see cases
         // assigned to them OR unassigned — regardless of any query param. This
@@ -127,6 +128,7 @@ public class CaseService : ICaseService
             .Include(c => c.AssignedToUser)
             .Include(c => c.CallLogs)
             .Include(c => c.Comments)
+            .AsSplitQuery()
             .FirstOrDefaultAsync(x => x.Id == id);
         if (c is null) return null;
 
@@ -382,6 +384,7 @@ public class CaseService : ICaseService
         var caseEntity = await _cases.QueryTracked()
             .Include(c => c.Comments)
             .Include(c => c.CallLogs)
+            .AsSplitQuery()
             .FirstOrDefaultAsync(c => c.Id == id)
             ?? throw new KeyNotFoundException($"Case {id} not found.");
 
