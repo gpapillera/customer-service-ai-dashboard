@@ -2,6 +2,35 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Docs — prune orphaned scratch + consolidate QA checklist] (2026-08-29)
+**Status:** ✅ DONE (4 files deleted, 2 docs corrected; docs-only, no build impact)
+
+### Why / root cause
+Repo `docs/` accumulated stale/orphaned artifacts that contradicted the actual state and added noise during audits:
+1. `docs/PHASE_24w_LAST_ACTIVITY_PLAN.md` + `docs/PHASE9_VERIFICATION.md` — intermediate planning/verification scratchpads. Repo-wide grep (all `.md`/`.cs`/`.json`) found ZERO references to either; their content (customer "recent activity" panel; early verification sweep) is fully captured in `PROGRESS_LOG.md` + shipped code. Pure cruft.
+2. `frontend/README.md` — stock Angular CLI boilerplate (27 lines: "generated with Angular CLI version 18.2.21", generic `ng serve`/`ng build`). NOT a duplicate of root `README.md` (526 lines, real project doc); zero project content, referenced by no config. Redundant.
+3. `docs/CODE_DOCUMENTATION.md` §6 still claimed the test project "contains only a placeholder UnitTest1" and "frontend has no automated tests" — both false: **141 xUnit tests** (132 `[Fact]`/`[Theory]` methods) + **7 frontend spec files (47 `it()` cases)**. Same stale claim flagged earlier (Docker phase, line ~210).
+4. `docs/MANUAL_TEST_CHECKLIST.md` — valid spec deliverable (MVP §13.4) but orphaned: nothing references it; content overlaps the 141 automated tests + PROGRESS_LOG verify steps.
+
+### What changed
+- Deleted `docs/PHASE_24w_LAST_ACTIVITY_PLAN.md`, `docs/PHASE9_VERIFICATION.md` (orphaned scratch).
+- Deleted `frontend/README.md` (Angular CLI boilerplate; root README already documents frontend commands).
+- `docs/CODE_DOCUMENTATION.md` §6 rewritten with real numbers (141 backend tests; 47 frontend spec cases / 7 files; `UnitTest1.cs` noted as vestigial).
+- `README.md` Testing section: "130+"→"141 tests", "~47 specs"→"47 spec cases across 7 files"; folded the full Manual QA checklist (auth/customers/cases/dashboard/API-errors/ML) inline under a new `### Manual QA checklist` subsection. Deleted `docs/MANUAL_TEST_CHECKLIST.md` afterward (content now lives in README).
+
+### Safety (why it can't break anything)
+- Docs-only. No source/config/build artifact touched. No code reference pointed at any deleted file (verified by repo-wide grep excluding the PROGRESS_LOG historical narrative + `.hermes/plans/` scratch).
+- `DIY.md` (beginner build guide) checked and KEPT — referenced by plans + PROGRESS_LOG, carries real cross-links; not a merge candidate.
+- `MODEL_CARD.md` / `CODE_DOCUMENTATION.md` KEPT (both referenced by README dir tree, MVP spec, AGENTS.md, DIY.md).
+
+### Verify
+- `git status --short`: 4 deletions + 2 modified docs, all uncommitted (no auto-commit per repo convention).
+- Repo-wide grep for `PHASE_24w|PHASE9_VERIFICATION|MANUAL_TEST_CHECKLIST|frontend/README`: zero live references outside PROGRESS_LOG narrative + `.hermes/plans/`.
+- Frontend spec count: `grep -rcE '^\s*(it|fit)\(' frontend/src/**/*.spec.ts` = 47 cases / 7 files. Backend: latest `dotnet test` run = 141/141 (PROGRESS_LOG Perf phase, 2026-08-28).
+- No build run required (docs-only); both edited markdown files remain valid.
+
+---
+
 ## [Perf: silence EF MultipleCollectionIncludeWarning via AsSplitQuery] (2026-08-28)
 **Status:** ✅ DONE (backend build clean, 0 warn/err; 141/141 tests pass; fresh `dotnet run` log grep for `MultipleCollectionIncludeWarning` = 0 after exercising list + detail endpoints)
 
