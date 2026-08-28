@@ -2,6 +2,28 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Perf: silence EF MultipleCollectionIncludeWarning via AsSplitQuery] (2026-08-28)
+**Status:** ✅ DONE (backend build clean, 0 warn/err; 141/141 tests pass; fresh `dotnet run` log grep for `MultipleCollectionIncludeWarning` = 0 after exercising list + detail endpoints)
+
+### Why / root cause
+Startup log showed `Microsoft.EntityFrameworkCore.Query[20504]` `MultipleCollectionIncludeWarning` plus a transient Kestrel thread-pool-starvation heartbeat. Root cause: 5 LINQ queries load **two or more collection navigations** in one graph (collection = `Case.CallLogs`/`Comments`/`Notifications`, `Customer.Cases`) under EF's default `QuerySplittingBehavior.SingleQuery`, which fans them into one cartesian-product SQL row set (CallLogs × Comments) — a real slow-query smell on every case-list / case-detail / recycle-bin load. `Program.cs` only suppresses `RequiredNavigationWithQueryFilterWarning`, not this one.
+
+### What changed
+Added `.AsSplitQuery()` to exactly the 5 offending queries (one SQL per collection, merged in-memory; populated graph unchanged):
+- `CaseService.GetAllAsync` (list), `GetByIdAsync` (detail), `DeleteAsync` (soft-delete).
+- `CustomerService.DeleteAsync` (soft-delete customer), `PurgeAsync` (purge).
+The 5 sibling queries (CustomerService GetAll/GetById/recycle-bin, DashboardRepository) already used `.AsSplitQuery()` — this closes the remaining gap. No query semantics, filtering, or tracking behavior changed.
+
+### Safety (why it can't break existing functions)
+- No root-level `Skip`/`Take` on any of the 5 → no split-query paging double-apply footgun.
+- `GetAllAsync` overdue `c.CallLogs.Any(...)` is a SQL `EXISTS` subquery, unaffected by split.
+- `DeleteAsync`/`PurgeAsync` use `QueryTracked()`; split queries still fix-up nav props in the same context, so soft-delete mutations persist identically.
+- Matches the repo's already-proven per-query pattern (not a global config change).
+
+### Verify
+- `dotnet build` → 0 warn / 0 err. `dotnet test` → 141/141.
+- Runtime: fresh `dotnet run :5274`; `GET /api/cases` (401→login→200) + `GET /api/cases/{id}` (200); `grep -c MultipleCollectionIncludeWarning /tmp/backend-run.log` = 0.
+
 ## [Fix: case message / call-log edits now push live-update (card footer refresh)] (2026-08-28)
 **Status:** ✅ DONE (backend build clean; 141/141 tests pass incl. 2 new regression tests; SSE frame `event: live-update` `Kind:case-update` confirmed arriving on a real staff-comment POST over a live SSE stream)
 
