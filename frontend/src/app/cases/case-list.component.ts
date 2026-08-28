@@ -134,12 +134,17 @@ export class CaseListComponent implements OnInit, OnDestroy {
   private readonly pollTimer = interval(10_000)
     .pipe(takeUntilDestroyed())
     .subscribe(() => { if (this.pollActive()) this.silentRefresh(); });
-  /** Instant refresh: when the SSE push reports a case-assignment change, re-fetch
-      the list immediately (≤1 network round-trip — no 30s wait). The 30s poll above
-      remains as a fallback if the stream ever drops. */
+  /** Instant refresh: when the SSE push reports a case mutation (assignment,
+      status/priority/comment, create, delete), re-fetch the list immediately
+      (≤1 network round-trip — no 30s wait). The 30s poll above remains as a
+      fallback if the stream ever drops. */
   private readonly rtEffect = effect(() => {
-    this.realtime.caseEvent(); // subscribe
-    if (this.pollActive()) this.silentRefresh();
+    const evt = this.realtime.liveUpdate();
+    if (!evt) return;
+    // Any case-scoped event touches this list.
+    if (evt.kind === 'case-assignment' || evt.kind === 'case-update') {
+      if (this.pollActive()) this.silentRefresh();
+    }
   });
 
   /** Initial search value (for query-param pre-fill). */

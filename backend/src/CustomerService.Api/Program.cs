@@ -126,7 +126,7 @@ public class Program
 
         // In-process SSE hub for instant case-assignment push (Phase 54). Singleton
         // so every SSE subscriber reads the same channel the service writes to.
-        builder.Services.AddSingleton<ICaseEventHub, CaseEventHub>();
+        builder.Services.AddSingleton<ILiveUpdateHub, LiveUpdateHub>();
 
         builder.Services.AddScoped<InAppNotificationSender>();
         builder.Services.AddScoped<EmailNotificationSender>();

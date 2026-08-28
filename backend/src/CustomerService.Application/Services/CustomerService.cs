@@ -18,6 +18,7 @@ public class CustomerService : ICustomerService
     private readonly IRepository<CustomerActivity> _activities;
     private readonly ICustomerDisplayIdGenerator _displayIdGenerator;
     private readonly IViewEventService _viewEvents;
+    private readonly ILiveUpdateHub _events;
 
     /// <summary>Initializes a new <see cref="CustomerService"/>.</summary>
     /// <param name="customers">Customer repository.</param>
@@ -32,7 +33,8 @@ public class CustomerService : ICustomerService
         IRepository<Notification> notifications,
         IRepository<CustomerActivity> activities,
         ICustomerDisplayIdGenerator displayIdGenerator,
-        IViewEventService viewEvents)
+        IViewEventService viewEvents,
+        ILiveUpdateHub events)
     {
         _customers = customers;
         _cases = cases;
@@ -40,6 +42,7 @@ public class CustomerService : ICustomerService
         _activities = activities;
         _displayIdGenerator = displayIdGenerator;
         _viewEvents = viewEvents;
+        _events = events;
     }
 
     /// <summary>
@@ -631,6 +634,15 @@ public class CustomerService : ICustomerService
                 ActorRole = callerRole,
             });
             await _activities.SaveChangesAsync();
+
+            // ponytail: single in-process broadcast (hub is a singleton fan-out
+            // channel). If this ever scales past one instance, swap the hub for a
+            // distributed bus and keep this call-site — it's the only one.
+            await _events.PublishAsync(new LiveUpdateEvent(
+                "customer-update",
+                CustomerId: customer.Id,
+                ActorUserId: callerUserId,
+                ActorRole: callerRole));
         }
     }
 
@@ -699,6 +711,18 @@ public class CustomerService : ICustomerService
             ActorRole = callerRole,
         });
         await _activities.SaveChangesAsync();
+
+        // Push a "customer-deleted" so any open customer grid reflects the
+        // recycle-bin move instantly (no manual refresh needed).
+        try
+        {
+            await _events.PublishAsync(new LiveUpdateEvent(
+                "customer-deleted", CustomerId: customer.Id, ActorUserId: callerUserId, ActorRole: callerRole));
+        }
+        catch
+        {
+            // Swallow — realtime is best-effort.
+        }
     }
 
     /// <inheritdoc/>
@@ -762,6 +786,18 @@ public class CustomerService : ICustomerService
             ActorRole = null,
         });
         await _activities.SaveChangesAsync();
+
+        // Push a "customer-restored" so any open customer grid (and the recycle
+        // bin) reflects the restore instantly (no manual refresh needed).
+        try
+        {
+            await _events.PublishAsync(new LiveUpdateEvent(
+                "customer-restored", CustomerId: customer.Id, ActorUserId: callerUserId, ActorRole: null));
+        }
+        catch
+        {
+            // Swallow — realtime is best-effort.
+        }
     }
 
     /// <inheritdoc/>

@@ -53,11 +53,15 @@ export class ConversationsListComponent implements OnInit, OnDestroy {
   private readonly auth = inject(AuthService);
   /** Real-time assignment push (SSE). */
   private readonly realtime = inject(RealtimeService);
-  /** Instant refresh: when an assignment changes, re-fetch the Messages list
-      (a newly-assigned case with a thread appears immediately). */
+  /** Instant refresh: when the SSE push reports a case mutation (assignment,
+      status/priority/comment, create, delete), re-fetch the Messages list
+      immediately (a new thread or new message appears without a manual reload). */
   private readonly rtEffect = effect(() => {
-    this.realtime.caseEvent();
-    this.refresh();
+    const evt = this.realtime.liveUpdate();
+    if (!evt) return;
+    if (evt.kind === 'case-assignment' || evt.kind === 'case-update') {
+      this.refresh();
+    }
   });
 
   /** Sidenav open state — brand logo hidden when open. */

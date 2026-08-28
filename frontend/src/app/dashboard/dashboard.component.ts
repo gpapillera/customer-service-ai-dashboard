@@ -75,12 +75,15 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   /** Whether the current user is an Agent (vs Admin). */
   readonly isAgent = computed(() => this.auth.getRole() === 'Agent');
 
-  /** Real-time assignment push (SSE). */
+  /** Real-time push (SSE). */
   private readonly realtime = inject(RealtimeService);
-  /** When an assignment changes anywhere, re-fetch the dashboard so KPI counts
-      (e.g. an agent's "My Cases") update instantly rather than on next visit. */
+  /** Real-time push (SSE). When ANY mutation lands (case assignment/status/
+      priority/comment, customer edit/delete/restore), re-fetch the dashboard so
+      KPI counts (e.g. an agent's "My Cases") and the recent-cases list update
+      instantly rather than on next visit. */
   private readonly rtEffect = effect(() => {
-    this.realtime.caseEvent(); // subscribe to the push
+    const evt = this.realtime.liveUpdate();
+    if (!evt) return;
     this.load();
   });
 

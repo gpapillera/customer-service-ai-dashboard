@@ -73,15 +73,26 @@ export class NavBadgeService {
       window.addEventListener('cs:comment-posted', () => this.refresh());
     }
 
-    // Real-time: when an assignment changes, refresh badges instantly (the
-    // 10s poll is just the fallback). If the assignment targets the current
-    // user, bump the Cases/Dashboard badges immediately so the indication
-    // appears the moment the SSE frame lands — no wait for the poll.
+    // Real-time: when a mutation changes, refresh badges instantly (the
+    // 10s poll is just the fallback). Customer edits/deletes/restores bump the
+    // Customers dot the moment the SSE frame lands — no wait for the poll.
+    // Case assignments/updates bump Cases/Dashboard. All of these only
+    // *initiate a subscribe* (refresh/refresh/refresh) — no synchronous signal
+    // write — so this is safe inside an effect.
     effect(() => {
-      const evt = this.realtime.caseEvent();
-      const me = this.auth.currentUser()?.id ?? null;
-      if (evt?.type === 'assignment' && evt.assignedToUserId && evt.assignedToUserId === me) {
+      const evt = this.realtime.liveUpdate();
+      if (!evt) return; // connect/reconnect no-op
+      if (evt.kind === 'customer-update' || evt.kind === 'customer-deleted' || evt.kind === 'customer-restored') {
+        this.bumpBadge('/customers', 1);
+      } else if (evt.kind === 'case-assignment' || evt.kind === 'case-update') {
         this.bumpBadge('/cases', 1);
+        this.bumpBadge('/dashboard', 1);
+        // Case-assignment targeting the current user gets an immediate,
+        // deduplicated bump (the poll would also catch it).
+        const me = this.auth.currentUser()?.id ?? null;
+        if (evt.kind === 'case-assignment' && evt.assignedToUserId && evt.assignedToUserId === me) {
+          this.bumpBadge('/cases', 1);
+        }
       }
       this.refresh();
     });

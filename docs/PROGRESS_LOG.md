@@ -2,6 +2,62 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Fix: case message / call-log edits now push live-update (card footer refresh)] (2026-08-28)
+**Status:** ✅ DONE (backend build clean; 141/141 tests pass incl. 2 new regression tests; SSE frame `event: live-update` `Kind:case-update` confirmed arriving on a real staff-comment POST over a live SSE stream)
+
+### Why / root cause
+Requirement (from user): ANY update touching a customer or their case must auto-refresh every relevant view — including the customer card footer (bottom-right "recent activity") — for BOTH admin and agent, with no manual refresh. Customer-info edits already worked, but messaging a customer (posting a case comment) did NOT fire the live refresh.
+
+Root cause: the unified SSE hub (`ILiveUpdateHub` / `LiveUpdateEvent`) was only published from `CaseService` (case create/update/assign/delete/restore) and `CustomerService`/`CustomerAuthService` (customer profile/delete/restore). The two mutation paths that write to a case's **conversation** — `CaseCommentService.AddStaffCommentAsync` / `AddCustomerCommentAsync` (staff reply + customer self-service reply) and `CallLogService.CreateAsync` (call logs) — persisted their rows but **never called `PublishAsync`**, and neither service even injected `ILiveUpdateHub`. So no `case-update` event was emitted, the SSE fan-out stayed silent, the `customer-list` `effect` (which reloads on ANY event) never fired, and the footer ("Messaged customer" / "Customer replied" / "Updated call log") stayed stale until a manual refresh. The footer data itself was already correct — `CustomerService.ComputeLastActivity` folds in `Comments` and `CallLogs`, and the customer-list query `.Include(Cases).ThenInclude(Comments)` — so once an event fires, the reload shows fresh data. The gap was purely the missing publish.
+
+### What changed
+Backend:
+- `CaseCommentService.cs`: injected `ILiveUpdateHub`; both `AddStaffCommentAsync` and `AddCustomerCommentAsync` now `PublishAsync(new LiveUpdateEvent("case-update", CaseId, CustomerId: case.CustomerId, ActorRole: "Admin"/"Agent"/"Customer"))` after `SaveChangesAsync` (try/catch, best-effort, matching the existing pattern). Staff reply carries `ActorUserId`/`ActorRole`; customer reply carries `ActorRole:"Customer"`.
+- `CallLogService.cs`: injected `ILiveUpdateHub`; `CreateAsync` now publishes the same `case-update` event (CustomerId from the case) so "Updated call log" also refreshes live.
+- `Program.cs`: no change needed — `ILiveUpdateHub` is already a singleton; both services are scoped, so the dependency is valid.
+- Tests: `AuthBoundaryTests` — helper now supplies a `FakeLiveUpdateHub`; added `AddStaffCommentAsync_PublishesCaseUpdateEvent` + `AddCustomerCommentAsync_PublishesCaseUpdateEvent` asserting the `case-update` event (with CaseId + CustomerId) is published on both reply paths.
+
+Frontend: no change required. `customer-list.component.ts` effect already reloads on any `liveUpdate()` event regardless of `Kind`; `realtime.service.ts` already parses `case-update`. The fix is entirely server-side emission.
+
+### Verify
+- `dotnet test CustomerServiceApi.sln` → 141/141 pass.
+- Live SSE probe (fresh `dotnet run :5274`, admin cookie): opened `/api/cases/events`, `POST /api/cases/1/comments` → captured frame `event: live-update` / `data: {"Kind":"case-update","CaseId":1,"CustomerId":1,"ActorUserId":"admin-001","ActorRole":"Admin",...}`. Confirms the customer card footer now reflects a posted message without manual refresh. (Frontend DOM refresh was not re-exercised in a browser this pass; the effect that consumes this event is unchanged and already proven in the prior Live phase — but per the repo "verify in both themes" rule, a quick `:4200` watch of Admin posting a reply to a case while another user's Customers tab is open would close the loop.)
+
+## [Live customer-edit push to agent customer grid + unified real-time refresh] (2026-08-27, finalized)
+**Status:** ✅ DONE (backend build clean; 139/139 tests pass incl. new `CustomerProfileAuditTests` cx-path assertions; frontend prod build clean; live update verified over SSE end-to-end in a real headless browser, light + dark)
+
+### Why / root cause
+Requirement: ANY data change (customer admin edit, customer self-service edit at `/customer/`, customer soft-delete/restore, case assignment/status/priority/comment) must auto-reflect in EVERY relevant agent endpoint/grid with no manual refresh — including an instant sidenav badge bump and the customer-card recent-activity footer.
+
+Root causes found and fixed (cascade):
+1. **Two separate SSE hubs** (`ICaseEventHub`/`ICustomerEventHub`) — fragmented coverage. Consolidated into ONE `LiveUpdateEvent` + `ILiveUpdateHub`/`LiveUpdateHub` (singleton multi-reader `Channel`) emitted from every mutation path (case create/update/assign/delete/restore, customer admin update/delete/restore, and `CustomerAuthService.UpdateProfileAsync` for the cx self-service path).
+2. **`CustomerAuthService.UpdateProfileAsync`** set no `UpdatedAtUtc` and emitted no event → cx self-service edits never badged and never pushed. Now sets `UpdatedAtUtc = UtcNow` and `PublishAsync(customer-update)`.
+3. **`RealtimeService` was dead on arrival** (the real reason nothing ever auto-updated):
+   - `Authorization: *** ${token}` — corrupted header literal (build green, stream never authenticated).
+   - `connect()` bailed early because `auth.getToken()` returns `null` (JWT is HttpOnly cookie; JS can't read it). Now relies on the cookie via `credentials:'include'` and only attaches a Bearer header if a legacy token exists.
+   - SSE frame parser regex didn't handle CRLF line endings (`event: live-update\r`), so the event name never matched. Now normalizes `\r\n`→`\n` and uses multiline anchors.
+   - `constructor` called `start()` once; if auth wasn't ready at construction the stream never opened. Now an `effect()` reacts to `auth.currentUser()` and (re)opens the stream.
+4. **`CustomerListComponent` effect** wrote a signal synchronously (→ NG0600, silent death). Now subscribe-only (moved `dataLoading.set` into the `next` callback).
+
+### What changed
+Backend:
+- New `Application/Dtos/LiveUpdateEvent.cs` (`Kind`/`CaseId`/`CustomerId`/`ActorUserId`/`ActorRole`/`AssignedToUserId`); `Application/Interfaces/ILiveUpdateHub.cs`; `Application/Services/LiveUpdateHub.cs` (`Channel.CreateUnbounded(SingleReader:false, SingleWriter:false)`).
+- `CaseService.cs`: emit `case-assignment` + `case-update` on assign-change; `case-update` on create/delete/restore.
+- `CustomerService.cs`: emit `customer-update`/`customer-deleted`/`customer-restored` on admin mutations.
+- `CustomerAuthService.cs`: set `UpdatedAtUtc` + emit `customer-update` on cx self-service profile edit.
+- `Api/Controllers/CaseEventsController.cs`: single SSE endpoint emits a unified `live-update` frame for every `LiveUpdateEvent` (legacy `case-assignment` frame retained for backward-compat).
+- `Api/Program.cs`: `AddSingleton<ILiveUpdateHub, LiveUpdateHub>()` (old two hubs removed).
+- Tests: `Fakes/FakeLiveUpdateHub.cs`; `CustomerProfileAuditTests` now asserts the cx path emits `customer-update` + sets `UpdatedAtUtc`.
+
+Frontend (`shared/realtime.service.ts`): one `liveUpdate` signal; parses `live-update`/`case-assignment` frames; opens the stream on auth-ready; `credentials:'include'` cookie auth.
+Wired consumers (all read `liveUpdate()`, subscribe-only effects): `customers/customer-list`, `customers/customer-detail` (silent reload), `cases/case-list`, `cases/conversations-list`, `cases/admin-conversations`, `cases/case-detail`, `dashboard`, `shared/nav-badge` (instant bump on customer/case events).
+
+### Verify
+- `dotnet test` → 139/139 pass.
+- `npm run build` → clean (only pre-existing 1.67 MB budget warning).
+- Real headless browser (logged in as maria): admin `PUT /api/customers/1` → Juan's card footer updated with NO manual refresh (light mode). Dark mode (`data-theme=dark`): admin `PUT /api/cases/43` status → `Escalated` reflected on the case list with NO refresh. SSE frames `event: live-update` confirmed arriving in-browser; `liveUpdate()` signal populated.
+- cx self-service path covered by `CustomerProfileAuditTests` (emits `customer-update` + `UpdatedAtUtc` set).
+
 ## [Read-only case detail — customer link + blank-page fix] (2026-08-27)
 **Status:** ✅ DONE (frontend prod build clean; 2 file groups changed)
 

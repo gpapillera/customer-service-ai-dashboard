@@ -24,7 +24,8 @@ public class CustomerServiceTests
         activities = new FakeRepository<CustomerActivity>();
         var displayIds = new CustomerDisplayIdGenerator();
         var viewEvents = new FakeViewEventService();
-        return new CustomerService.Application.Services.CustomerService(customers, cases, notifications, activities, displayIds, viewEvents);
+        var events = new FakeLiveUpdateHub();
+        return new CustomerService.Application.Services.CustomerService(customers, cases, notifications, activities, displayIds, viewEvents, events);
     }
 
     // Back-compat overload for tests that don't exercise the activity audit.
@@ -281,7 +282,8 @@ public class CustomerServiceTests
         var activities = new FakeRepository<CustomerActivity>();
         var displayIds = new CustomerDisplayIdGenerator();
         var viewEvents = new FakeViewEventService();
-        return new CustomerService.Application.Services.CustomerService(customers, cases, notifications, activities, displayIds, viewEvents);
+        var events = new FakeLiveUpdateHub();
+        return new CustomerService.Application.Services.CustomerService(customers, cases, notifications, activities, displayIds, viewEvents, events);
     }
 
     [Fact]

@@ -20,18 +20,21 @@ public class CaseCommentService : ICaseCommentService
     private readonly IRepository<CaseComment> _comments;
     private readonly IRepository<User> _users;
     private readonly IRepository<Customer> _customers;
+    private readonly ILiveUpdateHub _events;
 
     /// <summary>Initializes a new <see cref="CaseCommentService"/>.</summary>
     public CaseCommentService(
         IRepository<Case> cases,
         IRepository<CaseComment> comments,
         IRepository<User> users,
-        IRepository<Customer> customers)
+        IRepository<Customer> customers,
+        ILiveUpdateHub events)
     {
         _cases = cases;
         _comments = comments;
         _users = users;
         _customers = customers;
+        _events = events;
     }
 
     /// <inheritdoc/>
@@ -94,6 +97,20 @@ public class CaseCommentService : ICaseCommentService
         await _comments.AddAsync(comment);
         await _comments.SaveChangesAsync();
 
+        // Push a "case-update" so the customer card footer ("Messaged customer")
+        // and any open case/conversation view reflect the new staff reply instantly
+        // (no manual refresh). The customer-list effect reloads on ANY event.
+        try
+        {
+            await _events.PublishAsync(new LiveUpdateEvent(
+                "case-update", CaseId: caseId, CustomerId: c.CustomerId,
+                ActorUserId: authorUserId, ActorRole: callerRole));
+        }
+        catch
+        {
+            // Swallow — realtime is best-effort.
+        }
+
         // Re-load author name for the DTO.
         comment.AuthorUser = await _users.GetByIdAsync(authorUserId);
         return ToDto(comment);
@@ -106,7 +123,8 @@ public class CaseCommentService : ICaseCommentService
         {
             throw new ArgumentException("Comment body must not be empty.", nameof(body));
         }
-        if (await _cases.GetByIdAsync(caseId) is null)
+        var c = await _cases.GetByIdAsync(caseId);
+        if (c is null)
         {
             throw new KeyNotFoundException($"Case {caseId} not found.");
         }
@@ -125,6 +143,20 @@ public class CaseCommentService : ICaseCommentService
         };
         await _comments.AddAsync(comment);
         await _comments.SaveChangesAsync();
+
+        // Push a "case-update" so the customer card footer ("Customer replied")
+        // refreshes live across every staff view the instant a customer posts
+        // from the portal (no manual refresh needed).
+        try
+        {
+            await _events.PublishAsync(new LiveUpdateEvent(
+                "case-update", CaseId: caseId, CustomerId: c.CustomerId,
+                ActorUserId: null, ActorRole: "Customer"));
+        }
+        catch
+        {
+            // Swallow — realtime is best-effort.
+        }
 
         comment.AuthorCustomer = await _customers.GetByIdAsync(authorCustomerId);
         return ToDto(comment);

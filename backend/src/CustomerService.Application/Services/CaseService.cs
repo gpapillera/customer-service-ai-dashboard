@@ -41,7 +41,7 @@ public class CaseService : ICaseService
         IRepository<CustomerActivity> activities,
         IPriorityPredictor predictor,
         INotificationService notifications,
-        ICaseEventHub events)
+        ILiveUpdateHub events)
     {
         _cases = cases;
         _customers = customers;
@@ -54,7 +54,7 @@ public class CaseService : ICaseService
         _events = events;
     }
 
-    private readonly ICaseEventHub _events;
+    private readonly ILiveUpdateHub _events;
 
     /// <inheritdoc/>
     public async Task<IReadOnlyList<CaseDto>> GetAllAsync(
@@ -196,6 +196,18 @@ public class CaseService : ICaseService
         _cases.Update(caseEntity);
         await _cases.SaveChangesAsync();
 
+        // Push a "case-update" so any open case list/board/dashboard reflects the
+        // new case instantly (no manual refresh needed).
+        try
+        {
+            await _events.PublishAsync(new LiveUpdateEvent(
+                "case-update", CaseId: caseEntity.Id, ActorRole: "System"));
+        }
+        catch
+        {
+            // Swallow — realtime is best-effort.
+        }
+
         return ToDto(caseEntity);
     }
 
@@ -298,17 +310,39 @@ public class CaseService : ICaseService
         // the agent/admin UI reflects it instantly. Skip when the assignee is
         // unchanged — most updates (status, priority, description) don't affect
         // assignment and shouldn't spam the stream. Fire-and-forget: a hub
-        // failure must never roll back the committed update.
+        // failure must never roll back the committed update. The Kind
+        // "case-assignment" keeps the legacy frame name alive for one release;
+        // the controller also echoes a unified "live-update" frame.
         if (!string.Equals(priorAssignee, caseEntity.AssignedToUserId, StringComparison.Ordinal))
         {
             try
             {
-                await _events.PublishAsync(new CaseEvent(caseEntity.Id, caseEntity.AssignedToUserId, "assignment"));
+                await _events.PublishAsync(new LiveUpdateEvent(
+                    "case-assignment",
+                    CaseId: caseEntity.Id,
+                    AssignedToUserId: caseEntity.AssignedToUserId,
+                    ActorUserId: callerUserId,
+                    ActorRole: callerRole));
             }
             catch
             {
                 // Swallow — realtime is best-effort.
             }
+        }
+        // Any case mutation (status/priority/subject/desc/comment) is worth a
+        // "case-update" push so open case lists/boards and the dashboard reflect
+        // it instantly. Always emitted (assignment changes also push this).
+        try
+        {
+            await _events.PublishAsync(new LiveUpdateEvent(
+                "case-update",
+                CaseId: caseEntity.Id,
+                ActorUserId: callerUserId,
+                ActorRole: callerRole));
+        }
+        catch
+        {
+            // Swallow — realtime is best-effort.
         }
 
         // EVENT-BASED trigger: when a case transitions INTO Resolved/Closed,
@@ -387,6 +421,18 @@ public class CaseService : ICaseService
                 ActorRole = callerRole,
             });
             await _activities.SaveChangesAsync();
+        }
+
+        // Push a "case-update" so any open case list/board/dashboard reflects the
+        // deletion instantly (the row is now soft-deleted; lists should drop it).
+        try
+        {
+            await _events.PublishAsync(new LiveUpdateEvent(
+                "case-update", CaseId: caseEntity.Id, ActorUserId: callerUserId, ActorRole: callerRole));
+        }
+        catch
+        {
+            // Swallow — realtime is best-effort.
         }
     }
 

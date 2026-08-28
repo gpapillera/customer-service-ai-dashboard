@@ -307,7 +307,8 @@ public class AuthBoundaryTests
         comments = new FakeRepository<CaseComment>();
         users = new FakeRepository<User>();
         customers = new FakeRepository<Customer>();
-        return new CaseCommentService(cases, comments, users, customers);
+        return new CaseCommentService(cases, comments, users, customers,
+            new FakeLiveUpdateHub());
     }
 
     [Fact]
@@ -340,6 +341,53 @@ public class AuthBoundaryTests
         var stored = comments.Query().Single();
         Assert.Equal(9, stored.AuthorCustomerId);
         Assert.Null(stored.AuthorUserId);
+    }
+
+    // Regression for the "customer card footer doesn't refresh when a message is
+    // posted" bug: a staff reply AND a customer reply must both publish a
+    // LiveUpdateEvent (Kind=case-update, with the owning customer id) so the
+    // realtime hub pushes it and the customer grid/card footer refresh live.
+    [Fact]
+    public async Task AddStaffCommentAsync_PublishesCaseUpdateEvent()
+    {
+        var cases = new FakeRepository<Case>();
+        var comments = new FakeRepository<CaseComment>();
+        var users = new FakeRepository<User>();
+        var events = new FakeLiveUpdateHub();
+        var svc = new CaseCommentService(cases, comments, users,
+            new FakeRepository<Customer>(), events);
+        await (cases as IRepository<Case>).AddAsync(new Case { Id = 1, CustomerId = 1, Subject = "S", AssignedToUserId = "agent-1" });
+        await (users as IRepository<User>).AddAsync(new User { Id = "agent-1", FullName = "Grace Agent" });
+
+        await svc.AddStaffCommentAsync(1, "agent-1", "Looking into this", "Agent", "agent-1");
+
+        var evt = Assert.Single(events.Published());
+        Assert.Equal("case-update", evt.Kind);
+        Assert.Equal(1, evt.CaseId);
+        Assert.Equal(1, evt.CustomerId);
+        Assert.Equal("agent-1", evt.ActorUserId);
+        Assert.Equal("Agent", evt.ActorRole);
+    }
+
+    [Fact]
+    public async Task AddCustomerCommentAsync_PublishesCaseUpdateEvent()
+    {
+        var cases = new FakeRepository<Case>();
+        var comments = new FakeRepository<CaseComment>();
+        var customers = new FakeRepository<Customer>();
+        var events = new FakeLiveUpdateHub();
+        var svc = new CaseCommentService(cases, comments,
+            new FakeRepository<User>(), customers, events);
+        await (cases as IRepository<Case>).AddAsync(new Case { Id = 1, CustomerId = 9, Subject = "S" });
+        await (customers as IRepository<Customer>).AddAsync(new Customer { Id = 9, Name = "Juan" });
+
+        await svc.AddCustomerCommentAsync(1, 9, "Any update?");
+
+        var evt = Assert.Single(events.Published());
+        Assert.Equal("case-update", evt.Kind);
+        Assert.Equal(1, evt.CaseId);
+        Assert.Equal(9, evt.CustomerId);
+        Assert.Equal("Customer", evt.ActorRole);
     }
 
     [Theory]

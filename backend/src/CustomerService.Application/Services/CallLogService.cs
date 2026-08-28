@@ -14,14 +14,17 @@ public class CallLogService : ICallLogService
 {
     private readonly IRepository<CallLog> _logs;
     private readonly IRepository<Case> _cases;
+    private readonly ILiveUpdateHub _events;
 
     /// <summary>Initializes a new <see cref="CallLogService"/>.</summary>
     /// <param name="logs">Call log repository.</param>
     /// <param name="cases">Case repository (existence check).</param>
-    public CallLogService(IRepository<CallLog> logs, IRepository<Case> cases)
+    /// <param name="events">Unified realtime hub (live push on create).</param>
+    public CallLogService(IRepository<CallLog> logs, IRepository<Case> cases, ILiveUpdateHub events)
     {
         _logs = logs;
         _cases = cases;
+        _events = events;
     }
 
     /// <inheritdoc/>
@@ -93,6 +96,21 @@ public class CallLogService : ICallLogService
         };
         await _logs.AddAsync(log);
         await _logs.SaveChangesAsync();
+
+        // Push a "case-update" so the customer card footer ("Updated call log")
+        // and any open case/conversation view reflect the new log instantly
+        // (no manual refresh). The customer-list effect reloads on ANY event.
+        try
+        {
+            await _events.PublishAsync(new LiveUpdateEvent(
+                "case-update", CaseId: dto.CaseId, CustomerId: c.CustomerId,
+                ActorUserId: loggedByUserId, ActorRole: callerRole));
+        }
+        catch
+        {
+            // Swallow — realtime is best-effort.
+        }
+
         return new CallLogDto
         {
             Id = log.Id,

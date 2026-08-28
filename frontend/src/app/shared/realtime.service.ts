@@ -1,8 +1,9 @@
-import { Injectable, inject, signal, DestroyRef } from '@angular/core';
+import { Injectable, inject, signal, computed, DestroyRef, effect } from '@angular/core';
 import { AuthService } from '../auth/auth.service';
 
 /**
- * Real-time case-assignment push over Server-Sent Events (SSE).
+ * Real-time push over Server-Sent Events (SSE) for EVERY staff (and customer
+ * self-service) mutation.
  *
  * Why fetch + ReadableStream (not EventSource): the browser EventSource API
  * cannot send custom auth headers, and our API authenticates the SSE stream
@@ -10,26 +11,62 @@ import { AuthService } from '../auth/auth.service';
  * streaming fetch carries the Authorization header, so we parse the SSE frames
  * ourselves.
  *
- * On every assignment change (assign / reassign / unassign) the backend pushes
- * a `case-assignment` event; this service emits it on the `caseEvent` signal so
- * subscribers (agent "My Cases" list, dashboard, case detail) can refresh
- * *instantly* instead of waiting for the 30s poll. The poll stays as a fallback.
+ * The backend emits a single unified `live-update` event for any mutation
+ * (case assignment/status/priority/comment, customer profile/delete/restore,
+ * or a customer editing their own portal profile). This service exposes it on
+ * the `liveUpdate` signal so every data-bearing surface can refresh *instantly*
+ * instead of waiting for the list poll. The poll stays as a fallback.
+ *
+ * Legacy shims `caseEvent` and `customerUpdate` are derived from `liveUpdate`
+ * for code still reading them during the transition; migrate consumers to
+ * `liveUpdate` and delete the shims once all are moved.
  *
  * Reconnects with a capped exponential backoff if the connection drops. One
  * connection per browser tab (providedIn: 'root').
  */
+export interface LiveUpdateEvent {
+  kind: string; // 'case-assignment' | 'case-update' | 'customer-update' | 'customer-deleted' | 'customer-restored'
+  caseId?: number | null;
+  customerId?: number | null;
+  actorUserId?: string | null;
+  actorRole?: string | null;
+  assignedToUserId?: string | null;
+}
+
+/** @deprecated derive from `liveUpdate`; kept during migration. */
 export interface CaseEvent {
   caseId: number;
   assignedToUserId: string | null;
   type: string;
 }
 
+/** @deprecated derive from `liveUpdate`; kept during migration. */
+export interface CustomerUpdateEvent {
+  customerId: number;
+  actorUserId: string | null;
+  actorRole: string | null;
+}
+
 @Injectable({ providedIn: 'root' })
 export class RealtimeService {
   private readonly auth = inject(AuthService);
 
-  /** Emits the latest case-assignment event the moment it arrives (or null on connect). */
-  readonly caseEvent = signal<CaseEvent | null>(null);
+  /** Emits the latest unified mutation event the moment it arrives (or null on connect). */
+  readonly liveUpdate = signal<LiveUpdateEvent | null>(null);
+
+  /** @deprecated use `liveUpdate()`; kept for consumers not yet migrated. */
+  readonly caseEvent = computed<CaseEvent | null>(() => {
+    const e = this.liveUpdate();
+    if (e?.kind !== 'case-assignment') return null;
+    return { caseId: e.caseId ?? 0, assignedToUserId: e.assignedToUserId ?? null, type: 'assignment' };
+  });
+
+  /** @deprecated use `liveUpdate()`; kept for consumers not yet migrated. */
+  readonly customerUpdate = computed<CustomerUpdateEvent | null>(() => {
+    const e = this.liveUpdate();
+    if (e?.kind !== 'customer-update') return null;
+    return { customerId: e.customerId ?? 0, actorUserId: e.actorUserId ?? null, actorRole: e.actorRole ?? null };
+  });
 
   /** Connection health, for diagnostics/UI. */
   readonly connected = signal(false);
@@ -43,11 +80,18 @@ export class RealtimeService {
   constructor() {
     // Tear everything down when the root scope is destroyed (app close).
     inject(DestroyRef).onDestroy(() => this.stop());
-    // Auto-open the stream on first use. The service is providedIn: 'root' and
-    // injected by every assignment-aware surface (nav badges, case list,
-    // dashboard, conversations, case detail), so the push is live no matter
-    // which page the user opens first. Idempotent.
-    this.start();
+    // Auto-open the SSE stream once a user is authenticated. The service is
+    // providedIn:'root' and injected by every assignment-aware surface, but its
+    // constructor can run BEFORE AuthService.setSession() populates the current
+    // user (e.g. at bootstrap, or on a cold reload where sessionStorage is read
+    // async). React to the auth signal so the connection opens the moment a user
+    // is present — and re-opens after a logout/login swap. This effect only
+    // *initiates* an async connect (no signal writes inside it), so it's NG0600-safe.
+    effect(() => {
+      if (this.auth.currentUser()) {
+        this.start();
+      }
+    });
   }
 
   /** Starts the SSE connection if not already running. Idempotent. */
@@ -59,17 +103,22 @@ export class RealtimeService {
   }
 
   private connect(): void {
-    const token = this.auth.getToken();
-    if (!token) {
-      this.started = false;
-      return;
-    }
+    // The access JWT is an HttpOnly cookie (set by the API on login/refresh) that
+    // JS cannot read, so getToken() returns null by design. Authentication for the
+    // SSE stream is carried by that cookie via `credentials: 'include'` (the API's
+    // JwtBearer handler reads the cookie — dual-source with the Authorization
+    // header). We therefore do NOT require a header token here; if a legacy token
+    // is somehow present we attach it as a bonus, but its absence must NOT block
+    // the connection (that was the bug: getToken()===null made connect() bail and
+    // the live push never arrived).
+    const token = this.auth.getToken(); // null for HttpOnly-cookie auth (normal)
     this.controller = new AbortController();
+    const headers: Record<string, string> = { Accept: 'text/event-stream' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
     fetch('/api/cases/events', {
-      // Send cookies so the access_token cookie authenticates the SSE stream
-      // (the API reads JWT from cookie OR Authorization header — dual-source).
+      // Send cookies so the access_token cookie authenticates the SSE stream.
       credentials: 'include',
-      headers: { Authorization: `Bearer ${token}`, Accept: 'text/event-stream' },
+      headers,
       signal: this.controller.signal,
     })
       .then((res) => {
@@ -112,14 +161,16 @@ export class RealtimeService {
   }
 
   private handleFrame(frame: string): void {
-    const eventMatch = frame.match(/event:\s*(.+)/);
-    const dataMatch = frame.match(/data:\s*(.+)/);
+    // Normalize CRLF/LF line endings (SSE frames may arrive with \r\n).
+    const normalized = frame.replace(/\r\n/g, '\n').trim();
+    const eventMatch = normalized.match(/^event:\s*(.+)$/m);
+    const dataMatch = normalized.match(/^data:\s*(.+)$/m);
     const eventName = eventMatch?.[1]?.trim();
     const data = dataMatch?.[1]?.trim();
-    if (eventName === 'case-assignment' && data) {
+    if ((eventName === 'live-update' || eventName === 'case-assignment') && data) {
       try {
-        const evt = JSON.parse(data) as CaseEvent;
-        this.caseEvent.set(evt);
+        const evt = JSON.parse(data) as LiveUpdateEvent;
+        this.liveUpdate.set(evt);
       } catch {
         // Malformed frame — ignore.
       }

@@ -29,6 +29,7 @@ public class CustomerAuthService : ICustomerAuthService
     private readonly IConfiguration _config;
     private readonly ICustomerDisplayIdGenerator _displayIdGenerator;
     private readonly IRefreshTokenService _refreshTokens;
+    private readonly ILiveUpdateHub _live;
 
     /// <summary>Initializes a new <see cref="CustomerAuthService"/>.</summary>
     public CustomerAuthService(
@@ -38,7 +39,8 @@ public class CustomerAuthService : ICustomerAuthService
         INotificationSender sender,
         IConfiguration config,
         ICustomerDisplayIdGenerator displayIdGenerator,
-        IRefreshTokenService refreshTokens)
+        IRefreshTokenService refreshTokens,
+        ILiveUpdateHub live)
     {
         _customers = customers;
         _accounts = accounts;
@@ -47,6 +49,7 @@ public class CustomerAuthService : ICustomerAuthService
         _config = config;
         _displayIdGenerator = displayIdGenerator;
         _refreshTokens = refreshTokens;
+        _live = live;
     }
 
     /// <inheritdoc/>
@@ -145,6 +148,14 @@ public class CustomerAuthService : ICustomerAuthService
         customer.Phone = newPhone;
         customer.Company = newCompany;
         customer.Address = newAddress;
+        // Stamp the profile-edit timestamp when something actually changed — this
+        // is what makes the sidenav "Customers" badge trip for agents (the badge
+        // counts customers updated since the agent's last visit via UpdatedAtUtc).
+        // The admin path does the same; the cx self-service path previously
+        // omitted it, so a customer editing their own profile produced no badge
+        // and no live push.
+        if (changed.Count > 0)
+            customer.UpdatedAtUtc = DateTime.UtcNow;
         _customers.Update(customer);
         await _customers.SaveChangesAsync();
 
@@ -161,6 +172,21 @@ public class CustomerAuthService : ICustomerAuthService
                 ActorRole = "Customer",
             });
             await _activities.SaveChangesAsync();
+
+            // Push a "customer-update" so any agent/customer view reflecting this
+            // customer refreshes instantly (no manual refresh needed).
+            try
+            {
+                await _live.PublishAsync(new LiveUpdateEvent(
+                    "customer-update",
+                    CustomerId: customer.Id,
+                    ActorUserId: customerId.ToString(),
+                    ActorRole: "Customer"));
+            }
+            catch
+            {
+                // Swallow — realtime is best-effort.
+            }
         }
     }
 

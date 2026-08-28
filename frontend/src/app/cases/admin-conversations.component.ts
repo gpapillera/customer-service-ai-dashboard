@@ -46,11 +46,15 @@ export class AdminConversationsComponent implements OnInit, OnDestroy {
   private readonly elementRef = inject(ElementRef);
   /** Real-time assignment push (SSE). */
   private readonly realtime = inject(RealtimeService);
-  /** Instant refresh: when an assignment changes (incl. unassign → "Unassigned"
-      label), re-fetch the global Conversations list immediately. */
+  /** Instant refresh: when the SSE push reports a case mutation (assignment,
+      status/priority/comment, create, delete), re-fetch the global
+      Conversations list immediately (incl. unassign → "Unassigned" label). */
   private readonly rtEffect = effect(() => {
-    this.realtime.caseEvent();
-    this.refresh();
+    const evt = this.realtime.liveUpdate();
+    if (!evt) return;
+    if (evt.kind === 'case-assignment' || evt.kind === 'case-update') {
+      this.refresh();
+    }
   });
 
   /** Sidenav open state — brand logo hidden when open. */

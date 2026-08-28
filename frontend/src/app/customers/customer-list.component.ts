@@ -1,4 +1,4 @@
-import { Component, computed, inject, OnInit, signal, ViewChild } from '@angular/core';
+import { Component, computed, effect, inject, OnInit, signal, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -23,6 +23,7 @@ import { LayoutComponent } from '../shared/layout/layout.component';
 import { DeletedDrawerComponent, RecycleItem } from '../shared/deleted-drawer.component';
 import { Router } from '@angular/router';
 import { SaveFlashService } from '../shared/save-flash.service';
+import { RealtimeService } from '../shared/realtime.service';
 
 /**
  * Customer list with debounced search and quick actions (view / edit / delete).
@@ -56,6 +57,10 @@ export class CustomerListComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly saveFlash = inject(SaveFlashService);
   readonly auth = inject(AuthService);
+  /** Live customer-profile-edit push (SSE) — refreshes the grid the instant
+   *  another staff member edits a customer, so the card footer's "recent
+   *  activity" reflects the change without a manual page refresh. */
+  private readonly realtime = inject(RealtimeService);
 
   readonly customers = signal<Customer[]>([]);
   /** Sidenav open state (from the app shell) — the page brand logo is shown
@@ -73,13 +78,30 @@ export class CustomerListComponent implements OnInit {
   readonly sortBy = signal<string>('activity'); // "name" | "activity"
   readonly sortDirection = signal<string>('desc'); // "asc" | "desc"
 
+  constructor() {
+    // Live push: when ANY mutation lands that could change a customer card
+    // (admin or cx self-service profile edit, delete/restore, or a case change
+    // that surfaces on the card footer), re-fetch the grid so it reflects the
+    // change instantly — no manual refresh. The current search/filter/sort
+    // state is preserved by load(), which re-reads the signals. A null
+    // (connect/reconnect) event does nothing. Created in the constructor =
+    // injection context (an effect() in ngOnInit would throw NG0203 at runtime).
+    // IMPORTANT: the effect only *initiates* the subscribe; all signal writes
+    // happen in the async next() callback (writing a signal synchronously here
+    // is NG0600 and silently kills the auto-refresh).
+    effect(() => {
+      const evt = this.realtime.liveUpdate();
+      if (!evt) return; // connect/reconnect no-op
+      this.load();
+    });
+  }
+
   ngOnInit(): void {
     this.load();
   }
 
   /** Loads all customers (or searches when a term is present). */
   load(): void {
-    this.dataLoading.set(true);
     const term = this.searchTerm().trim();
     const hasAccount = this.hasAccountFilter();
     const sortBy = this.sortBy();
@@ -90,6 +112,10 @@ export class CustomerListComponent implements OnInit {
     if (hasAccount === 'yes') accountFilter = true;
     else if (hasAccount === 'no') accountFilter = false;
 
+    // NOTE: do NOT set dataLoading synchronously here — doing so inside an
+    // effect() that called load() triggers NG0600 (signal write in a read
+    // context). The grid keeps its current rows until the new list lands, which
+    // is the correct, flicker-free behavior for a live refresh.
     const req = term
       ? this.service.search(term, accountFilter, sortBy, sortDir)
       : this.service.list(accountFilter, sortBy, sortDir);

@@ -32,7 +32,7 @@ public class CaseServiceTests
         var activities = new FakeRepository<CustomerActivity>();
         predictor ??= new RuleBasedPriorityPredictor();
         INotificationService notifications = new FakeNotificationService();
-        ICaseEventHub events = new FakeCaseEventHub();
+        ILiveUpdateHub events = new FakeLiveUpdateHub();
         return new CaseService(cases, customers, categories, comments, readStates, activities, predictor, notifications, events);
     }
 
@@ -225,16 +225,6 @@ public class CaseServiceTests
             Task.FromResult<NotificationDto?>(new NotificationDto { Id = id + 1000, Title = "Resent", Message = "Resent body", Channel = NotificationChannel.Email, Type = NotificationType.AdminManual, Status = NotificationStatus.Unread, CreatedAtUtc = DateTime.UtcNow });
     }
 
-    /// <summary>No-op case-event hub for CaseService tests (collects nothing).</summary>
-    private sealed class FakeCaseEventHub : ICaseEventHub
-    {
-        private readonly System.Threading.Channels.Channel<CaseEvent> _channel =
-            System.Threading.Channels.Channel.CreateUnbounded<CaseEvent>();
-        public System.Threading.Channels.ChannelReader<CaseEvent> Reader => _channel.Reader;
-        public ValueTask PublishAsync(CaseEvent evt) => _channel.Writer.WriteAsync(evt);
-        public bool TryRead(out CaseEvent evt) => _channel.Reader.TryRead(out evt!);
-    }
-
     // ---- Phase 6: Agent scoping ----
 
     [Fact]
@@ -321,15 +311,15 @@ public class CaseServiceTests
         var svc = BuildService(out var cases, out var customers, out var categories);
         SeedCustomer(customers, 1);
         SeedCategory(categories, 1);
-        var hub = (FakeCaseEventHub)svc.GetType().GetField("_events", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.GetValue(svc)!;
+        var hub = (FakeLiveUpdateHub)svc.GetType().GetField("_events", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.GetValue(svc)!;
 
         var c = await svc.CreateAsync(new CreateCaseDto { Subject = "X", CustomerId = 1, CategoryId = 1 });
-        // Change assignee -> should publish one event with the new agent id.
+        // Change assignee -> should publish an assignment event with the new agent id.
         await svc.UpdateAsync(c.Id, new UpdateCaseDto { Subject = "X", CategoryId = 1, AssignedToUserId = "agent-001" });
 
-        Assert.True(hub.TryRead(out var evt));
-        Assert.Equal(c.Id, evt.CaseId);
-        Assert.Equal("agent-001", evt.AssignedToUserId);
+        var assignmentEvt = hub.Published().First(e => e.Kind == "case-assignment");
+        Assert.Equal(c.Id, assignmentEvt.CaseId);
+        Assert.Equal("agent-001", assignmentEvt.AssignedToUserId);
     }
 
     [Fact]
@@ -338,17 +328,17 @@ public class CaseServiceTests
         var svc = BuildService(out var cases, out var customers, out var categories);
         SeedCustomer(customers, 1);
         SeedCategory(categories, 1);
-        var hub = (FakeCaseEventHub)svc.GetType().GetField("_events", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.GetValue(svc)!;
+        var hub = (FakeLiveUpdateHub)svc.GetType().GetField("_events", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.GetValue(svc)!;
 
         var c = await svc.CreateAsync(new CreateCaseDto { Subject = "X", CustomerId = 1, CategoryId = 1 });
         await svc.UpdateAsync(c.Id, new UpdateCaseDto { Subject = "X", CategoryId = 1, AssignedToUserId = "agent-001" });
-        // Unassign -> event with null assignee (visible to both agents).
+        // Unassign -> an assignment event with null assignee (visible to both agents).
         await svc.UpdateAsync(c.Id, new UpdateCaseDto { Subject = "X", CategoryId = 1, AssignedToUserId = UpdateCaseDto.UnassignSentinel });
 
-        Assert.True(hub.TryRead(out var assignEvt));
-        Assert.Equal("agent-001", assignEvt.AssignedToUserId);
-        Assert.True(hub.TryRead(out var unassignEvt));
-        Assert.Null(unassignEvt.AssignedToUserId);
+        var assignments = hub.Published().Where(e => e.Kind == "case-assignment").ToList();
+        Assert.Equal(2, assignments.Count);
+        Assert.Equal("agent-001", assignments[0].AssignedToUserId);
+        Assert.Null(assignments[1].AssignedToUserId);
     }
 
     // ---- Task A2: soft-delete + purge fields (default state) ----

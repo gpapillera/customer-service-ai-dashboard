@@ -1,4 +1,4 @@
-import { Component, computed, DestroyRef, HostListener, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, DestroyRef, HostListener, inject, OnInit, signal, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -24,6 +24,7 @@ import {
   DatePreset, DATE_PRESETS, DATE_PRESET_LABELS, filterByDatePreset, datePresetNeedsInput,
 } from '../shared/date-filter';
 import { SaveFlashService } from '../shared/save-flash.service';
+import { RealtimeService } from '../shared/realtime.service';
 
 /** Human-readable labels for notification/email types (mirrors case-detail). */
 const EMAIL_TYPE_LABELS: Record<string, string> = {
@@ -72,6 +73,20 @@ export class CustomerDetailComponent implements OnInit {
   private readonly saveFlash = inject(SaveFlashService);
   private readonly destroyRef = inject(DestroyRef);
   readonly auth = inject(AuthService);
+  /** Real-time push (SSE). Re-fetches this customer + feeds when a
+      customer-scoped mutation lands for THIS customer (profile edit by admin
+      or the customer's own portal edit, soft-delete, restore). Keeps the
+      profile, case history, and activity panel authoritative in real time. */
+  private readonly realtime = inject(RealtimeService);
+  private readonly rtEffect = effect(() => {
+    const evt = this.realtime.liveUpdate();
+    if (!evt) return;
+    const id = Number(this.route.snapshot.paramMap.get('id'));
+    if ((evt.kind === 'customer-update' || evt.kind === 'customer-deleted' || evt.kind === 'customer-restored')
+        && evt.customerId === id) {
+      this.silentReload();
+    }
+  });
 
   readonly customer = signal<Customer | null>(null);
   readonly cases = signal<Case[]>([]);
@@ -213,6 +228,23 @@ export class CustomerDetailComponent implements OnInit {
     const id = Number(this.route.snapshot.paramMap.get('id'));
     this.service.customerCases(id).subscribe((list) => {
       this.cases.set(list);
+    });
+  }
+
+  /** Silent re-fetch used by the live push — re-fetches the profile, case
+      history, and feeds WITHOUT toggling the loading spinner (so the detail
+      page doesn't flash on every live event). Errors are swallowed. This is
+      the safe counterpart to load(): it performs NO synchronous signal write,
+      which is required for calls originating inside an effect(). */
+  private silentReload(): void {
+    const id = Number(this.route.snapshot.paramMap.get('id'));
+    this.service.get(id).subscribe({
+      next: (c) => {
+        this.customer.set(c);
+        this.loadCases();
+        this.loadPanelData();
+      },
+      error: () => { /* live refresh is best-effort */ },
     });
   }
 

@@ -98,9 +98,13 @@ export class CaseDetailComponent implements OnInit {
       Assignee card stays authoritative in real time (e.g. an admin unassigns
       while an agent has the case open — it flips to Unassigned instantly). */
   private readonly rtEffect = effect(() => {
-    const evt = this.realtime.caseEvent();
+    const evt = this.realtime.liveUpdate();
     const c = this.case();
-    if (evt && c && evt.caseId === c.id) {
+    // Re-fetch this case when a case-scoped mutation lands for it (assignment,
+    // status/priority/comment, create, delete). Keeps the Assignee card and
+    // thread authoritative in real time.
+    if (evt && c && evt.caseId === c.id &&
+        (evt.kind === 'case-assignment' || evt.kind === 'case-update')) {
       this.caseService.get(c.id).subscribe({ next: (fresh) => this.case.set(fresh) });
     }
   });
