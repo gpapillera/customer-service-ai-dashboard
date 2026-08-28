@@ -470,8 +470,28 @@ in `CaseCommentService`.
 ## Testing
 
 - Backend: `dotnet test CustomerServiceApi.sln` (xUnit — services, auth boundaries, soft-delete,
-  notification routing, email templates; **130+ tests**).
-- Frontend: `npm test` (Jasmine/Karma — guards, services, dashboard, nav-badge; **~47 specs**).
+  notification routing, email templates; **141 tests**).
+- Frontend: `npm test` (Jasmine/Karma — guards, services, dashboard, nav-badge; **47 spec cases**
+  across 7 files).
+
+### Manual QA checklist
+Run the backend (`:5274`) and frontend (`:4200`) first (see [Getting Started](#getting-started)).
+Demo creds: `admin` / `Passw0rd!` (also `agent` / `maria`).
+
+- **Auth** — logged-out hits redirect to `/login`; `admin`/`Passw0rd!` lands on `/dashboard`; wrong
+  password errors; Sign Out clears session.
+- **Customers** — `/customers` lists seeded customers w/ case counts; search filters (debounced);
+  New Customer modal adds a row; empty Name / bad Email errors; row → detail; Edit/Delete (admin) work.
+- **Cases** — `/cases` lists status/priority/category pills; filters narrow; New Case **Get AI
+  suggestion** previews a priority; no explicit priority stores ML value + flags AI-predicted; detail
+  shows AI panel + Call Log; adding a call log appends; Edit overrides priority/status (clears AI
+  flag); Delete (confirm) removes.
+- **Dashboard** — KPI cards (Total/Open/High/Resolved/Customers/AI Predicted); trend line + priority
+  donut + category bar + status bar (all 5 statuses even at 0); Recent Cases links.
+- **API/Errors** — `POST /api/cases` missing `subject` → 400 JSON envelope (no stack trace);
+  `GET /api/cases/{missing}` → 404 JSON; Swagger at `http://localhost:5274/swagger`.
+- **ML** — `POST /api/ml/predict-priority` returns priority + plain-English reason; "urgent"/"refund"/
+  "broken" trends higher than neutral.
 
 ---
 
