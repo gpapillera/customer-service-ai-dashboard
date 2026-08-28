@@ -197,6 +197,6 @@ Sign in with `admin` / `Passw0rd!`. Swagger UI at `http://localhost:5274/swagger
 ---
 
 ## 6. Testing status
-- Backend: `tests/CustomerService.Tests` exists but contains only a placeholder `UnitTest1`.
-- Frontend: no automated tests yet.
+- Backend: `dotnet test CustomerServiceApi.sln` — **141 xUnit tests** (132 `[Fact]`/`[Theory]` methods across 15 files; the extra cases come from `[Theory]` `[InlineData]` expansions). `UnitTest1.cs` still exists but is vestigial alongside the real suite.
+- Frontend: `npm test` — 47 Jasmine/Karma spec cases across 7 files (auth guard/interceptor, case service/table-settings, dashboard, date-filter, nav-badge).
 - Both build clean (`dotnet build`, `npm run build`).
