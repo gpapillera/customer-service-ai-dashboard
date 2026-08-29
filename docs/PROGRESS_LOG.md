@@ -2,7 +2,38 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
-## [Frontend perf — lazy-load routes; initial bundle under budget] (2026-08-29)
+## [Chore — gitignore FUSE transient .fuse_hidden* inodes] (2026-08-29)
+**Status:** ✅ DONE (.gitignore updated; artifacts no longer appear in `git status`).
+
+### Why / root cause
+The repo lives on a Crucial MX500 SSD mounted via FUSE. When a tool deletes a
+file that is still open (e.g. `rm -f customer_service.db` during ML regen, or
+`dotnet` recycling the SQLite `-wal`/`-shm` at startup), FUSE keeps the inode
+alive under a `.fuse_hidden*` placeholder name instead of unlinking it
+immediately. These entries are transient (they GC away once the open handle
+closes) but kept reappearing in `git status` and risked being accidentally
+committed. Force-deleting or `git clean`-ing them on a FUSE mount is unsafe
+(unlinks a live inode a process may still reference → FS corruption risk), so
+the correct fix is to gitignore the pattern, not remove the files.
+
+### What changed
+- `.gitignore`: added `.fuse_hidden*` under the IDE/OS section, with a comment
+  explaining they are FUSE deleted-but-open placeholders that must never be
+  force-deleted or committed. `git check-ignore` confirms the pattern matches
+  (and a throwaway `.fuse_hidden_TEST` was created + verified + removed).
+
+### Verify
+- `git status --short` now shows only the `.gitignore` change; `.fuse_hidden*`
+  entries are excluded.
+- `git check-ignore -v backend/src/CustomerService.Api/.fuse_hidden*` → matched
+  at `.gitignore:47`.
+
+### Senior-dev note
+Silencing via .gitignore is the safe, permanent fix. Deleting the placeholder
+names is explicitly avoided — they self-clear and deleting a live FUSE inode on
+a USB mount is the one action with real corruption risk. If a `.fuse_hidden*`
+ever persists across reboot with a live `fuser` holder, the fix is to restart
+that process, not force-unlink.
 **Status:** ✅ DONE (initial chunk 1.67 MB → 689.71 kB; 0 build warnings). NOTE: not yet browser-walked end-to-end — see Verify.
 
 ### Why / root cause
