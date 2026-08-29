@@ -1,75 +1,56 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './auth/auth.guard';
-// See docs/DIY.md §11 for how this route tree wraps guarded routes in LayoutComponent.
-import { LayoutComponent } from './shared/layout/layout.component';
-import { LoginComponent } from './auth/login/login.component';
-import { DashboardComponent } from './dashboard/dashboard.component';
-import { CustomerListComponent } from './customers/customer-list.component';
-import { CustomerDetailComponent } from './customers/customer-detail.component';
-import { CaseListComponent } from './cases/case-list.component';
-import { CaseDetailComponent } from './cases/case-detail.component';
-import { CaseFormComponent } from './cases/case-form.component';
-import { AgentListComponent } from './users/agent-list.component';
-import { ConversationsListComponent } from './cases/conversations-list.component';
-import { AdminConversationsComponent } from './cases/admin-conversations.component';
-import { EmailListComponent } from './email/email-list.component';
-
-// Customer portal (Phase 3) — a separate shell, separate auth, separate routes.
 import { customerAuthGuard } from './customer/customer-auth.guard';
-import { CustomerLayoutComponent } from './customer/customer-layout.component';
-import { CustomerLoginComponent } from './customer/customer-login.component';
-import { AcceptInviteComponent } from './customer/accept-invite.component';
-import { MyCasesListComponent } from './customer/my-cases-list.component';
-import { NewCaseComponent } from './customer/new-case.component';
-import { MyCaseDetailComponent } from './customer/my-case-detail.component';
 
-// ---- Staff password reset (public, no auth required) ----
-import { ResetPasswordComponent } from './auth/reset-password.component';
-
+// Route components are lazy-loaded via `loadComponent` so the initial bundle
+// stays under the Angular budget; shared shells (LayoutComponent) and the
+// Material/CDK/chart.js dependencies are split into the chunks that use them
+// automatically by the build. Guards stay eager (they are tiny).
+// See docs/DIY.md §11 for how this tree wraps guarded routes in LayoutComponent.
 export const routes: Routes = [
-  { path: 'login', component: LoginComponent },
-  { path: 'reset-password', component: ResetPasswordComponent },
+  { path: 'login', loadComponent: () => import('./auth/login/login.component').then(m => m.LoginComponent) },
+  { path: 'reset-password', loadComponent: () => import('./auth/reset-password.component').then(m => m.ResetPasswordComponent) },
   {
     path: '',
-    component: LayoutComponent,
+    loadComponent: () => import('./shared/layout/layout.component').then(m => m.LayoutComponent),
     canActivate: [authGuard],
     children: [
-      { path: 'dashboard', component: DashboardComponent },
+      { path: 'dashboard', loadComponent: () => import('./dashboard/dashboard.component').then(m => m.DashboardComponent) },
       {
         path: 'customers',
         children: [
-          { path: '', component: CustomerListComponent },
-          { path: ':id', component: CustomerDetailComponent },
+          { path: '', loadComponent: () => import('./customers/customer-list.component').then(m => m.CustomerListComponent) },
+          { path: ':id', loadComponent: () => import('./customers/customer-detail.component').then(m => m.CustomerDetailComponent) },
         ],
       },
       {
         path: 'cases',
         children: [
-          { path: '', component: CaseListComponent },
-          { path: 'new', component: CaseListComponent },
-          { path: ':id', component: CaseDetailComponent },
-          { path: ':id/edit', component: CaseListComponent },
+          { path: '', loadComponent: () => import('./cases/case-list.component').then(m => m.CaseListComponent) },
+          { path: 'new', loadComponent: () => import('./cases/case-list.component').then(m => m.CaseListComponent) },
+          { path: ':id', loadComponent: () => import('./cases/case-detail.component').then(m => m.CaseDetailComponent) },
+          { path: ':id/edit', loadComponent: () => import('./cases/case-list.component').then(m => m.CaseListComponent) },
         ],
       },
-      { path: 'agents', component: AgentListComponent },
-      { path: 'messages', component: ConversationsListComponent },
-      { path: 'conversations', component: AdminConversationsComponent },
-      { path: 'emails', component: EmailListComponent },
+      { path: 'agents', loadComponent: () => import('./users/agent-list.component').then(m => m.AgentListComponent) },
+      { path: 'messages', loadComponent: () => import('./cases/conversations-list.component').then(m => m.ConversationsListComponent) },
+      { path: 'conversations', loadComponent: () => import('./cases/admin-conversations.component').then(m => m.AdminConversationsComponent) },
+      { path: 'emails', loadComponent: () => import('./email/email-list.component').then(m => m.EmailListComponent) },
       { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
     ],
   },
   // ---- Customer portal ----
-  { path: 'customer/login', component: CustomerLoginComponent },
-  { path: 'customer/accept-invite', component: AcceptInviteComponent },
+  { path: 'customer/login', loadComponent: () => import('./customer/customer-login.component').then(m => m.CustomerLoginComponent) },
+  { path: 'customer/accept-invite', loadComponent: () => import('./customer/accept-invite.component').then(m => m.AcceptInviteComponent) },
   {
     path: 'customer',
-    component: CustomerLayoutComponent,
+    loadComponent: () => import('./customer/customer-layout.component').then(m => m.CustomerLayoutComponent),
     canActivate: [customerAuthGuard],
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'cases' },
-      { path: 'cases', component: MyCasesListComponent },
-      { path: 'cases/new', component: NewCaseComponent },
-      { path: 'cases/:id', component: MyCaseDetailComponent },
+      { path: 'cases', loadComponent: () => import('./customer/my-cases-list.component').then(m => m.MyCasesListComponent) },
+      { path: 'cases/new', loadComponent: () => import('./customer/new-case.component').then(m => m.NewCaseComponent) },
+      { path: 'cases/:id', loadComponent: () => import('./customer/my-case-detail.component').then(m => m.MyCaseDetailComponent) },
     ],
   },
   { path: '**', redirectTo: 'dashboard' },
