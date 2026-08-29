@@ -389,7 +389,7 @@ export interface Notification {
   id: number;
   title: string;
   message: string;
-  channel: 'InApp' | 'Email' | 'Sms';
+  channel: 'InApp' | 'Email';
   status: 'Unread' | 'Read';
   type: 'CaseOverdue' | 'CaseResolved' | 'CustomerInvite' | 'CustomerPasswordReset' | 'NewCustomerMessage' | 'StaffPasswordReset' | 'AdminManual';
   createdAtUtc: string;
