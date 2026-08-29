@@ -14,7 +14,7 @@ namespace CustomerService.Application.Services;
 /// notification center. Generation is idempotent: at most one notification
 /// exists per (CaseId, Channel, Type) at any time. Which channels fire is
 /// driven by <see cref="NotificationOptions.Channels"/> — InApp by default,
-/// with Email/SMS available via the <see cref="INotificationSender"/> seam.
+/// with Email available via the <see cref="INotificationSender"/> seam.
 ///
 /// Business rules (Email channel only):
 ///  - Overdue (CaseOverdue): goes to the ASSIGNED AGENT's email. If the case
@@ -107,22 +107,17 @@ public class NotificationService : INotificationService
                 //  - InApp: shown to any agent (no single recipient).
                 //  - Email: the ASSIGNED AGENT's email. An unassigned case has
                 //    no recipient — skip it (logged) rather than guessing one.
-                //  - SMS:   audience is unchanged (customer phone) per spec.
                 var recipient = channel switch
                 {
                     NotificationChannel.InApp => null,
                     NotificationChannel.Email => c.AssignedToUser?.Email,
-                    NotificationChannel.Sms => c.Customer?.Phone,
                     _ => null,
                 };
 
                 if (channel != NotificationChannel.InApp && string.IsNullOrWhiteSpace(recipient))
                 {
-                    var reason = channel == NotificationChannel.Email
-                        ? "case is unassigned (no agent email)"
-                        : "customer has no phone";
                     _logger.LogWarning(
-                        "Overdue {Channel} skipped for case #{CaseId}: {Reason}.", channel, c.Id, reason);
+                        "Overdue {Channel} skipped for case #{CaseId}: case is unassigned (no agent email).", channel, c.Id);
                     continue;
                 }
 

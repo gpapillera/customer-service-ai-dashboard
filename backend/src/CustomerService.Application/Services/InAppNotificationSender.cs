@@ -6,9 +6,9 @@ namespace CustomerService.Application.Services;
 
 /// <summary>
 /// In-app notification sender: persists a <see cref="Notification"/> row so it
-/// can be surfaced in the notification center. This is the only sender used by
-/// the demo; Email/SMS senders can be added later behind
-/// <see cref="INotificationSender"/>.
+/// can be surfaced in the notification center. Email delivery is handled by
+/// <see cref="EmailNotificationSender"/> (Gmail SMTP) behind the same
+/// <see cref="INotificationSender"/> seam.
 /// See docs/DIY.md §7 for the notification flow.
 /// </summary>
 public class InAppNotificationSender : INotificationSender

@@ -21,12 +21,10 @@ public class CompositeNotificationSender : INotificationSender
     /// <summary>Initializes a new <see cref="CompositeNotificationSender"/>.</summary>
     /// <param name="inApp">In-app sender.</param>
     /// <param name="email">Email sender.</param>
-    /// <param name="sms">SMS sender.</param>
     /// <param name="logger">Logger.</param>
     public CompositeNotificationSender(
         InAppNotificationSender inApp,
         EmailNotificationSender email,
-        SmsNotificationSender sms,
         ILogger<CompositeNotificationSender> logger)
     {
         _logger = logger;
@@ -34,7 +32,6 @@ public class CompositeNotificationSender : INotificationSender
         {
             [NotificationChannel.InApp] = inApp,
             [NotificationChannel.Email] = email,
-            [NotificationChannel.Sms] = sms,
         };
     }
 

@@ -32,7 +32,7 @@ public class NotificationDto
     /// <summary>Related case id, when applicable.</summary>
     public int? CaseId { get; set; }
 
-    /// <summary>Recipient address for Email/SMS channels (null for InApp).</summary>
+    /// <summary>Recipient address for Email channel (null for InApp).</summary>
     public string? Recipient { get; set; }
 
     /// <summary>Maps a <see cref="Notification"/> entity to its DTO.</summary>

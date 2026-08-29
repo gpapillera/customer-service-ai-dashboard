@@ -4,8 +4,8 @@ namespace CustomerService.Application.Interfaces;
 
 /// <summary>
 /// Pluggable notification delivery contract. The demo ships an in-app sender
-/// that persists a <see cref="Notification"/> row; future Email/SMS senders
-/// can implement this same interface without touching the rest of the system.
+/// that persists a <see cref="Notification"/> row; the Email sender (Gmail SMTP)
+/// also implements this same interface without touching the rest of the system.
 /// </summary>
 public interface INotificationSender
 {

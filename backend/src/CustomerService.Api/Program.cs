@@ -130,7 +130,6 @@ public class Program
 
         builder.Services.AddScoped<InAppNotificationSender>();
         builder.Services.AddScoped<EmailNotificationSender>();
-        builder.Services.AddScoped<SmsNotificationSender>();
         builder.Services.AddScoped<INotificationSender>(sp => sp.GetRequiredService<CompositeNotificationSender>());
         // CompositeNotificationSender routes each notification to the sender
         // that handles its channel; the app consumes only this single
@@ -138,8 +137,8 @@ public class Program
         builder.Services.AddScoped<CompositeNotificationSender>();
         builder.Services.Configure<CustomerService.Application.Options.NotificationOptions>(
             builder.Configuration.GetSection("Notifications"));
-        // Register the resolved options as a concrete service so the Email/SMS
-        // senders can take NotificationOptions directly (not just IOptions<>).
+        // Register the resolved options as a concrete service so the Email
+        // sender can take NotificationOptions directly (not just IOptions<>).
         builder.Services.AddScoped(sp =>
             sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<CustomerService.Application.Options.NotificationOptions>>().Value);
         builder.Services.Configure<CustomerService.Application.Options.EmailOptions>(
