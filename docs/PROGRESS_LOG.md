@@ -2,7 +2,23 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
-## [ML — regenerate synthetic baseline; reject seed-DB retrain; honest docs] (2026-08-29)
+## [Frontend perf — lazy-load routes; initial bundle under budget] (2026-08-29)
+**Status:** ✅ DONE (initial chunk 1.67 MB → 689.71 kB; 0 build warnings). NOTE: not yet browser-walked end-to-end — see Verify.
+
+### Why / root cause
+`frontend/src/app/app.routes.ts` eagerly `import`-ed all 17 route components at module top level, so the entire app collapsed into one initial chunk. `npm run build` reported `Initial total 1.67 MB` — 170 kB over Angular's `maximumWarning: 1.5mb` budget (the error ceiling is 2.5 MB, so the build still passed). The heavy deps (Angular Material/CDK, chart.js, ng2-charts, lucide-angular) all rode in the initial download. No `loadComponent`/`loadChildren` was used anywhere.
+
+### What changed
+- `frontend/src/app/app.routes.ts`: converted every route from eager `component:` to typed `loadComponent: () => import('...').then(m => m.X)`. Guards (`authGuard`, `customerAuthGuard`) stay eager (tiny). `LayoutComponent`/shells are now the lazy root of each tree, so Material/CDK are split into the chunks that use them. Removed the dead `CaseFormComponent` import (it is a dialog, opened imperatively by `case-list/case-detail/customer-detail`; it was never a route and only inflated the graph).
+- No budget bump in angular.json — that would have hidden the problem instead of fixing it.
+
+### Verify
+- `npm run build`: Initial total **689.71 kB** (was 1.67 MB); 45 lazy chunks; **0 warnings / 0 errors**. Under the 1.5 MB warning budget.
+- Dev server (`npm start`) recompiled clean via HMR — confirms all 17 lazy import paths are valid (Angular AOT type-checks `loadComponent` dynamic imports at build time; a wrong path is a compile error, so a green AOT build proves each route resolves).
+- **Browser walk skipped:** the headless Chrome harness is blocked on an "Allow remote debugging?" OS popup only the user can dismiss. The routes are fully AOT-verified by the green prod build, so this is a nice-to-have, not a correctness gate. Manual check (optional): log in at http://localhost:4200 (admin/Passw0rd!), click through Dashboard/Customers/Cases/Agents/Messages/Conversations/Emails + /customer portal; each should render. Both :4200 and :5274 were up during this session.
+
+### Senior-dev note
+This is a pure performance win with no behavior change. We did NOT raise the budget threshold — that is the lazy fix that papers over a real 170 kB overage.
 **Status:** ✅ DONE (model regenerated to 94.7% local .onnx; MODEL_CARD/README/DIY corrected). NOTE: `ml/models/priority_model.onnx` is gitignored — the regenerated model is local-only and will be rebuilt by the Docker/ML step on a fresh clone.
 
 ### Why / root cause
