@@ -41,6 +41,11 @@ ml/models/
 .DS_Store
 Thumbs.db
 
+# FUSE mount transient inodes (.fuse_hidden* = deleted-but-open file placeholders on
+# the Crucial MX500 USB FUSE mount; they vanish on their own and must never be force-deleted
+# or committed — gitignore them so they stay out of `git status`)
+.fuse_hidden*
+
 # Logs
 *.log
 logs/
