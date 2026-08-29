@@ -623,6 +623,12 @@ is git-ignored, so every clone regenerates it. `clean_data.py` is a separate,
 reusable utility that scrubs a messy CRM/Excel export (the kind of raw data you'd
 feed a real model later).
 
+> ⚠️ **The seeded demo database is NOT real triage data.** `export_training_data.py`
+> can pull cases from the SQLite/SQL Server DB, but the seed cases were generated,
+> not human-triaged — retraining on them makes the model *worse* (an earlier attempt
+> scored 33% and always predicted "Medium"). Only retrain when you have genuine
+> human-labeled case exports.
+
 **Step-by-step to build it:**
 1. Create and activate the venv, then install deps:
    ```bash

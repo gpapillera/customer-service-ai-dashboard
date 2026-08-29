@@ -3,7 +3,7 @@
 **Model:** `priority_model.onnx` (Decision Tree classifier)
 **Task:** Multiclass classification — predict a support-case `Priority` of `Low`, `Medium`, or `High`.
 **Owner:** Customer Service AI Dashboard (portfolio project)
-**Last trained:** 2026-07-23 (retrained on real exported data)
+**Last trained:** 2026-08-29 (regenerated synthetic baseline; prior seed-DB retrain rejected)
 
 ---
 
@@ -50,76 +50,71 @@ continuous urgency signal instead of a 0/1 switch.
 
 ## 3. Training Data
 
-**First generation:** Synthetic data (3,000 rows) generated programmatically in
-`ml/train_model.py` (`generate_synthetic_data`). See previous revision for the
-labeling rule and noise injection details.
+**Shipped model (v1, current):** Synthetic data (3,000 rows) generated programmatically
+in `ml/train_model.py` (`generate_synthetic_data`) and rule-labeled. This is the model
+exported to `ml/models/priority_model.onnx` today — it is what the backend loads at
+startup and what the API uses for `POST /api/cases` suggestions.
 
-**Current model (v2):** Retrained on **15 real cases** exported from the
-application's SQLite database via `ml/export_training_data.py`.
+**Attempted retrain (v2, REJECTED):** On 2026-07-23 (Phase 23q) the model was
+retrained on 15 cases exported from the seeded demo SQLite database via
+`ml/export_training_data.py`. Those cases are **synthetic seed data**, not
+human-triaged, so they carry no real priority signal. The resulting model scored
+**33%** accuracy (it collapsed to always predicting `Medium`) — strictly *worse* than
+the synthetic baseline — and was therefore **rejected** (the on-disk `.onnx` was
+regenerated from synthetic data on 2026-08-29). The v2 artifacts are retained in
+`ml/data/training_data.csv` only as a record of the experiment.
 
 ### Labeling
-
-Each case is labeled by its human-assigned `Priority` field (`Low`, `Medium`, or
-`High`) set by the agent during case triage — this is the true ground truth.
-
-### Features exported
-
-| # | Feature | Source |
-|---|---|---|
-| 0 | `categoryId` | `Case.CategoryId` (1–7) |
-| 1 | `priorCaseCount` | COUNT of earlier cases from same customer |
-| 2 | `daysSinceContact` | Days since `LastContactUtc` (or `CreatedAtUtc`) |
-| 3 | `sentiment` | Lexicon score in [-1,1] computed from `Subject` + `Description` |
+- Synthetic: assigned by the transparent `label_rule` in `train_model.py` (mirrors the
+  backend's `RuleBasedPriorityPredictor` so the model approximates the same logic).
+- Real-data path: each case labeled by its human-assigned `Priority` field
+  (`Low`/`Medium`/`High`) — the true ground truth, **when real triaged data exists**.
 
 ### Known limitations
-
-- **Very small dataset (15 rows).** The model's accuracy is low (33%) because
-  there are too few samples to learn meaningful patterns. Accuracy will improve
-  as more cases are triaged and the export grows.
-- **Dataset imbalance.** The exported data is evenly split 20/40/40 among
-  Low/Medium/High, but with only 3 Low samples the model defaults to predicting
-  Medium.
-- **Category encoding is positional.** The integer ids assume the backend's seed
-  category list. Retraining on a different database must reuse the same encoding.
-- **Sentiment heuristic is English-only and shallow.** It will miss sarcasm,
-  politeness masking urgency, or non-English text.
+- **No real historical data exists in this project.** The seeded demo database is
+  synthetic, so there is currently nothing genuine to retrain on. The synthetic model
+  is the correct choice until real, human-reviewed case exports are available.
+- **Dataset imbalance (synthetic).** Generation skews Medium; see §4.
+- **Category encoding is positional.** Integer ids assume the backend seed category
+  list; reuse the same encoding when retraining on a different database.
+- **Sentiment heuristic is English-only and shallow.** Misses sarcasm, politeness
+  masking urgency, or non-English text.
 
 ---
 
 ## 4. Evaluation
 
 Evaluated on a 20% held-out test split (stratified), after training on the
-remaining 80%. Metrics below are for **v2 (real data, 15 rows).**
+remaining 80%. Metrics below are for the **shipped synthetic baseline (v1)**.
 
 | Metric | Value |
 |---|---|
-| Test accuracy | **0.333** |
-| Macro avg F1 | 0.17 |
+| Test accuracy | **0.95** |
+| Macro avg F1 | 0.89 |
 
 **Classification report (test set):**
 
 | Class | Precision | Recall | F1 | Support |
 |---|---|---|---|---|
-| Low | 0.00 | 0.00 | 0.00 | 1 |
-| Medium | 0.33 | 1.00 | 0.50 | 1 |
-| High | 0.00 | 0.00 | 0.00 | 1 |
+| Low | 0.91 | 0.62 | 0.73 | 47 |
+| Medium | 0.95 | 0.97 | 0.96 | 340 |
+| High | 0.95 | 0.98 | 0.96 | 213 |
 
 **Confusion matrix** (rows = true, cols = predicted; order Low/Medium/High):
 
 ```
-[[0 1 0]
- [0 1 0]
- [0 1 0]]
+[[ 29  14   4]
+ [  1 331   8]
+ [  2   3 208]]
 ```
 
-The model defaults to predicting `Medium` for everything because the training
-set is too small (15 rows) to learn meaningful decision boundaries. As the
-database accumulates more triaged cases, re-running the export → retrain
-pipeline will improve accuracy.
+The synthetic generator skews Medium (the majority class), so Low recall (0.62) is
+lower than the others — acceptable for a suggestion tool an agent overrides.
 
-> Compare with **v1 (synthetic, 3,000 rows):** accuracy was 0.93, macro avg F1
-> was 0.88. The synthetic model was a placeholder until real data became
-> available.
+> **Rejected experiment (v2, seed-DB retrain):** training on the 15 synthetic seed
+> rows scored **0.333** accuracy / 0.17 macro-F1 (always predicted Medium). Kept only
+> as a cautionary record — do **not** ship a retrain on the seeded demo database; it
+> is strictly worse than this baseline. Retrain on genuine human-triaged exports only.
 
 ---
 
