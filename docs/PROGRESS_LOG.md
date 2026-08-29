@@ -2,6 +2,28 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [CI/CD pipeline (#2) — GitHub Actions gated build/test + Docker e2e] (2026-08-29)
+**Status:** ✅ DONE (`.github/workflows/ci.yml` — 3 jobs: backend dotnet test, frontend ng test+build, Docker SQL Server e2e smoke; both unit suites verified locally: 141 backend / 47 frontend)
+
+### Why / root cause
+Roadmap #2 — lock the now-proven build with automated `dotnet test` + `npm test` on every push/PR so a regression like the EmailConfig SQL Server seed crash (#4) is caught at CI instead of container boot. A prior Phase 18-22 `ci.yml` existed but (a) ran no Docker/SQL Server check, so it could NOT have caught that bug, and (b) hardcoded `/usr/bin/google-chrome-stable` with no install step and claimed "64 unit tests" (actual 141). Superseded, not discarded — kept its NuGet cache, trx upload, and build-artifact steps.
+
+### What changed
+- `.github/workflows/ci.yml` (rewritten):
+  - `backend` job: `dotnet build --configuration Release` + `dotnet test` (Release, no-build), uploads `results.trx`.
+  - `frontend` job: installs headless Chrome via `browser-actions/setup-chrome@v1` (no hardcoded path), runs `ng test --browsers ChromeHeadlessCI` (karma's `--no-sandbox` launcher) + `ng build --configuration production`; uploads `dist/`.
+  - `integration` job (NEW, gated on the two test jobs, runs on `push` to `main` + `workflow_dispatch` only — SQL Server image pull is heavy): `docker compose up -d --build db backend frontend`, polls `http://localhost:8080/api/cases` until it returns **401** (auth wall up = SQL Server seed + startup succeeded), then POSTs `/api/auth/login` (admin) asserting **200**. The 401 gate is the real regression catcher — InMemory unit tests can't exercise the SQL Server seed path. `docker compose down -v` tears down (always).
+- `docs/PROGRESS_LOG.md`: this entry.
+
+### Verify (local, pre-commit)
+- `dotnet test CustomerServiceApi.sln` → **141 Passed, 0 Failed** (matches entry).
+- `npx ng test --watch=false --browsers ChromeHeadlessCI` (CHROME_BIN set) → **47 SUCCESS** (matches entry).
+- `npm run build` (prod) passes (budget non-fatal at 1.5 MB warn / 2.5 MB error).
+- YAML parsed with PyYAML (no structural errors). The `on:` key shows as a Python bool under PyYAML 1.1 quirk only — GitHub uses 1.2 where `on:` is a valid string key; not a defect.
+- NOTE: the `integration` job's docker boot was validated live on this host during #4 (all three services Up/healthy; `/api/cases`→401; login→200), but was NOT re-run as a GitHub Actions run — it is committed unverified-at-scale. First push to `main` exercises it.
+
+---
+
 ## [Verify: Docker one-command stack boots end-to-end + 4 defects fixed] (2026-08-29)
 **Status:** ✅ DONE (Docker Engine installed on host; `docker compose up --build` boots db→backend→frontend; full HTTP chain verified)
 
