@@ -2,7 +2,32 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
-## [CI/CD pipeline (#2) — GitHub Actions gated build/test + Docker e2e] (2026-08-29)
+## [Notifications — keep working Gmail Email delivery, remove SMS] (2026-08-29)
+**Status:** ✅ DONE (backend builds clean; 2 notification tests adjusted; frontend type union narrowed; docs realigned). Note: PROGRESS_LOG historical entries still mention SMS — that is intentional history, not current state.
+
+### Why / root cause
+User decision: Email delivery via `EmailNotificationSender` (MailKit → Gmail SMTP) is already real and working (verified earlier by a live SMTP 535 from the demo Gmail creds — that is a real auth attempt, not a stub). SMS was a demo stub (`SmsNotificationSender` logging to `sms.log`) with no free real-provider path, so it was removed to reflect reality: the demo ships Email-only.
+
+### What changed
+- **Deleted** `backend/src/CustomerService.Application/Services/SmsNotificationSender.cs`.
+- `Notification.cs`: removed `Sms = 2` from the `NotificationChannel` enum; updated doc comments (`Channel`/`Recipient`/class summary) to drop SMS.
+- `CompositeNotificationSender.cs`: dropped the `SmsNotificationSender sms` ctor param + the `[NotificationChannel.Sms]` route entry.
+- `NotificationService.cs`: removed the `NotificationChannel.Sms => c.Customer?.Phone` recipient branch and the shared "customer has no phone" skip-reason; unassigned Email now logs "case is unassigned (no agent email)".
+- `Program.cs`: removed `AddScoped<SmsNotificationSender>()`; comment "Email/SMS senders" → "Email sender".
+- `appsettings.Development.json`: `Notifications:Channels` `["InApp","Email","Sms"]` → `["InApp","Email"]`.
+- `INotificationSender.cs`, `NotificationDtos.cs`, `NotificationOptions.cs`, `InAppNotificationSender.cs`: doc comments "Email/SMS" → "Email" (no behavior change).
+- Tests `NotificationServiceTests.cs`: renamed `GenerateOverdueAsync_CreatesOnePerChannel_WhenEmailAndSmsEnabled` → `...WhenEmailEnabled` (2 channels, asserts 2 sent); replaced the Sms-only test with `GenerateOverdueAsync_SkipsUnassignedCase_NoAgentEmail` (unassigned → 0 sent).
+- Frontend `shared/models.ts`: `channel` union `'InApp' | 'Email' | 'Sms'` → `'InApp' | 'Email'`.
+- Docs: README roadmap flipped `Real Email/SMS delivery` → `[x]` (Email real; SMS removed) and `CI/CD pipeline` → `[x]` (already present at `.github/workflows/ci.yml`); Email/SMS → Email-only language in README §Overview/Features/Tech/Config/Notification-center; DIY.md sender descriptions + revision note; MVP_BUILD_PROMPT.md stretch goal wording.
+
+### Verify (pre-commit, to run)
+- `rm -f backend/src/CustomerService.Api/customer_service.db` (recreate schema without the Sms enum value).
+- `dotnet build CustomerServiceApi.sln` → clean.
+- `dotnet test CustomerServiceApi.sln` → 141/141 (notification test count unchanged at 2 for this area, suite total unaffected).
+- `cd frontend && npm run build` → green.
+
+### Note
+No free real SMS provider exists (Twilio trial is the only realistic real option); Email via Gmail app-password is effectively free and is the shipped path. The `INotificationSender` seam remains intact, so a future `TwilioSmsNotificationSender` could be added as a new channel class + enum value without touching routing/trigger logic.
 **Status:** ✅ DONE (`.github/workflows/ci.yml` — 3 jobs: backend dotnet test, frontend ng test+build, Docker SQL Server e2e smoke; both unit suites verified locally: 141 backend / 47 frontend)
 
 ### Why / root cause
