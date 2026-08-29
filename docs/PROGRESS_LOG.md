@@ -2,6 +2,39 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Verify: Docker one-command stack boots end-to-end + 4 defects fixed] (2026-08-29)
+**Status:** ✅ DONE (Docker Engine installed on host; `docker compose up --build` boots db→backend→frontend; full HTTP chain verified)
+
+### Why / root cause
+The Docker stack had never actually run (Docker wasn't installed on the host). Installing Docker + running `docker compose up --build` surfaced four real defects that blocked the stack from coming up on **SQL Server** (the compose default DB). Local dev used SQLite, which hid three of them.
+
+1. **compose healthcheck bug** — pointed at `/opt/mssql-tools/bin/sqlcmd`; mssql/server:2022 ships it at `/opt/mssql-tools18/bin/sqlcmd`, and ODBC 18 enforces TLS by default. Healthcheck always failed → `db` stayed "unhealthy" → backend never started.
+2. **backend/Dockerfile contradicting ENVs** — baked `ASPNETCORE_ENVIRONMENT=Production` + `Database__Provider=Sqlite`, fighting compose's `Development` + `SqlServer` (and making the `db` service dead weight standalone).
+3. **host port 1433 collision** — already bound on the dev host; the `db` `1433:1433` mapping could not bind.
+4. **seed crash on SQL Server (root-cause code bug)** — `EmailConfig.Id` is pinned to `1` (singleton design, `EmailConfig.cs:12`), but EF mapped it as an IDENTITY column, so SQL Server rejected the explicit insert: *"Cannot insert explicit value for identity column in table 'EmailConfigs' when IDENTITY_INSERT is OFF."* SQLite tolerated explicit keys, so it never failed in local dev.
+
+### What changed
+- `docker-compose.yml`: healthcheck → `/opt/mssql-tools18/bin/sqlcmd ... -C` (trust self-signed localhost cert); host port remapped `1433:1433` → `11433:1433` (container-internal `db,1433` unchanged, so the backend connection string is unaffected).
+- `backend/Dockerfile`: removed the contradicting `ASPNETCORE_ENVIRONMENT=Production` + `Database__Provider=Sqlite` runtime ENVs (compose owns both; image now fails fast standalone instead of silently using SQLite).
+- `backend/src/CustomerService.Infrastructure/Data/AppDbContext.cs`: added `builder.Entity<EmailConfig>(e => { e.HasKey(c => c.Id); e.Property(c => c.Id).ValueGeneratedNever(); })` so the pinned `Id=1` singleton is allowed on SQL Server (matches the project's Fluent-API convention; no migration — `EnsureCreated` + idempotent seed).
+- Reset the `mssql-data` volume once (`docker compose down -v`) so `EnsureCreated` recreated the schema from the corrected model (existing IDENTITY column on `EmailConfigs.Id` could not be retro-fitted without a migration).
+
+### Verify (live, this host)
+- `docker ps`: `db` Up/healthy, `backend` + `frontend` Up.
+- HTTP via Nginx at `:8080`:
+  - `GET /` → **200** (SPA)
+  - `GET /api/cases` (no auth) → **401** (auth wall)
+  - `GET /swagger` → **301** (redirect to `/swagger/index.html` → **200**)
+  - `POST /api/auth/login` (admin/Passw0rd!) → **200** + JWT
+  - `GET /api/cases` (with cookie) → **200**, 13.6 KB seeded case JSON
+- Backend seed runs clean (no DbUpdateException). Non-blocker observed: SMTP 535 from the demo `glnppllr@gmail.com` Gmail creds — expected demo-sender behavior (real Email/SMS = roadmap #1); logs + outbox, does not crash.
+- BUG B (image `localhost` vs compose `0.0.0.0`) confirmed benign: compose `command` `--urls http://0.0.0.0:8080` fully overrides the image ENTRYPOINT.
+
+### Note
+Docker was installed on the host for this task (`docker.io` 29.1.3 + `docker-compose-v2` 2.40.3 via apt; `ebnzr` added to the `docker` group). The stack now runs with `docker compose up --build` after a one-time `down -v` to rebuild the schema.
+
+---
+
 ## [Docs — prune orphaned scratch + consolidate QA checklist] (2026-08-29)
 **Status:** ✅ DONE (4 files deleted, 2 docs corrected; docs-only, no build impact)
 
