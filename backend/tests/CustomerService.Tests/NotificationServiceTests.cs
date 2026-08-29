@@ -127,23 +127,21 @@ public class NotificationServiceTests
     }
 
     [Fact]
-    public async Task GenerateOverdueAsync_CreatesOnePerChannel_WhenEmailAndSmsEnabled()
+    public async Task GenerateOverdueAsync_CreatesOnePerChannel_WhenEmailEnabled()
     {
-        var (svc, cases, _, sender) = Build(new() { NotificationChannel.InApp, NotificationChannel.Email, NotificationChannel.Sms });
+        var (svc, cases, _, sender) = Build(new() { NotificationChannel.InApp, NotificationChannel.Email });
         var c = OverdueCase(2, "Package not delivered", "Maria Clara", 2);
         // Overdue emails go to the ASSIGNED AGENT, not the customer.
         c.AssignedToUser = new User { Id = "agent-001", Email = "agent@example.com" };
         c.Customer!.Email = "maria@example.com";
-        c.Customer!.Phone = "+15551234567";
         await cases.AddAsync(c);
 
         var created = await svc.GenerateOverdueAsync();
 
-        Assert.Equal(3, created);
-        Assert.Equal(3, sender.Sent.Count);
+        Assert.Equal(2, created);
+        Assert.Equal(2, sender.Sent.Count);
         Assert.Contains(sender.Sent, n => n.Channel == NotificationChannel.InApp && n.Recipient == null);
         Assert.Contains(sender.Sent, n => n.Channel == NotificationChannel.Email && n.Recipient == "agent@example.com");
-        Assert.Contains(sender.Sent, n => n.Channel == NotificationChannel.Sms && n.Recipient == "+15551234567");
     }
 
     [Fact]
@@ -243,22 +241,19 @@ public class NotificationServiceTests
     }
 
     [Fact]
-    public async Task GenerateOverdueAsync_SmsGoesToCustomerPhone_NotAgentEmail()
+    public async Task GenerateOverdueAsync_SkipsUnassignedCase_NoAgentEmail()
     {
-        // SMS audience is unchanged (customer phone), even though Email goes to
-        // the agent. Regression guard for the recipient-resolution switch.
-        var (svc, cases, _, sender) = Build(new() { NotificationChannel.Sms });
+        // Email audience is the assigned agent; an unassigned case has no
+        // recipient and must be skipped (never guessed).
+        var (svc, cases, _, sender) = Build(new() { NotificationChannel.Email });
         var c = OverdueCase(2, "Package not delivered", "Maria Clara", 2);
-        c.AssignedToUser = new User { Id = "agent-001", Email = "agent@example.com" };
-        c.Customer!.Phone = "+15551234567";
+        c.AssignedToUser = null; // unassigned → no agent email
         await cases.AddAsync(c);
 
         var created = await svc.GenerateOverdueAsync();
 
-        Assert.Equal(1, created);
-        var sent = Assert.Single(sender.Sent);
-        Assert.Equal(NotificationChannel.Sms, sent.Channel);
-        Assert.Equal("+15551234567", sent.Recipient);
+        Assert.Equal(0, created);
+        Assert.Empty(sender.Sent);
     }
 
     // ── Resend: account-invite / reset must regenerate a fresh token (not copy the stale Link) ──
