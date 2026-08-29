@@ -209,5 +209,15 @@ public class AppDbContext : DbContext
             e.Property(r => r.Role).IsRequired().HasMaxLength(50);
             e.Property(r => r.ReplacedByToken).HasMaxLength(128);
         });
+
+        // Singleton email config: seed pins Id = 1 (see EmailConfig.cs). EF's
+        // default would treat Id as an IDENTITY column and reject the explicit
+        // value on SQL Server ("IDENTITY_INSERT is OFF") — SQLite tolerated it.
+        // Opt out of generated values so the pinned key is allowed on both providers.
+        builder.Entity<EmailConfig>(e =>
+        {
+            e.HasKey(c => c.Id);
+            e.Property(c => c.Id).ValueGeneratedNever();
+        });
     }
 }
