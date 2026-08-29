@@ -2,7 +2,30 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
-## [Notifications — keep working Gmail Email delivery, remove SMS] (2026-08-29)
+## [ML — regenerate synthetic baseline; reject seed-DB retrain; honest docs] (2026-08-29)
+**Status:** ✅ DONE (model regenerated to 94.7% local .onnx; MODEL_CARD/README/DIY corrected). NOTE: `ml/models/priority_model.onnx` is gitignored — the regenerated model is local-only and will be rebuilt by the Docker/ML step on a fresh clone.
+
+### Why / root cause
+Roadmap item "[ ] Retrain the model on real historical case data." Investigation found:
+1. It was *already attempted* (Phase 23q, 2026-07-23): `export_training_data.py` + `train_model.py --data` retrained on 15 cases exported from the **seeded demo SQLite DB**. Those seed cases are synthetic, never human-triaged → no real signal. Result: **33% accuracy**, collapsed to always predicting `Medium`. Worse than the shipped synthetic model.
+2. The on-disk `ml/models/priority_model.onnx` was still that rejected 33% v2 (672 bytes, 2026-07-23). So local prediction was *worse* than it should be.
+3. MODEL_CARD.md presented the 33% v2 as "current," and called the 15 seed rows "15 real cases" — both misleading.
+4. No real human-triaged case data exists in the repo or on hand (user confirmed). So a genuine "retrain on real data" is not actionable.
+
+### What changed (Option B — senior-dev call: improve where safe, do NOT ship a worse model)
+- **Regenerated the synthetic baseline** locally: `ml/train_model.py --rows 3000` → `ml/models/priority_model.onnx` (4105 bytes, **94.7%** test accuracy / 0.89 macro-F1). This replaces the bad v2 on disk and strictly improves live prediction. Does NOT touch the DB seed (separate pipeline).
+- `docs/MODEL_CARD.md`: "Last trained" → 2026-08-29; §3 rewritten to mark synthetic v1 as the **shipped/current** model and the seed-DB v2 as **REJECTED** (with the 33% result documented as a cautionary record, not current state); §4 metrics now reflect the synthetic baseline; removed the false "15 real cases" framing and the "synthetic was a placeholder until real data" line.
+- `README.md`: roadmap line reworded to "[ ] Retrain on real historical case data — **blocked: no real data exists**" + a note explaining the synthetic baseline, the ready retrain path, and why the seed-DB attempt was rejected.
+- `docs/DIY.md` (Part 10): added a ⚠️ callout that the seeded demo DB is NOT real triage data and retraining on it degrades the model.
+- No backend/frontend code, no test, no seed data changed.
+
+### Verify
+- `python3 ml/train_model.py --rows 3000 --output ml/models/priority_model.onnx` → accuracy 0.947, file regenerated.
+- `git status` → only docs (README.md, MODEL_CARD.md, DIY.md) + the already-ignored `.onnx`; `ml/data/training_data.csv` (the 15-row v2 artifact) left in place as a record, not used.
+- No `dotnet`/`npm` change needed (model is gitignored; backend loads it at startup with rule-based fallback if absent).
+
+### Decision record
+"Retrain on real data" stays an open roadmap item, honestly blocked, not falsely closed. The retraining **path** (`export_training_data.py` + `train_model.py --data`) is ready; it just needs genuine human-labeled exports, which do not exist yet. When they do, re-run the export → `--data` → evaluate; ship the retrain ONLY if its held-out accuracy beats this synthetic baseline.
 **Status:** ✅ DONE (backend builds clean; 2 notification tests adjusted; frontend type union narrowed; docs realigned). Note: PROGRESS_LOG historical entries still mention SMS — that is intentional history, not current state.
 
 ### Why / root cause
