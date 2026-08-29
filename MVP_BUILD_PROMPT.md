@@ -406,7 +406,7 @@ def clean_customer_records(df: pd.DataFrame) -> pd.DataFrame:
 ## 17. Stretch Goals (Post-MVP)
 
 - Sentiment analysis on complaint text (NLP) instead of keyword flags.
-- Email/SMS notifications for overdue follow-ups.
+- Email (Gmail SMTP, MailKit) notifications for overdue follow-ups.
 - Role-based dashboard views (Admin vs. Agent).
 - Docker Compose setup for one-command local deployment.
 - CI/CD pipeline (GitHub Actions) running backend/frontend tests on push.

@@ -455,9 +455,9 @@ follow-ups over time, and the system should nudge them about cases whose
 follow-up is overdue. Call logs are simple child records of a case
 (`CallLogsController` → `ICallLogService`). Notifications are generated via a
 strategy pattern — `INotificationSender` with `CompositeNotificationSender`
-routing by channel to three concrete senders: `InAppNotificationSender`
-(persists a row for the bell), `EmailNotificationSender` (MailKit SMTP with
-retry), and `SmsNotificationSender` (demo stub logging to an outbox file).
+routing by channel to two concrete senders: `InAppNotificationSender`
+(persists a row for the bell) and `EmailNotificationSender` (MailKit SMTP with
+retry + per-type templates, delivering via Gmail SMTP).
 A background worker (`OverdueEmailHostedService`) triggers overdue checks every
 30 minutes (configurable), and the `NotificationsController` also generates
 notifications on read so the bell stays fresh without waiting for the timer.
@@ -474,8 +474,8 @@ red badge reflects reality and resets on logout.
 5. Backend: `NotificationsController` — `GetSummary` / `GetAll` first call
    `GenerateOverdueAsync()`, plus `MarkRead(id)`.
 6. Backend: `NotificationService` + `InAppNotificationSender` (in-app bell).
-   Later: `EmailNotificationSender` (MailKit SMTP with retry), `SmsNotificationSender`
-   (demo stub — swap in a real Twilio sender), wired via `CompositeNotificationSender`
+   `EmailNotificationSender` (MailKit SMTP with retry + per-type templates) is
+   wired via `CompositeNotificationSender` and delivers real Gmail SMTP mail.
    and a background timer (`OverdueEmailHostedService`).
 7. Frontend: `notification-state.service.ts` — `refresh()` calls
    `caseService.list({ overdue: true })`, holds the live list in a signal, and
@@ -489,7 +489,7 @@ red badge reflects reality and resets on logout.
 > ⚠️ **Note:** Notifications have two generation paths — the background timer
 > (`OverdueEmailHostedService` fires every 30 min) and the on-read trigger inside
 > `GetSummary`/`GetAll`. The on-read trigger keeps the bell fresh without waiting
-> for the timer; the background worker ensures email/SMS overdue alerts are sent
+> for the timer; the background worker ensures Email overdue alerts are sent
 > even when no one opens the notification center. If you add a new overdue
 > condition, callers still get fresh data on both paths.
 
@@ -506,8 +506,7 @@ red badge reflects reality and resets on logout.
 - `backend/src/CustomerService.Application/Services/NotificationService.cs` — `GenerateOverdueAsync`, `NotifyResolvedAsync`, `NotifyNewCustomerMessageAsync`.
 - `backend/src/CustomerService.Application/Services/CompositeNotificationSender.cs` — routes by `NotificationChannel` to the correct sender.
 - `backend/src/CustomerService.Application/Services/InAppNotificationSender.cs` — `INotificationSender` (persists `Notification` for the bell).
-- `backend/src/CustomerService.Application/Services/EmailNotificationSender.cs` — `INotificationSender` (MailKit SMTP with retry + templates per type).
-- `backend/src/CustomerService.Application/Services/SmsNotificationSender.cs` — `INotificationSender` (demo stub; logs to `sms.log` outbox).
+- `backend/src/CustomerService.Application/Services/EmailNotificationSender.cs` — `INotificationSender` (MailKit Gmail SMTP with retry + templates per type).
 - `backend/src/CustomerService.Application/Services/OverdueEmailHostedService.cs` — background worker (triggers `GenerateOverdueAsync` on a timer).
 - `frontend/src/app/cases/call-log.service.ts` — Angular call-log HTTP service.
 - `frontend/src/app/shared/notification-state.service.ts` — live overdue list + session-scoped read set.
@@ -774,7 +773,7 @@ tests) and `ng test` (frontend, 13 tests, headless Chrome). For production you
 
 **Verified working as of:** 2026-07-20 — `dotnet test` passes 24/24 (SQLite); `ng test` passes 13/13 (headless Chrome); `npm run build` succeeds; `docker compose up` builds the full stack.
 
-> **Revision note (2026-07-20):** Email/SMS *sending* for overdue follow-ups is now implemented behind the `INotificationSender` seam (Phase 21). The app consumes a single `CompositeNotificationSender` that routes each `Notification` to the sender handling its `Channel` (via `[HandlesChannel]`). Demo `EmailNotificationSender`/`SmsNotificationSender` log + append to an outbox file (`notifications/emails.log`, `notifications/sms.log`) — no external SMTP/SMS dependency. Enable channels in `appsettings.json` under `"Notifications": { "Channels": ["InApp","Email","Sms"] }`. See `backend/src/CustomerService.Application/Services/`.
+> **Revision note (2026-07-20):** Email *sending* for overdue follow-ups is implemented behind the `INotificationSender` seam (Phase 21). The app consumes a single `CompositeNotificationSender` that routes each `Notification` to the sender handling its `Channel` (via `[HandlesChannel]`). The Email sender delivers via Gmail SMTP; `SmsNotificationSender` was later removed (Email-only by design). Enable channels in `appsettings.json` under `"Notifications": { "Channels": ["InApp","Email"] }`. See `backend/src/CustomerService.Application/Services/`.
 
 ---
 

@@ -54,8 +54,8 @@ On top of that core loop, the app adds:
 - A **recycle bin / soft-delete** model for customers and cases with restore and permanent purge
   (GDPR-style erasure), plus an **activity log** recording profile edits, deletes, and restores.
 - An **overdue follow-up engine** that auto-schedules follow-up deadlines from a priority-based SLA,
-  detects overdue/stale open cases, and raises **in-app notifications** (with an Email/SMS sender
-  seam for future delivery).
+  detects overdue/stale open cases, and raises **in-app notifications** (with a real Email sender
+  — Gmail SMTP via MailKit — behind the `INotificationSender` seam).
 - A **server-sent-events (SSE) realtime feed** so the dashboard and notification badge update
   without polling.
 - A **customer-facing portal** where invited customers log in and see only their own cases.
@@ -77,7 +77,7 @@ Staff (Admin / Agent):
 - ⏰ **Overdue follow-up detection** on the dashboard (open cases past their SLA deadline, plus
   stale open cases with no follow-up for 3+ days), driven by a priority-based SLA.
 - 🔔 **In-app notification center** (bell + unread badge + dropdown), persisted `Notification`
-  records; pluggable `INotificationSender` seam for Email/SMS.
+  records; pluggable `INotificationSender` seam with a real Email (Gmail SMTP) sender.
 - 📊 Dashboard: KPI totals, role-based views, 30-day trend + category-breakdown charts.
 - 🔎 Search/filter across customers and cases (status, priority, category, date range).
 - 🤖 AI/ML priority prediction (Low / Medium / High).
@@ -105,7 +105,7 @@ Customer (invite-only portal):
 | Auth | JWT (HS256), delivered as `HttpOnly; SameSite=Lax` cookies; rotatable refresh tokens |
 | Realtime | Server-Sent Events (`text/event-stream`) from the API, consumed by an `EventSource` over `fetch` |
 | Data cleaning & ML | Python (pandas, scikit-learn) → ONNX model loaded and run inside the backend (Microsoft.ML.OnnxRuntime) |
-| Notifications | In-app persisted records; demo Email/SMS senders behind `INotificationSender` |
+| Notifications | In-app persisted records; real Email (Gmail SMTP, MailKit) sender behind `INotificationSender` |
 
 ---
 
@@ -369,7 +369,7 @@ startup (config `ML:ModelPath`). If it is absent, priority prediction falls back
 | `Jwt:RefreshTokenDays` | `appsettings.json` / env `Jwt__RefreshTokenDays` | Refresh-token lifetime (default **14**). Server-side, rotatable, single-use (replay is revoked). |
 | `Cors:AllowedOrigins` | `appsettings.json` / env `Cors__AllowedOrigins` | Comma-separated permitted SPA origins (default `http://localhost:4200`). The CORS policy **DOES allow credentials** (required for the auth cookies). Keep to real origins only — never `*` with credentials. |
 | `AllowedHosts` | `appsettings.json` / env `AllowedHosts` | Hosts the API answers for (default `localhost,127.0.0.1`). Set to `*` only for local testing. |
-| `Notifications:Channels` | `appsettings.json` / env `Notifications__Channels` | Enables the demo Email/SMS senders (they log + write an outbox file rather than delivering real mail). |
+| `Notifications:Channels` | `appsettings.json` / env `Notifications__Channels` | Enables the Email sender (`InApp`, `Email`). Email delivers via Gmail SMTP; a `DevOverrideRecipient` redirect protects real inboxes in Development. |
 | `ML:ModelPath` | `appsettings.json` | Path to `priority_model.onnx` |
 
 > 🍪 **Cookie auth.** The JWT is delivered as two `HttpOnly; SameSite=Lax` cookies
@@ -445,8 +445,8 @@ retraining with real data.
   rows (type `CaseOverdue`). Follow-up deadlines are auto-scheduled from an SLA keyed on priority
   (High = 1 day, …) at case creation.
 - **Notification center** — persisted `Notification` records (bell + unread badge + dropdown). The
-  `INotificationSender` seam routes to demo Email/SMS senders that log + write an outbox file; real
-  delivery is a follow-up item (see Roadmap).
+  `INotificationSender` seam routes Email notifications to a real Gmail SMTP sender (MailKit) that
+  delivers mail; `SmsNotificationSender` was intentionally removed — the demo ships Email-only.
 
 ---
 
@@ -523,14 +523,14 @@ Notes / gotchas:
 - [x] Overdue follow-up detection surfaced on the dashboard (SLA-based deadline + stale-open rule)
 - [x] In-app notification center (bell + unread badge + dropdown, persisted `Notification`)
 - [x] Demo Email/SMS sender seam (logs + outbox file) behind `INotificationSender`
+- [x] **Real Email delivery** — `EmailNotificationSender` delivers via Gmail SMTP (MailKit); overdue/resolved/invite/reset emails send for real (SMS removed — Email-only by design)
 - [x] Soft-delete / recycle bin / restore / purge (GDPR erasure) + activity log
 - [x] Shared agent↔customer comment thread + customer portal (invite/accept/login)
 - [x] SSE realtime feed for cases/events
 - [x] Role-based dashboard views (Admin vs Agent)
 - [x] Agent management + email log/compose UI
 - [x] **Docker Compose** one-command stack (SQL Server + API + Angular/Nginx) — see [Docker](#docker-one-command-stack)
-- [ ] **Real Email/SMS delivery** (swap the demo senders for a real provider)
-- [ ] **CI/CD pipeline** for automated build/test — not yet present in repo
+- [x] **CI/CD pipeline** for automated build/test (`.github/workflows/ci.yml` — 3 jobs: backend dotnet test, frontend ng test+build, Docker SQL Server e2e smoke)
 - [ ] Retrain the model on real historical case data
 
 ---
