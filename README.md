@@ -30,9 +30,11 @@ and a small machine-learning pipeline end to end.
     - [Configuration](#configuration)
   - [API Overview](#api-overview)
   - [AI / ML Model](#ai--ml-model)
-  - [Realtime & Notifications](#realtime--notifications)
+  - [Realtime \& Notifications](#realtime--notifications)
   - [Customer Portal](#customer-portal)
   - [Testing](#testing)
+    - [Manual QA checklist](#manual-qa-checklist)
+  - [Docker (one-command stack)](#docker-one-command-stack)
   - [Roadmap](#roadmap)
   - [License](#license)
   - [Author](#author)
@@ -550,6 +552,6 @@ This is a personal portfolio project. Feel free to use it as a learning referenc
 
 ## Author
 
-*(Glen Papillera, [LinkedIn](linkedin.com/in/gpapillera), Customer Service professional with nearly
+*(Glen Papillera, [LinkedIn](https://www.linkedin.com/in/gpapillera), Customer Service professional with nearly
 three years of experience in voice support, CRM systems, and problem-solving, now bringing a
 user-first mindset to software development.)*
