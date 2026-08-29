@@ -46,8 +46,9 @@ WORKDIR /app
 COPY --from=build /app/publish ./
 COPY --from=ml /model/priority_model.onnx ./ml/models/priority_model.onnx
 
-ENV ASPNETCORE_ENVIRONMENT=Production
-ENV Database__Provider=Sqlite
+# ASPNETCORE_ENVIRONMENT + Database__Provider are supplied by docker-compose.yml
+# (Development + SqlServer). Do NOT bake defaults here: a standalone `docker run`
+# without env now fails fast instead of silently falling back to SQLite.
 ENV ML__ModelPath=/app/ml/models/priority_model.onnx
 
 EXPOSE 8080
