@@ -25,11 +25,16 @@ services:
       MSSQL_SA_PASSWORD: "SqlServer!2024Dev"
       MSSQL_PID: "Developer"
     ports:
-      - "1433:1433"
+      # Host port remapped to 11433: 1433 is already bound on the dev host.
+      # Container-internal port stays 1433, so the backend's
+      # "Server=db,1433" connection string is unaffected.
+      - "11433:1433"
     volumes:
       - mssql-data:/var/opt/mssql
     healthcheck:
-      test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q 'SELECT 1' || exit 1"]
+      # mssql/server:2022 ships sqlcmd at /opt/mssql-tools18; ODBC 18 enforces
+      # TLS by default, so pass -C to trust the self-signed localhost cert.
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q 'SELECT 1' || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
