@@ -2,7 +2,26 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
-## [Chore — gitignore FUSE transient .fuse_hidden* inodes] (2026-08-29)
+## [Docs — fix README LinkedIn URL + TOC polish] (2026-08-29)
+**Status:** ✅ DONE (README Author link + table-of-contents updated).
+
+### Why / root cause
+The README `## Author` LinkedIn link was a schemeless destination
+(`linkedin.com/in/gpapillera` → then `www.linkedin.com/...` after a manual
+edit). In GitHub Flavored Markdown a link with no `https://` scheme is treated
+as a *relative* URL, so it would 404 to `github.com/.../www.linkedin.com/...`.
+Fixed to the absolute form `https://www.linkedin.com/in/gpapillera`. Also
+folded in README TOC additions already in the working tree: `Manual QA
+checklist` and `Docker (one-command stack)` subsection links, and a corrected
+`Realtime \& Notifications` anchor escape.
+
+### What changed
+- `README.md`: Author LinkedIn URL → `https://www.linkedin.com/in/gpapillera`;
+  TOC gained `Manual QA checklist` and `Docker (one-command stack)` entries.
+
+### Verify
+- `git diff README.md` shows the URL now carries `https://`; TOC entries present.
+- No code/test change; nothing to rebuild.
 **Status:** ✅ DONE (.gitignore updated; artifacts no longer appear in `git status`).
 
 ### Why / root cause
