@@ -65,8 +65,8 @@ public class NotificationSummaryDto
 
 /// <summary>Payload for composing and sending an ad-hoc email from the admin email log page.</summary>
 public record ComposeEmailRequest(
-    [property: System.ComponentModel.DataAnnotations.Required] string Recipient,
-    [property: System.ComponentModel.DataAnnotations.Required] string Subject,
-    [property: System.ComponentModel.DataAnnotations.Required] string Message,
+    [System.ComponentModel.DataAnnotations.Required] string Recipient,
+    [System.ComponentModel.DataAnnotations.Required] string Subject,
+    [System.ComponentModel.DataAnnotations.Required] string Message,
     int? CaseId = null
 );
