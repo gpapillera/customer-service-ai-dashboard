@@ -2,6 +2,53 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Compose email: typed Subject was dropped (rendered as message)] (2026-08-30)
+**Status:** ✅ DONE (verified via sender outbox: subject now "URGENT: Refund approved", not the body; 141 tests pass).
+
+### Why / root cause
+Screenshots of a sent compose email showed the inbox subject = the message body, and the typed Subject ("Agent test") absent. Root cause in `EmailNotificationSender`:
+- `NotificationService.ComposeEmailAsync` correctly stores `Title=request.Subject`, `Message=request.Message`.
+- But the renderer ignores `Title`/`Message` and renders from the editable template keyed by `NotificationType`. The seed `AdminManual` template used `Subject="{{caseSubject}}"` / `Body="...{{caseSubject}}..."`.
+- `ResolveCaseSubject` returns `notification.Message` for `AdminManual`, so `{{caseSubject}}` = the message text. The typed Subject was silently discarded; there was no `{{subject}}`/`{{message}}` token to use it.
+- Live DB already held the old template (seed only runs when empty), so a code-only fix would not change running behavior.
+
+### What changed
+- `EmailNotificationSender.BuildTokenMapAsync` — added `subject` (← `notification.Title`) and `message` (← `notification.Message`) tokens.
+- `SeedData.EmailTemplates` `AdminManual` — `Subject="{{subject}}"`, `Body` uses `{{message}}`.
+- Live data fix (no code): `PUT/POST /api/email-config/templates` upserted the existing `AdminManual` row (id 7) to the new `{{subject}}`/`{{message}}` template. This is required because the seed is idempotent (won't reseed an existing row).
+- Did NOT touch `ResolveCaseSubject` — still correct for machine-generated case emails; its `AdminManual` branch is no longer used by the template.
+
+### Verify
+- `dotnet build` 0 warnings/0 errors; `dotnet test` 141 passed (incl. `AdminManual_KeepsFullMessageWhenItContainsQuotes`).
+- Upsert returned id 7 with `subject:"{{subject}}"`, `body:"Hello,\n\n{{message}}\n\n— Customer Service Dashboard"`.
+- Compose (agent `maria`) with subject "URGENT: Refund approved" + distinct body → SMTP outbox line `SUBJECT:URGENT: Refund approved` (was the body text before). DB log stores title+message correctly.
+
+## [Compose Email enabled for Admin + Agent] (2026-08-30)
+**Status:** ✅ DONE (verified end-to-end via curl: agent + admin compose return 200; frontend build green).
+
+### Why / root cause
+The "Compose Email" feature on the Emails page appeared broken for everyone. Two independent gates were wrong:
+1. **Auth (backend):** `EmailsController.Compose` was `[Authorize(Roles = "Admin")]` only, so an Agent POST got **403**.
+2. **UI (frontend):** the Compose button lived in the `@else` (Agent-only) branch of `@if (isAdmin)`, so **Admin never saw it** while Agent saw it but was rejected.
+3. **Hidden blocker (pre-existing, affected ALL roles incl. Admin):** `ComposeEmailRequest` (a primary-constructor record) carried `[property: Required]` attributes. MVC tries to bind/validate these against the *property* (which doesn't exist for a positional record) and throws `InvalidOperationException` → **400 on every compose call**, masking the auth fix until exercised. The controller already validates the fields manually, so the attributes were redundant.
+
+### What changed
+- `backend/.../Controllers/EmailsController.cs:37-39` — `[Authorize(Roles = "Admin,Agent")]`; doc comment updated.
+- `backend/.../Application/Dtos/NotificationDtos.cs:67-72` — `ComposeEmailRequest` record: dropped the `[property:]` target so `[Required]` applies to the constructor parameter (correct target for a positional record); MVC validation now passes.
+- `frontend/.../email/email-list.component.html:33-43` — moved the "Compose" button out of the `@if (isAdmin)` block so it renders for **both** Admin and Agent; "Email configuration" stays Admin-only.
+- `frontend/.../email/email-log.service.ts:21` — comment `(Admin-only)` → `(Admin or Agent)`.
+
+### Verify
+- `dotnet build CustomerServiceApi.sln` → 0 warnings / 0 errors.
+- `npm run build` → succeeds (email-list lazy chunk contains the "Compose email" label).
+- `curl` end-to-end (servers on :5274/:4200):
+  - Unauthenticated `POST /api/emails/compose` → **401**.
+  - Agent (`maria`) login → compose → **200** (`type:AdminManual`, logged).  *(previously 403)*
+  - Admin (`admin`) login → compose → **200**.  *(previously silently broken by the 400 record-validation bug)*
+  - Agent compose with empty recipient → **400** (`Recipient field is required`).
+- Manual (user): log in as `maria` → Emails page shows "Compose"; `admin` shows both "Email configuration" and "Compose".
+- Security note: Agents can now send ad-hoc email via the real SMTP sender — consistent with the existing `EmailsController.Resend` policy (`Admin,Agent`). Dev `EmailNotificationSender` DEV-redirects non-listed domains to the test inbox, protecting real recipients.
+
 ## [Docs — fix README LinkedIn URL + TOC polish] (2026-08-29)
 **Status:** ✅ DONE (README Author link + table-of-contents updated).
 
