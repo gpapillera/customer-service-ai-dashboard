@@ -34,9 +34,9 @@ public class EmailsController : ControllerBase
         return await _service.GetEmailLogAsync();
     }
 
-    /// <summary>Composes and sends an ad-hoc email (Admin-only).</summary>
+    /// <summary>Composes and sends an ad-hoc email (Admin or Agent).</summary>
     [HttpPost("compose")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,Agent")]
     [ProducesResponseType(typeof(NotificationDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Compose([FromBody] ComposeEmailRequest request)
