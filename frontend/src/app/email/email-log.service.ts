@@ -18,7 +18,7 @@ export class EmailLogService {
     return this.http.get<Notification[]>('/api/emails');
   }
 
-  /** Composes and sends an ad-hoc email (Admin-only). */
+  /** Composes and sends an ad-hoc email (Admin or Agent). */
   compose(data: ComposeEmailRequest): Observable<Notification> {
     return this.http.post<Notification>('/api/emails/compose', data);
   }
