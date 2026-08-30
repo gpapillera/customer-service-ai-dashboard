@@ -144,8 +144,9 @@ The Angular SPA (and the customer portal, same app, different routes) only talks
 Core API. The API is the only component that talks to the database and the trained ML model. The
 model is trained offline by the Python scripts and loaded by the API at startup — there is no live
 training in the request path. Notifications are detected by a hosted service (and on case mutation)
-and persisted as `Notification` rows; the demo senders write an outbox/email log rather than
-delivering real mail.
+and persisted as `Notification` rows; Email notifications are delivered for real via Gmail SMTP
+(MailKit) behind the pluggable `INotificationSender` seam, while `InApp` records are always
+persisted (a `DevOverrideRecipient` redirects mail to a test inbox in Development).
 
 ---
 
@@ -250,13 +251,19 @@ idempotent seed (no migrations).
 
 ## Screenshots
 
-| Login | Dashboard |
+Staff dashboard (Angular SPA, light/dark themes). Demo login `admin` / `Passw0rd!`.
+
+| Staff login | Dashboard (KPIs + trend/charts) |
 | --- | --- |
 | ![Login](docs/screenshots/login.png) | ![Dashboard](docs/screenshots/dashboard.png) |
 
-| Customers | Cases | Case Detail |
+| Customers (card grid + recycle bin) | Cases (filterable table) | Case detail (AI priority + thread) |
 | --- | --- | --- |
 | ![Customers](docs/screenshots/customers.png) | ![Cases](docs/screenshots/cases.png) | ![Case Detail](docs/screenshots/case-detail.png) |
+
+| Follow-up center (overdue SLA alerts) | Customer portal login (invite-only) |
+| --- | --- |
+| ![Notifications](docs/screenshots/notifications.png) | ![Customer Portal Login](docs/screenshots/customer-portal-login.png) |
 
 ---
 
@@ -340,9 +347,9 @@ npm start        # ng serve; proxies /api -> http://localhost:5274
 ```
 
 Sign in with a demo staff user `admin` / `Passw0rd!` (also `agent` / `maria`, same password). The
-SPA stores the JWT in `sessionStorage` and sends it as a Bearer header; the API also sets
-`HttpOnly` cookies for refresh. There is **no** `/api/categories` endpoint — categories are a
-frontend constant.
+SPA authenticates via `HttpOnly` cookies (access + refresh, sent automatically with
+`withCredentials`; a legacy `Authorization` Bearer header is also honored). There is **no**
+`/api/categories` endpoint — categories are a frontend constant.
 
 ### 3. ML Pipeline (one-time / periodic)
 
@@ -524,7 +531,7 @@ Notes / gotchas:
 - [x] Sentiment scoring on complaint text (replaces keyword flags) as the ML feature
 - [x] Overdue follow-up detection surfaced on the dashboard (SLA-based deadline + stale-open rule)
 - [x] In-app notification center (bell + unread badge + dropdown, persisted `Notification`)
-- [x] Demo Email/SMS sender seam (logs + outbox file) behind `INotificationSender`
+- [x] Pluggable `INotificationSender` sender seam (real Email via MailKit; Email-only by design)
 - [x] **Real Email delivery** — `EmailNotificationSender` delivers via Gmail SMTP (MailKit); overdue/resolved/invite/reset emails send for real (SMS removed — Email-only by design)
 - [x] Soft-delete / recycle bin / restore / purge (GDPR erasure) + activity log
 - [x] Shared agent↔customer comment thread + customer portal (invite/accept/login)
