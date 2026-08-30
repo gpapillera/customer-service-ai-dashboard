@@ -2,6 +2,31 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Docs — README audit + screenshot refresh + showcase] (2026-08-31)
+**Status:** ✅ DONE (7 screenshots vision-verified populated; 3 README factual drifts fixed; README gallery rebuilt with 2 new shots)
+
+### Why / root cause
+A review found the README and the screenshot gallery had drifted from the shipped app:
+1. **Auth claim was wrong.** Getting Started still said "The SPA stores the JWT in `sessionStorage` and sends it as a Bearer header; the API also sets `HttpOnly` cookies for refresh." The app actually moved to HttpOnly cookie auth (access + refresh, `withCredentials`) — confirmed in `auth.service.ts` and every other README section. The stale line contradicted the rest of the doc.
+2. **Email claim was wrong.** The architecture overview said "the demo senders write an outbox/email log rather than delivering real mail." Real Email delivery (MailKit → Gmail SMTP) shipped and is a headline roadmap item — the outbox sentence was leftover from the pre-email era.
+3. **SMS roadmap line was wrong.** Roadmap still listed "Demo Email/SMS sender seam (logs + outbox file)". SMS was deliberately removed (Email-only by design); the `INotificationSender` seam is real-Email only.
+4. **Screenshots were stale (Jul 14).** All 5 PNGs predated the current theme + cookie-auth UI. Two real differentiators had zero visual representation: the **Follow-up center** (overdue SLA alerts) and the **customer portal** (invite-only login).
+
+### What changed
+- `README.md` (3 factual fixes):
+  - Architecture overview → Email delivered for real via Gmail SMTP behind `INotificationSender`; `InApp` always persisted (DevOverrideRecipient note).
+  - Getting Started → "SPA authenticates via `HttpOnly` cookies (access + refresh, `withCredentials`; legacy Bearer header also honored)".
+  - Roadmap → "Pluggable `INotificationSender` sender seam (real Email via MailKit; Email-only by design)".
+- `docs/screenshots/*.png` — regenerated all 5 stale shots from a live headless walk (admin login at :4200) and added 2 new ones: `notifications.png` (Follow-up center, 15 overdue cases) and `customer-portal-login.png` (invite-only portal login).
+- `README.md` Screenshots section — rebuilt as a captioned showcase grid (7 images, 4 rows) with a one-line caption per shot; added the two new shots.
+- `docs/PROGRESS_LOG.md` — this entry.
+
+### Verify
+- All 7 PNGs vision-checked for populated content (not blank): dashboard (21 KPI cards + charts), customers (11 cards), cases (21-row table), case-detail (AI priority panel + call log), notifications (open "Follow-up needed" modal, 15 overdue), customer-portal-login (branded login form), login (staff login form).
+- Customers page first captured blank — its cards use a scroll-reveal (`appReveal` → `opacity:0` until IntersectionObserver fires); forced `.is-visible` + fresh browser session to get a real populated capture (DOM confirmed 11 `.customer-card` elements).
+- `git status`: README.md modified; 5 screenshots modified + 2 new; PROGRESS_LOG.md modified. Nothing sensitive staged (no `.env`/secrets).
+- Left uncommitted per repo convention; now split into per-task commits and pushed to `origin/main`.
+
 ## [Compose email: typed Subject was dropped (rendered as message)] (2026-08-30)
 **Status:** ✅ DONE (verified via sender outbox: subject now "URGENT: Refund approved", not the body; 141 tests pass).
 
