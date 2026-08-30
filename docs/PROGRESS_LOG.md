@@ -2,6 +2,21 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Docs — re-capture login screenshots as full, unclipped pages] (2026-08-31)
+**Status:** ✅ DONE (both login PNGs are now the real full login pages, complete + readable; vision-verified)
+
+### Why / root cause
+The previous login shots (tight card crops) came out clipped: the staff card lost its bottom (Sign in button / demo hint), and the portal card lost its right edge and bottom — because the `mat-card` is responsive and shrank when the viewport was narrowed, so fixed crop margins fell short. Over-fitting the capture to the card caused the problem.
+
+### What changed
+- Captured both login pages as **plain full-viewport screenshots** (1280×900 @2×) of the real page, no measuring/cropping. This is what a visitor actually sees.
+- Staff shot pre-fills `admin` / `Passw0rd!` so the fields show dark text instead of low-contrast gray placeholders (password masked).
+- Files: `docs/screenshots/login.png`, `docs/screenshots/customer-portal-login.png`.
+
+### Verify
+- Both vision-checked complete and unclipped: staff shows full card + Sign in + "Demo: admin / Passw0rd!" hint; portal shows full card + Sign in + "Don't have an account? Sign up" + "Are you staff? Go to the team dashboard". High contrast, fully readable.
+- Committed + pushed to `origin/main`.
+
 ## [Docs — sharpen login screenshots (tight crop + light theme + filled creds)] (2026-08-31)
 **Status:** ✅ DONE (both login PNGs re-captured crisp; vision-verified readable)
 
