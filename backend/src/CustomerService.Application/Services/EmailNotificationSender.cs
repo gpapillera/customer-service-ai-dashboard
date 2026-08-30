@@ -322,6 +322,11 @@ public class EmailNotificationSender : INotificationSender
         {
             ["caseId"] = notification.CaseId?.ToString() ?? string.Empty,
             ["caseSubject"] = caseSubject,
+            // Compose (AdminManual) supplies an explicit subject + message the
+            // operator typed; expose them so the AdminManual template can use
+            // the real values instead of the case-subject extraction.
+            ["subject"] = notification.Title ?? string.Empty,
+            ["message"] = notification.Message ?? string.Empty,
             ["portalLink"] = portalLink,
             // Activation / password-reset URL for this specific notification.
             ["actionLink"] = notification.Link ?? string.Empty,

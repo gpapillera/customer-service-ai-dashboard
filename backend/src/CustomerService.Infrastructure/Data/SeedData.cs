@@ -232,9 +232,9 @@ public static class SeedData
         new EmailTemplate
         {
             Type = "AdminManual",
-            Subject = "{{caseSubject}}",
+            Subject = "{{subject}}",
             Body = "Hello,\n\n" +
-                   "{{caseSubject}}\n\n" +
+                   "{{message}}\n\n" +
                    "— Customer Service Dashboard",
         },
     };
