@@ -2,6 +2,22 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Docs — sharpen login screenshots (tight crop + light theme + filled creds)] (2026-08-31)
+**Status:** ✅ DONE (both login PNGs re-captured crisp; vision-verified readable)
+
+### Why / root cause
+After the screenshot refresh, the two login shots (staff + customer portal) read as "not clear". Root cause: they were full 1920×988 viewport captures, so the centered login card was small on a large empty background and went muddy when GitHub scaled the image down. Compounding it, the dark theme's gray-on-dark placeholder text had low contrast at thumbnail size.
+
+### What changed
+- Re-captured both at a tight 560×720 @2× (retina) viewport, cropped to the `mat-card.login-card` bounds (+24px padding) so the card fills the frame (~900×1100 px, 1:1 from device pixels — not upscaled).
+- Switched to **light theme** (higher contrast) via the page theme toggle before capture.
+- Staff shot: pre-filled `admin` / `Passw0rd!` so the fields show dark text instead of low-contrast gray placeholders (password renders masked).
+- Files: `docs/screenshots/login.png`, `docs/screenshots/customer-portal-login.png`.
+
+### Verify
+- Both vision-checked: staff card shows "admin" + masked password + "Sign in" crisp and high-contrast; portal card shows Email/Password/Sign in clearly readable. No upscaling (crops are 1:1 from a 2× device capture).
+- `git status`: 2 screenshots modified. Committed + pushed to `origin/main`.
+
 ## [Docs — README audit + screenshot refresh + showcase] (2026-08-31)
 **Status:** ✅ DONE (7 screenshots vision-verified populated; 3 README factual drifts fixed; README gallery rebuilt with 2 new shots)
 
