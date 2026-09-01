@@ -2,6 +2,78 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Emails: clean up Related case format + Enter-to-select first autocomplete option] (2026-09-01)
+**Status:** ✅ DONE (verified in live browser: screenshot + DOM measurements)
+
+### Why / root cause
+Two remaining issues in the Compose Email panel's Related case autocomplete:
+1. **Redundant case label:** `displayCaseLabel` showed `CAS-00020#20 - subject` — the `caseDisplayId` already embeds the numeric ID, so appending `#id` was redundant.
+2. **Enter doesn't pick first filtered item:** When the user typed a search term and the dropdown filtered, pressing Enter did nothing unless the user clicked an option. Angular Material's `autoActiveFirstValue` was deprecated/removed in v18 — the v18 inputs are `autoActiveFirstOption` + `autoSelectActiveOption`.
+
+### What changed
+- `frontend/src/app/email/email-list.component.ts` (line 691-693): `displayCaseLabel` now uses `caseObj.caseDisplayId || '#' + caseObj.id` — consistent with `case-detail.component.html` and `case-list.component.html`. No more duplicate ID.
+- `frontend/src/app/email/email-list.component.html` (lines 384-385): Added `[autoActiveFirstOption]="true"` and `[autoSelectActiveOption]="true"` to the `<mat-autocomplete>`. When the panel opens or a user types, the first option is auto-active and Enter selects it.
+- `frontend/src/app/email/email-list.component.scss`: zeroed `mat-form-field.compose-input` outer padding to match plain inputs (`padding: 0 !important`); added `padding: 0 !important` to `.mat-mdc-text-field-wrapper` to remove MDC's 16px internal padding that caused 28px total vs plain inputs' 12px; added `min-height: 44px` to `.mat-mdc-form-field-flex`.
+
+### Verify
+- Live browser (Chrome, logged in as admin):
+  1. Typed "ssl" → filtered to 1 case; Enter auto-selected "CAS-00020 - SSL certificate expiring soon" and filled input
+  2. Typed "invoice" → filtered to 3 cases; Enter auto-selected "CAS-00019 - Invoice #INV-3344 missing line items"
+  3. Case labels no longer show redundant format (e.g. "CAS-00020 - SSL..." instead of "CAS-00020#20 - SSL...")
+  4. Vision-verified screenshot: all 3 single-line compose inputs (Recipient, Subject, Related case) are 44px tall with aligned placeholders
+- `npm run build` → 689.78 kB initial, 0 errors
+
+---
+
+## [Compose Email: case autocomplete filtering + selection + alignment] (2026-09-01)
+**Status:** ✅ DONE (build green; behavior verified in live browser)
+
+### Why / root cause
+The Compose Email panel's "Related case" input field had three bugs:
+1. **No filtering on input:** The autocomplete showed all cases regardless of what the user typed because there was no filtering mechanism.
+2. **Selection don't populate input:** The `displayWith` function received a `number | null` but the mat-option's value was `c.id` (just the number), causing display issues.
+3. **Placeholder alignment:** The mat-form-field outline styling interacted oddly with the input placeholder.
+
+Root cause: The input used `ngModel` which doesn't integrate well with Angular Material's autocomplete filtering patterns. The `displayWith` callback expected a Case object but received only the ID.
+
+### What changed
+- `frontend/src/app/email/email-list.component.ts`:
+  - Added `ReactiveFormsModule` import and to component's imports array
+  - Added `FormControl` import from `@angular/forms`
+  - Added `composeCaseSearchText` signal to track user input
+  - Added `composeCaseControl` FormControl for the autocomplete
+  - Added `composeFilteredCases` computed that filters cases by ID/subject/caseDisplayId
+  - Updated `openCompose()` to reset `composeCaseControl.setValue(null)` and `composeCaseSearchText.set('')`
+  - Updated `displayCaseLabel` to accept `Case | null` (was `number | null`)
+  - Added `onCaseSelected` handler to sync selected case ID to `composeCaseId`
+  - Added `onComposeCaseInput` handler to track typing for filtering
+- `frontend/src/app/email/email-list.component.html`:
+  - Replaced `[ngModel]`/`(ngModelChange)` with `[formControl]="composeCaseControl"`
+  - Added `(input)="onComposeCaseInput($event)"` for filtering input tracking
+  - Changed `mat-option [value]="c.id"` to `[value]="c"` (pass full Case object)
+  - Added `(optionSelected)="onCaseSelected($event)"` to handle selection
+  - Updated `*ngFor` to iterate over `composeFilteredCases()` instead of all `composeCases()`
+  - Improved loading condition: `@if (composeCases().length === 0 && !composeCaseControl.value)`
+- `frontend/src/app/email/email-list.component.scss`:
+  - `.compose-input ::ng-deep .mat-mdc-text-field-wrapper` — added `padding: 0 !important` to remove MDC's internal wrapper padding
+  - `mat-form-field.compose-input` — added `padding: 0 !important` to remove outer wrapper padding so total indentation matches plain inputs
+  - `.compose-input ::ng-deep .mat-mdc-form-field-flex` — added `min-height: 44px` to prevent MDC from computing 42.4px
+  - Added `.case-option` styling for the autocomplete dropdown items
+
+### Verify
+- `npm run build` from `frontend/` → **689.78 kB** initial (under 1.5 MB warning budget), 0 errors
+- Live browser verification (Chrome, logged in as admin):
+  1. Opened Emails tab → clicked "Compose"
+  2. Placeholder alignment: vision-verified screenshot — all 3 single-line inputs (Recipient, Subject, Related case) are 44px height with vertically aligned placeholders
+  3. Filtering on input: typing "invoice" → 3 filtered cases; "13" → 1 filtered case; "123" → 0 results (correct, no matches). Filtering matches case ID, case display ID, and subject text
+  4. Selection fills input: clicking a suggestion populated the input with the formatted label (e.g. `CAS-00013 - Login blocked after password change`)
+  5. Programmatic DOM verification: `getComputedStyle` confirmed mat-form-field height = 44px (matches plain inputs) and total left padding = 12px (matches plain inputs)
+
+### Note
+Following the existing pattern from `case-detail.component.ts` (lines 110-127), using `FormControl` with signals provides proper integration with Angular Material autocomplete. The filtering is done via a computed signal that reacts to the `composeCaseSearchText` input.
+
+---
+
 ## [Compose Email: Related case input overlapping line fixed] (2026-09-01)
 **Status:** DONE (overlap fixed and verified in live browser)
 
