@@ -15,17 +15,19 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatSelectModule } from '@angular/material/select';
 import { MatInputModule } from '@angular/material/input';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { CsIconComponent } from '../shared/cs-icon.component';
 import { EmailLogService } from './email-log.service';
 import { EmailConfigService } from './email-config.service';
 import { AuthService } from '../auth/auth.service';
+import { CaseService } from '../cases/case.service';
 import {
   EmailConfigBundleDto,
   EmailDomainDto,
   EmailTemplateDto,
   Notification,
+  Case,
 } from '../shared/models';
 import { LayoutComponent } from '../shared/layout/layout.component';
 import { DatePreset, DATE_PRESETS, formatDatePreset, filterByDatePreset, positionHeaderDropdown } from '../shared/date-filter';
@@ -62,8 +64,8 @@ const STATUS_LABELS: Record<string, string> = {
     RouterLink,
     FormsModule,
     MatFormFieldModule,
-    MatSelectModule,
     MatInputModule,
+    MatAutocompleteModule,
     CsIconComponent,
   ],
   templateUrl: './email-list.component.html',
@@ -73,6 +75,7 @@ export class EmailListComponent implements OnInit, OnDestroy {
   private readonly service = inject(EmailLogService);
   private readonly emailConfigService = inject(EmailConfigService);
   private readonly auth = inject(AuthService);
+  private readonly caseService = inject(CaseService);
   private readonly elRef = inject(ElementRef);
   private readonly envInjector = inject(EnvironmentInjector);
   /** True while the scroll/resize watch for the date dropdown is attached. */
@@ -605,6 +608,8 @@ export class EmailListComponent implements OnInit, OnDestroy {
   readonly composeSending = signal(false);
   readonly composeError = signal<string | null>(null);
   readonly composeSuccess = signal(false);
+  /** Open cases for the "related case" dropdown in compose. */
+  readonly composeCases = signal<Case[]>([]);
 
   /** Opens the compose panel and resets the form. */
   openCompose(): void {
@@ -616,6 +621,11 @@ export class EmailListComponent implements OnInit, OnDestroy {
     this.composeSending.set(false);
     this.composeError.set(null);
     this.composeSuccess.set(false);
+    // Load all cases for the "related case" dropdown
+    this.caseService.list().subscribe({
+      next: (cases) => this.composeCases.set(cases),
+      error: () => this.composeCases.set([]),
+    });
   }
 
   /** Closes the compose panel. */
@@ -657,5 +667,14 @@ export class EmailListComponent implements OnInit, OnDestroy {
         this.composeError.set(err?.error ?? err?.message ?? 'Failed to send email.');
       },
     });
+  }
+
+  /** displayWith callback: formats a selected case ID into a label. */
+  displayCaseLabel(caseId: number | null): string {
+    if (caseId === null || caseId === undefined) return '';
+    const c = this.composeCases().find(item => item.id === caseId);
+    if (!c) return `#${caseId}`;
+    const prefix = c.caseDisplayId ? `${c.caseDisplayId}#${c.id}` : `#${c.id}`;
+    return `${prefix} - ${c.subject}`;
   }
 }

@@ -2,6 +2,20 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Compose Email: Related case input overlapping line fixed] (2026-09-01)
+**Status:** DONE (overlap fixed and verified in live browser)
+
+### Why / root cause
+The Compose Email panel's "Related case" field used an Angular Material `<mat-form-field appearance="outline">`, whose MDC notched-outline renders a `border-bottom` on the `__notch` child element. With no `mat-label` present (removed in an earlier pass), the outline's zero-height notch still drew a thin horizontal border line across the interior of the input, overlapping the placeholder text "Type to search cases...". The other three compose fields (Recipient, Subject, Message) use plain `<input>`/`<textarea>` with `.compose-input` and were not affected — only the Related case field used `mat-form-field`.
+
+### What changed
+- `frontend/src/app/email/email-list.component.scss`: added `::ng-deep` CSS overrides to `.compose-input` that hide the MDC notched outline (`display: none !important`) and style the text-field-wrapper, infix padding, and input element to match the other compose fields. This mirrors the existing `.search-field` `::ng-deep` pattern already in this file (lines 53-89).
+- `frontend/src/app/email/email-list.component.html`: confirmed no `<mat-label>` in the compose form-field (previously removed); the field now uses only the `.compose-label` label consistent with the other three fields.
+
+### Verify
+- `ng build --configuration development` → 0 errors.
+- Live browser (Chrome, logged in as admin): opened Compose panel at `/emails`; DOM inspection confirmed `.mdc-notched-outline { display: none }`; vision-checked screenshot shows the "Related case (optional)" input field is clean with no horizontal line through its interior.
+
 ## [Docs — re-capture login screenshots as full, unclipped pages] (2026-08-31)
 **Status:** ✅ DONE (both login PNGs are now the real full login pages, complete + readable; vision-verified)
 

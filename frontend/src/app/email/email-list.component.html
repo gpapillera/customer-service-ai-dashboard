@@ -369,14 +369,33 @@
         </label>
 
         <label class="compose-field">
-          <span class="compose-label">Case ID (optional)</span>
-          <input
-            type="number"
-            class="compose-input"
-            placeholder="e.g. 42"
-            [ngModel]="composeCaseId()"
-            (ngModelChange)="composeCaseId.set($event || undefined)"
-          />
+          <span class="compose-label">Related case (optional)</span>
+          <mat-form-field appearance="outline" class="compose-input">
+            <input
+              type="text"
+              matInput
+              [matAutocomplete]="autoCase"
+              [ngModel]="composeCaseId() === undefined ? null : composeCaseId()"
+              (ngModelChange)="composeCaseId.set($event === null ? undefined : $event)"
+              placeholder="Type to search cases…"
+            />
+            <mat-autocomplete
+              #autoCase="matAutocomplete"
+              [displayWith]="displayCaseLabel"
+            >
+              @if (composeCases().length === 0) {
+                <mat-option disabled>Loading cases…</mat-option>
+              } @else {
+                @for (c of composeCases(); track c.id) {
+                  <mat-option [value]="c.id">
+                    <span class="case-option">
+                      {{ c.caseDisplayId ? c.caseDisplayId + '#' + c.id : '#' + c.id }} - {{ c.subject }}
+                    </span>
+                  </mat-option>
+                }
+              }
+            </mat-autocomplete>
+          </mat-form-field>
         </label>
 
         <div class="compose-actions">
