@@ -389,8 +389,8 @@ export class EmailListComponent implements OnInit, OnDestroy {
     });
   }
 
-  /** True when the current user is an Admin (sees the config button). */
   readonly isAdmin = this.auth.getRole() === 'Admin';
+  readonly isAgent = this.auth.getRole() === 'Agent';
 
   // ── Email configuration side panel (Admin) ──
 
