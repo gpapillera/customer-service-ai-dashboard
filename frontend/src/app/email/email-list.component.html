@@ -375,21 +375,23 @@
               type="text"
               matInput
               [matAutocomplete]="autoCase"
-              [ngModel]="composeCaseId() === undefined ? null : composeCaseId()"
-              (ngModelChange)="composeCaseId.set($event === null ? undefined : $event)"
+              [formControl]="composeCaseControl"
               placeholder="Type to search cases…"
+              (input)="onComposeCaseInput($event)"
             />
             <mat-autocomplete
               #autoCase="matAutocomplete"
               [displayWith]="displayCaseLabel"
+              [autoActiveFirstOption]="true"
+              [autoSelectActiveOption]="true"
             >
-              @if (composeCases().length === 0) {
+              @if (composeCases().length === 0 && !composeCaseControl.value) {
                 <mat-option disabled>Loading cases…</mat-option>
               } @else {
-                @for (c of composeCases(); track c.id) {
-                  <mat-option [value]="c.id">
+                @for (c of composeFilteredCases(); track c.id) {
+                  <mat-option [value]="c" (optionSelected)="onCaseSelected($event)">
                     <span class="case-option">
-                      {{ c.caseDisplayId ? c.caseDisplayId + '#' + c.id : '#' + c.id }} - {{ c.subject }}
+                      {{ c.caseDisplayId || ('#' + c.id) }} - {{ c.subject }}
                     </span>
                   </mat-option>
                 }

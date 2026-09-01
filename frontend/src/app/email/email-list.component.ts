@@ -13,7 +13,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, FormControl, ReactiveFormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
@@ -63,6 +63,7 @@ const STATUS_LABELS: Record<string, string> = {
     CommonModule,
     RouterLink,
     FormsModule,
+    ReactiveFormsModule,
     MatFormFieldModule,
     MatInputModule,
     MatAutocompleteModule,
@@ -610,6 +611,21 @@ export class EmailListComponent implements OnInit, OnDestroy {
   readonly composeSuccess = signal(false);
   /** Open cases for the "related case" dropdown in compose. */
   readonly composeCases = signal<Case[]>([]);
+  /** Text the user has typed in the case autocomplete input. */
+  readonly composeCaseSearchText = signal('');
+  /** FormControl for the case autocomplete (needed for valueChanges filtering). */
+  readonly composeCaseControl = new FormControl<Case | null>(null);
+  /** Cases filtered by the search text in the compose panel. */
+  readonly composeFilteredCases = computed(() => {
+    const term = this.composeCaseSearchText().toLowerCase().trim();
+    const allCases = this.composeCases();
+    if (!term) return allCases;
+    return allCases.filter(c =>
+      (c.id?.toString() ?? '').includes(term) ||
+      (c.subject ?? '').toLowerCase().includes(term) ||
+      (c.caseDisplayId?.toLowerCase() ?? '').includes(term),
+    );
+  });
 
   /** Opens the compose panel and resets the form. */
   openCompose(): void {
@@ -618,6 +634,8 @@ export class EmailListComponent implements OnInit, OnDestroy {
     this.composeSubject.set('');
     this.composeMessage.set('');
     this.composeCaseId.set(undefined);
+    this.composeCaseControl.setValue(null);
+    this.composeCaseSearchText.set('');
     this.composeSending.set(false);
     this.composeError.set(null);
     this.composeSuccess.set(false);
@@ -669,12 +687,24 @@ export class EmailListComponent implements OnInit, OnDestroy {
     });
   }
 
-  /** displayWith callback: formats a selected case ID into a label. */
-  displayCaseLabel(caseId: number | null): string {
-    if (caseId === null || caseId === undefined) return '';
-    const c = this.composeCases().find(item => item.id === caseId);
-    if (!c) return `#${caseId}`;
-    const prefix = c.caseDisplayId ? `${c.caseDisplayId}#${c.id}` : `#${c.id}`;
-    return `${prefix} - ${c.subject}`;
+  /** displayWith callback: formats a selected case for display in the input. */
+  displayCaseLabel(caseObj: Case | null): string {
+    if (caseObj === null || caseObj === undefined) return '';
+    const id = caseObj.caseDisplayId || `#${caseObj.id}`;
+    return `${id} - ${caseObj.subject}`;
+  }
+
+  /** Called when a case is selected from the autocomplete. */
+  onCaseSelected(event: any): void {
+    const selectedCase = event.option.value;
+    if (selectedCase) {
+      this.composeCaseId.set(selectedCase.id);
+    }
+  }
+
+  /** Tracks user typing in the case autocomplete input for filtering. */
+  onComposeCaseInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.composeCaseSearchText.set(input.value);
   }
 }

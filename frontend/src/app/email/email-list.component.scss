@@ -788,16 +788,24 @@
 
 /* Angular Material mat-form-field overrides for the Related case field.
    The .compose-input class is applied directly to the mat-form-field element
-   (not a child), so these ::ng-deep rules reach the MDC internals. */
+   (not a child), so these ::ng-deep rules reach the MDC internals.
+   The outer .compose-input padding (0 12px) is for plain <input> siblings;
+   the mat-form-field needs the wrapper padding removed so the internal infix
+   padding (0 12px) provides the correct text indentation. */
+mat-form-field.compose-input {
+  padding: 0 !important;
+}
 .compose-input ::ng-deep .mat-mdc-text-field-wrapper {
-  height: 44px;
+  height: 44px !important;
   border: none !important;
   border-radius: 8px;
   overflow: hidden;
+  padding: 0 !important;
 }
 
 .compose-input ::ng-deep .mat-mdc-form-field-flex {
   height: 44px;
+  min-height: 44px;
   align-items: center;
 }
 
@@ -826,6 +834,11 @@
 
 .compose-input ::ng-deep .mat-mdc-form-field-subscript-wrapper {
   display: none;
+}
+
+.case-option {
+  font-size: 0.85rem;
+  color: var(--cs-text);
 }
 
 .compose-input:focus {
