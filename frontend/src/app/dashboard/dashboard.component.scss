@@ -1,6 +1,10 @@
-/* ─── Full-width page header ─── */
+/* Full-width page header */
 
 .page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
   /* Break out of the content area padding to go full-width */
   margin: -1.75rem -2rem 1.5rem;
   padding: 1.75rem 2rem;

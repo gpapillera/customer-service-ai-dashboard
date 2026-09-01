@@ -57,9 +57,22 @@
   padding: 0.5rem 0.25rem;
   border-radius: var(--cs-radius, 10px);
   cursor: pointer;
+  border: 1px solid transparent;
+  outline: none;
+  transition: background 0.2s var(--cs-ease), border-color 0.2s var(--cs-ease), box-shadow 0.2s var(--cs-ease);
 
   &:hover {
     background: var(--cs-surface-hover, rgba(127, 127, 127, 0.1));
+    border-color: var(--cs-border);
+  }
+
+  &:focus-visible {
+    border-color: var(--cs-border);
+    box-shadow: 0 0 0 2px var(--cs-accent-light);
+  }
+
+  &:active {
+    background: var(--cs-accent-light);
   }
 }
 

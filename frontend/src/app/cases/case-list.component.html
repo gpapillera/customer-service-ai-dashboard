@@ -44,6 +44,12 @@
       Drag <cs-icon name="drag_indicator" [size]="14"></cs-icon> to reorder &middot;
       drag a column's right edge <cs-icon name="horizontal_rule" [size]="14"></cs-icon> to resize
     </span>
+    @if (!loading() && cases().length > 0) {
+      <button type="button" class="reset-cols-badge" (click)="resetColumns()"
+              title="Reset columns" aria-label="Reset columns">
+        <cs-icon name="restart" [size]="16"></cs-icon>
+      </button>
+    }
   </div>
 @if (loading()) {
   <div class="center"><mat-spinner diameter="36"></mat-spinner></div>
@@ -53,10 +59,6 @@
     <p>No cases match your filters.</p>
   </div>
 } @else {
-    <button type="button" class="reset-cols-badge" (click)="resetColumns()"
-            title="Reset columns" aria-label="Reset columns">
-      <cs-icon name="restart" [size]="16"></cs-icon>
-    </button>
   <div class="table-wrap cs-card">
     <table class="data-table">
       <thead>
