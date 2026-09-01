@@ -2,6 +2,29 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Email page: preserve Agent access to email log + compose] (2026-09-01)
+**Status:** 🔧 IN PROGRESS
+
+### Why / root cause
+An Agent could not open the email page because the frontend email page was
+effectively shaped like an Admin-only surface: `isAdmin` was the main role
+flag, while the backend `EmailsController` already allows `Admin,Agent` for
+`GET /api/emails` and `POST /api/emails/compose`. The missing `Agent` view
+state is the likely break, not backend authorization.
+
+### What changed
+- `frontend/src/app/email/email-list.component.ts`: added `isAgent` alongside
+  `isAdmin` so the page can render Agent-appropriate state instead of only
+  Admin-oriented UI.
+
+### Verify
+- `npm run build` → 0 errors
+- Backend login probe as `agent` → `/api/emails` returns 200
+- Live browser: login as `agent`, open `/emails`, confirm email log loads and
+  Compose panel opens without console errors
+
+---
+
 ## [Emails: clean up Related case format + Enter-to-select first autocomplete option] (2026-09-01)
 **Status:** ✅ DONE (verified in live browser: screenshot + DOM measurements)
 
