@@ -2,6 +2,28 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Customer login: staff interceptor swallowing 401 for wrong credentials] (2026-09-03)
+**Status:** ✅ DONE
+
+### Why / root cause
+At `http://localhost:4200/customer/login`, submitting bad credentials caused a
+redirect to `/login?reason=session_expired` with no visible error instead of
+showing "Invalid email or password." The staff `TokenInterceptor` in
+`src/app/auth/token.interceptor.ts` excluded `/api/customer-portal` from staff
+auth handling, but did NOT exclude `/api/customer-auth`. So the login request
+hit the staff interceptor first; on 401 it attempted a staff refresh, failed,
+and redirected to `/login?reason=session_expired`. The customer interceptor
+and component never got to surface the login error to the user.
+
+### What changed
+- Added `/api/customer-auth` exclusion to the staff `TokenInterceptor`
+  (`src/app/auth/token.interceptor.ts`) so customer auth responses are passed
+  through to the customer `CustomerTokenInterceptor` / `CustomerAuthService`
+  untouched.
+
+### Verify
+- `npm run build` succeeds
+
 ## [Frontend: case list hint text positioning fix] (2026-09-03)
 **Status:** ✅ DONE
 
