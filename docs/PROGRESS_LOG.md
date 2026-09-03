@@ -2,6 +2,24 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Frontend: case list hint text positioning fix] (2026-09-03)
+**Status:** ✅ DONE
+
+### Why / root cause
+The hint text "Drag to reorder · drag a column's right edge to resize" at the case list page was sitting too close to the table outline — the letter "g" descenders were touching the table's top border. The hint text and reset badge were bundled together in `.table-tools` flex container, causing the badge to follow the hint text when its width changed.
+
+### What changed
+- Split the hint text and reset badge into independent positioned elements in `case-list.component.html` (`.table-hint-wrap` for hint, `.reset-cols-badge` as a direct child of `.table-card-wrap`)
+- Positioned `.table-hint-wrap` at `top: -28px` above the table outline so the hint text sits with ~10px gap above the table border — descenders no longer touch the outline
+- Positioned `.reset-cols-badge` at `top: -6px, right: -6px` relative to `.table-card-wrap` (same as conversations-page `.conv-badge` pattern) — sits at the table's top-right corner, 6px above and 6px past the table edge
+- Both elements now position independently — the badge stays pinned at the table corner regardless of hint text width
+
+### Verify
+- `npm run build` succeeds
+- Browser confirms: hint text bottom is 10.4px above table top (no descender overlap)
+- Reset badge is 6px above table top and 6px past table right edge
+- Badge stays at corner regardless of hint text width
+
 ## [Email page: preserve Agent access to email log + compose] (2026-09-01)
 **Status:** 🔧 IN PROGRESS
 
