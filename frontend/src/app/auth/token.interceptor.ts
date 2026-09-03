@@ -38,6 +38,14 @@ export class TokenInterceptor implements HttpInterceptor {
       return next.handle(req);
     }
 
+    // Customer auth endpoints must never trigger staff auth handling: the
+    // customer flow has its own cookies and interceptor. A 401 here is a login
+    // failure, not a staff session expiration, so the customer component's own
+    // error handler must see the response.
+    if (req.url.startsWith('/api/customer-auth')) {
+      return next.handle(req);
+    }
+
     // Auth endpoints must never trigger a refresh/redirect loop: a failed
     // refresh or logout is terminal on its own, and retrying it would recurse.
     if (req.url.startsWith('/api/auth/refresh') || req.url.startsWith('/api/auth/logout')) {
