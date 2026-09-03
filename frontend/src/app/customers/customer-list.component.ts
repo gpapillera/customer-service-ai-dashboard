@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, OnInit, signal, ViewChild } from '@angular/core';
+import { Component, computed, effect, inject, OnInit, OnDestroy, signal, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -50,7 +50,7 @@ import { RealtimeService } from '../shared/realtime.service';
   templateUrl: './customer-list.component.html',
   styleUrl: './customer-list.component.scss',
 })
-export class CustomerListComponent implements OnInit {
+export class CustomerListComponent implements OnInit, OnDestroy {
   private readonly service = inject(CustomerService);
   private readonly dialog = inject(MatDialog);
   private readonly routeLoading = inject(RouteLoadingService);
@@ -63,6 +63,15 @@ export class CustomerListComponent implements OnInit {
   private readonly realtime = inject(RealtimeService);
 
   readonly customers = signal<Customer[]>([]);
+  /** Polling fallback for the SSE live-update stream. The SSE connection can
+   * drop without surfacing an error (background-tab throttle, reconnect race,
+   * or the stream never opening on a cold-reload where auth loaded late). Every
+   * other list surface (my-cases-list, admin-conversations, nav-badge) keeps a
+   * 30s poll as a safety net so a card can never stale silently. The customer
+   * grid lacked one — that's why an admin's card showed a wrong active-case
+   * count while the creating agent's grid (live SSE) was correct. */
+  private pollTimer: ReturnType<typeof window.setInterval> | null = null;
+  private readonly POLL_MS = 30_000;
   /** Sidenav open state (from the app shell) — the page brand logo is shown
       only when the sidenav is collapsed. */
   readonly sidenavOpen = inject(LayoutComponent).opened;
@@ -98,6 +107,20 @@ export class CustomerListComponent implements OnInit {
 
   ngOnInit(): void {
     this.load();
+    // Fallback: if the SSE live-update stream drops (background-tab throttle,
+    // reconnect race, cold-reload where auth loaded late), this poll guarantees
+    // every card reflects the server truth at least every 30s instead of stale
+    // forever. Matches the safety net used by my-cases-list / admin-conversations.
+    if (typeof window !== 'undefined') {
+      this.pollTimer = window.setInterval(() => this.load(), this.POLL_MS);
+    }
+  }
+
+  ngOnDestroy(): void {
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer);
+      this.pollTimer = null;
+    }
   }
 
   /** Loads all customers (or searches when a term is present). */

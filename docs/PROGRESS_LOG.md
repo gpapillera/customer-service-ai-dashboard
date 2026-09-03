@@ -2,8 +2,52 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
-## [Emails page: search by case ID now returns exact matches only] (2026-09-03)
-**Status:** ✅ DONE (browser-verified)
+## [Customers page: fix stale active-case count on customer cards] (2026-09-03)
+**Status:** ✅ DONE
+**Fix:** Added a 30s polling fallback to `CustomerListComponent` so a customer card's active-case count can never stale silently.
+
+### Why / root cause
+A new case created under Mark Villanueva's account showed the correct active-case count in the agent's grid but a wrong (stale) count in the admin's grid. The backend count itself was correct for both roles (`CustomerService.ToDto` computes `ActiveCaseCount = cases where status != Resolved/Closed` identically for admin and agent via the same `GET /api/customers` endpoint). The bug was client-side staleness: `CustomerListComponent` refreshed only on SSE `live-update` events with **no polling fallback**. The SSE stream can drop silently (background-tab throttle, reconnect race, cold-reload where auth loads late) — `realtime.service.ts` even documents the "instant at first, then wears out" failure mode. The agent's tab happened to hold a live SSE connection and got the `case-update` broadcast; the admin's tab did not and had no poll to self-heal. It was the odd-one-out: every sibling list surface (`my-cases-list`, `admin-conversations`, `nav-badge`) already keeps a 30s poll as a safety net.
+
+### What changed
+- **Frontend** (`customer-list.component.ts`):
+  - Added `OnDestroy` to the `OnInit` lifecycle; imported it from `@angular/core`.
+  - Added `private pollTimer` + `POLL_MS = 30_000` fields.
+  - `ngOnInit` now starts a `window.setInterval(() => this.load(), 30_000)` poll (guarded by `typeof window !== 'undefined'` for SSR, matching the sibling pattern).
+  - Added `ngOnDestroy` to clear the interval.
+  - `load()` is idempotent (re-reads the current search/filter/sort signals), so the poll never disturbs in-flight UI state. SSE push still provides instant refresh when healthy; the poll is defense-in-depth.
+
+### Verification
+- `npm run build` (frontend) → exit 0, no TS errors.
+- **Backend API** (`curl` with admin JWT): `GET /api/customers/search?term=mark` returns `"activeCaseCount": 2, "caseCount": 3` for Mark Villanueva — **the backend always returned the correct count**; the bug was front-end staleness, not a compute error.
+- **Admin browser** (Chrome + CDP, logged in as admin): Mark Villanueva's card renders `2 active` in the `.cs-pill` span, matching the API.
+- **SSE push live test**: Created a case for Grace Tan (id 9, 1 active) via `POST /api/cases`. Observed Grace's admin card auto-update from `1 active` → `2 active` in the DOM **without any manual refresh** — the SSE `case-update` broadcast reaches the admin tab and triggers the `load()` effect. Deleted the test case afterward (clean state: 2 active / 3 total).
+- **Polling fallback**: Guards the dead-SSE case (background-tab throttle, reconnect race). `load()` is idempotent (re-reads current search/filter/sort signals), so the 30s poll never disturbs in-flight UI state. SSE push still provides instant refresh when healthy.
+
+## [Agent dashboard: add Unassigned KPI card + case-list filter + icon fix] (2026-09-03)
+**Status:** ✅ DONE
+**Fix:** Resolved missing `assignment` icon — `cs-icon.component.ts` `ICON_MAP` had no entry for the Material `assignment` name. Added `ClipboardList` from `lucide-angular` and mapped `assignment: ClipboardList`.
+
+### Why / root cause
+An Agent viewing their dashboard ("agent space") had no at-a-glance visibility into how many cases needed claiming — cases with no agent assigned (`AssignedToUserId == null`). Agents already see their own assigned cases via "My Cases", but there was no KPI for the unassigned pool that any agent could claim. This adds a single card so the unassigned count is visible and clickable through to a filtered case list.
+
+### What changed
+- **Backend** (`DashboardRepository.cs`, `DashboardService.cs`, `DashboardDtos.cs`, `IDashboardRepository.cs`):
+  - Added `UnassignedCases` field to `DashboardDto` and `DashboardSummary`.
+  - `GetSummaryAsync` now counts cases where `AssignedToUserId == null` (company-wide, not agent-scoped — an agent's "My Cases" already covers their own).
+- **Backend case list filter** (`CasesController.cs`, `CaseService.cs`, `ICaseService.cs`):
+  - Added `unassigned` query param (`bool`) to `GET /api/cases`. When true, filters to cases with no agent assigned (`AssignedToUserId == null`). Server-side agent scoping still applies (agents only see their own + unassigned).
+- **Backend test** (`CaseServiceTests.cs`): added `GetAllAsync_UnassignedFilter_ReturnsOnlyUnassignedCases` verifying the unassigned filter returns only null-assigned cases.
+- **Frontend model** (`models.ts`): added `unassignedCases: number` to `Dashboard`.
+- **Frontend dashboard** (`dashboard.component.ts`, `.scss`): added an "Unassigned" KPI card to the agent's KPI set (icon `assignment`, tone `teal`, link `/cases?unassigned=true`). Added `.tone-teal` CSS class for the icon background.
+- **Frontend case list** (`case.service.ts`, `case-list.component.ts`): added `unassigned` filter support — query param pre-fill from URL, pass to backend API, active-chip rendering, and chip-clear logic.
+- **Frontend test** (`dashboard.component.spec.ts`): updated sample payload with `unassignedCases: 3`, renamed "six" to "seven" KPI test (admin), added agent KPI test verifying the Unassigned card renders with correct value/link/icon.
+
+### Verify
+- `dotnet build CustomerServiceApi.sln` → 0 errors, 0 warnings
+- `dotnet test CustomerServiceApi.sln` → **142 Passed, 0 Failed** (141 original + 1 new)
+- `npm run build` → succeeds, 0 errors
+- `tsc --noEmit` → no new errors in changed files
 
 ### Why / root cause
 On the emails page (`/emails`), searching for a case ID by number (e.g., `3` or `#3`) returned unrelated rows — emails for case #13, #19, #21 would appear even when searching for just `3`. Root cause: the case ID comparison used substring matching (`.includes()`), so searching "3" matched any case ID containing the digit "3" (13, 23, 30, etc.). Additionally, searching `#3` originally failed entirely because the `#` was never stripped before comparing against `caseId`.
