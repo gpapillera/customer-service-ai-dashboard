@@ -2,6 +2,36 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Emails page: search by case ID now returns exact matches only] (2026-09-03)
+**Status:** ✅ DONE (browser-verified)
+
+### Why / root cause
+On the emails page (`/emails`), searching for a case ID by number (e.g., `3` or `#3`) returned unrelated rows — emails for case #13, #19, #21 would appear even when searching for just `3`. Root cause: the case ID comparison used substring matching (`.includes()`), so searching "3" matched any case ID containing the digit "3" (13, 23, 30, etc.). Additionally, searching `#3` originally failed entirely because the `#` was never stripped before comparing against `caseId`.
+
+### What changed
+- `frontend/src/app/email/email-list.component.ts` (`filteredEmails` computed, ~line 139): When the search term is a pure number (with optional leading `#`), now does an **exact** case ID match only — no text field matching, no substring on the ID. Non-numeric search terms continue to do full text search across recipient, subject, message, type, and status fields. This applies to **both admin and agent** users (shared component).
+
+### Verify
+- `npm run build` succeeds
+- Browser test (logged in as admin at :4200/emails):
+  - Searching `#3` → 2 results (both case #3) ✅
+  - Searching `3` (no #) → 2 results (both case #3) ✅
+  - Searching `overdue` → 15 results (text search still works normally) ✅
+  - Total emails: 22 ✅
+
+## [Emails page: search by case ID when query included '#' prefix] (2026-09-03)
+**Status:** ✅ DONE
+
+### Why / root cause
+On the emails page (`/emails`), searching for a case using `#3` only showed one of the two emails related to that case. Root cause: the search term was lowercased to `#3`, but the case ID comparison checked `"3".includes('#3')` — the `#` character is never part of the actual `caseId` value (it's only a display prefix in the template). So the case ID filter never matched, and the user only saw emails where `#3` appeared in the subject or message text.
+
+### What changed
+- `frontend/src/app/email/email-list.component.ts` (line 142-148): Added a `caseTerm` variable that strips a leading `#` from the search term before comparing against `caseId.toString()`, so searching `#3` correctly matches emails with `caseId === 3`.
+
+### Verify
+- `npm run build` succeeds
+- Live test: searching `#3` on the emails page now returns all emails with case ID 3
+
 ## [Customer login: staff interceptor swallowing 401 for wrong credentials] (2026-09-03)
 **Status:** ✅ DONE
 

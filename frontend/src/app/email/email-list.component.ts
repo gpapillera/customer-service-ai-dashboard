@@ -139,6 +139,14 @@ export class EmailListComponent implements OnInit, OnDestroy {
     let result = this.emails().filter((e) => {
       if (type && e.type !== type) return false;
       if (!term) return true;
+      // When the term is a pure number (with optional leading '#'), treat it as
+      // an exact case ID lookup — no text matching, no substring on the ID.
+      // Users typing "3" or "#3" expect to find case #3, not #13 or #23.
+      const strippedTerm = term.startsWith('#') ? term.slice(1) : term;
+      if (/^\d+$/.test(strippedTerm)) {
+        return e.caseId?.toString() === strippedTerm;
+      }
+      // Otherwise, general text search across fields.
       return (
         (e.recipient ?? '').toLowerCase().includes(term) ||
         e.title.toLowerCase().includes(term) ||
