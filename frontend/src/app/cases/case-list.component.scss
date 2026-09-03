@@ -366,19 +366,32 @@ th.sortable.drag-source {
 .table-card-inner {
   position: relative;
 }
-/* Hint floats at the table's top-right corner (snug to the reset badge) and is
-   taken OUT of flow so it adds no height between the chip row and the table —
-   keeping the chip→table gap equal to the chip→search gap (~4px). */
-.table-tools {
+/* Hint + reset sit at the table's top-right corner.
+   .table-card-wrap is position:relative, so absolute positioning here
+   anchors to the card's top-right padding box.
+   
+   The hint (.table-hint) sits ABOVE the table outline:
+   - vertically: top: -18px pulls the hint row up so it clears the table's
+     top border (table header + border = ~12px, plus 6px gap above = -18px)
+   - horizontally: pushed to the right edge of the table content area
+   
+   The reset badge sits at the table's top-right corner, positioned like the
+   conversations-page .conv-badge (top: -6px, right: -6px — overflowing the
+   table's corner by the same amount as the unread badge does on conv-cards):
+   - right: -6px so it sits at the table's right edge corner
+   - top: -6px so it sits above the table's top border
+   
+   The 0.75rem flex gap between the hint text and reset button is unchanged. */
+/* Hint sits above the table outline at the top-right area.
+   The reset badge is positioned independently at the table's top-right corner
+   so it doesn't follow the hint text as the hint width changes. */
+.table-hint-wrap {
   position: absolute;
-  top: -12px;
-  right: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.75rem;
+  top: -28px;
+  right: 0;
   z-index: 6;
 }
+
 .table-hint {
   display: inline-flex;
   align-items: center;
@@ -388,10 +401,16 @@ th.sortable.drag-source {
   letter-spacing: 0.01em;
   color: var(--cs-text-muted);
 }
-/* Reset layout — icon button in the toolbar, aligned with the hint instead of
-   floating outside the card. This avoids clipping inside scrollable/overflow
-   containers and keeps the reset control visible on all viewport sizes. */
+
+/* Reset badge sits at the table's top-right corner — positioned independently
+   (position: absolute relative to .table-card-wrap) so it stays pinned to
+   the corner regardless of how wide the hint text is. Mirrors the
+   conversations-page .conv-badge (top: -6px, right: -6px) to overflow the
+   table's corner by the same amount as the unread badge on conv-cards. */
 .reset-cols-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
   width: 28px;
   height: 28px;
   border-radius: 50%;
@@ -407,6 +426,7 @@ th.sortable.drag-source {
   transition: transform 0.15s ease, background 0.18s ease, color 0.18s ease,
     border-color 0.18s ease, box-shadow 0.18s ease;
 }
+/* Reset badge hover states */
 .reset-cols-badge:hover {
   transform: scale(1.12);
   background: var(--cs-accent-light);
