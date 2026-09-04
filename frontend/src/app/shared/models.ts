@@ -375,6 +375,8 @@ export interface Dashboard {
   myAiPredictedCases: number;
   myResolvedCases: number;
   myOverdueFollowUps: number;
+  /** Cases with no agent assigned (AssignedToUserId == null). */
+  unassignedCases: number;
   byStatus: Record<string, number>;
   byPriority: Record<string, number>;
   trend: DateCount[];

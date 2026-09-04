@@ -103,8 +103,11 @@ public class DashboardSummary
     /// <summary>Number of open cases whose scheduled follow-up is overdue.</summary>
     public int OverdueFollowUps { get; set; }
 
-    /// <summary>Details of the overdue follow-ups (for the dashboard list).</summary>
+    /// <summary>List of overdue follow-up details (for the dashboard list).</summary>
     public List<OverdueFollowUpSummary> OverdueFollowUpDetails { get; set; } = new();
+
+    /// <summary>Cases with no agent assigned (AssignedToUserId == null).</summary>
+    public int UnassignedCases { get; set; }
 }
 
 /// <summary>A date/count pair used in trend charts.</summary>

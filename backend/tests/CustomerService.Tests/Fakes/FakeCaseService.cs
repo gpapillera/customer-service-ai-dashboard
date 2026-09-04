@@ -13,7 +13,7 @@ public class FakeCaseService : ICaseService
 {
     public Task<IReadOnlyList<CaseDto>> GetAllAsync(
         CaseStatus? status, Priority? priority, int? categoryId, DateTime? from, DateTime? to,
-        bool overdue = false, string? assignedToUserId = null, string? callerRole = null, string? callerUserId = null) =>
+        bool overdue = false, string? assignedToUserId = null, string? callerRole = null, string? callerUserId = null, bool unassigned = false) =>
         Task.FromResult<IReadOnlyList<CaseDto>>(new List<CaseDto>());
 
     public Task<CaseDto?> GetByIdAsync(int id, string? callerRole = null, string? callerUserId = null) => Task.FromResult<CaseDto?>(null);

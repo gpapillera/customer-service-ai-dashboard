@@ -250,6 +250,23 @@ public class CaseServiceTests
     }
 
     [Fact]
+    public async Task GetAllAsync_UnassignedFilter_ReturnsOnlyUnassignedCases()
+    {
+        var svc = BuildService(out var cases, out var customers, out var categories);
+        SeedCustomer(customers, 1);
+        SeedCategory(categories, 1);
+
+        var unassigned = await svc.CreateAsync(new CreateCaseDto { Subject = "None", CustomerId = 1, CategoryId = 1 });
+        var assigned = await svc.CreateAsync(new CreateCaseDto { Subject = "Mine", CustomerId = 1, CategoryId = 1 });
+        await svc.UpdateAsync(assigned.Id, new UpdateCaseDto { Subject = "Mine", CategoryId = 1, AssignedToUserId = "agent-001" });
+
+        var result = await svc.GetAllAsync(null, null, null, null, null, false, null, null, null, unassigned: true);
+        var ids = result.Select(c => c.Id).ToHashSet();
+        Assert.Contains(unassigned.Id, ids);
+        Assert.DoesNotContain(assigned.Id, ids);
+    }
+
+    [Fact]
     public async Task GetByIdAsync_AgentCannotViewOthersCase_ThrowsForbidden()
     {
         var svc = BuildService(out var cases, out var customers, out var categories);

@@ -158,6 +158,7 @@ export class CaseListComponent implements OnInit, OnDestroy {
     aiOnly: false,
     overdue: false,
     assignedToMe: false,
+    unassigned: false,
   });
 
   /** True when the "Open" pseudo-filter (only New / InProgress / Escalated) is active. */
@@ -203,6 +204,9 @@ export class CaseListComponent implements OnInit, OnDestroy {
     }
     if (this.modDateFilterPreset() !== 'all') {
       chips.push({ key: 'modDate', label: 'Modified: ' + formatDatePreset(this.modDateFilterPreset()) });
+    }
+    if (f.unassigned) {
+      chips.push({ key: 'unassigned', label: 'Unassigned' });
     }
     return chips;
   });
@@ -422,6 +426,7 @@ export class CaseListComponent implements OnInit, OnDestroy {
     const aiOnly = qp.get('aiOnly') === 'true';
     const overdue = qp.get('overdue') === 'true';
     const assignedToMe = qp.get('assignedToMe') === 'true';
+    const unassigned = qp.get('unassigned') === 'true';
     if (status) {
       // "Open" is a pseudo-status (only New / InProgress / Escalated) handled client-side.
       if (status === 'Open') {
@@ -439,6 +444,7 @@ export class CaseListComponent implements OnInit, OnDestroy {
     if (aiOnly) this.filters.update((f) => ({ ...f, aiOnly: true }));
     if (overdue) this.filters.update((f) => ({ ...f, overdue: true }));
     if (assignedToMe) this.filters.update((f) => ({ ...f, assignedToMe: true }));
+    if (unassigned) this.filters.update((f) => ({ ...f, unassigned: true }));
 
     this.load();
     this.pollActive.set(true);
@@ -494,6 +500,7 @@ export class CaseListComponent implements OnInit, OnDestroy {
         categoryId: f.categoryId ?? undefined,
         overdue: f.overdue || undefined,
         assignedToMe: f.assignedToMe || undefined,
+        unassigned: f.unassigned || undefined,
       })
       .subscribe({
         next: (list) => {
@@ -741,6 +748,8 @@ export class CaseListComponent implements OnInit, OnDestroy {
       this.modCustomDateFrom.set('');
       this.modCustomDateTo.set('');
       this.modCustomDateSingle.set('');
+    } else if (chip.key === 'unassigned') {
+      this.filters.update((f) => ({ ...f, unassigned: false }));
     }
     this.load();
   }

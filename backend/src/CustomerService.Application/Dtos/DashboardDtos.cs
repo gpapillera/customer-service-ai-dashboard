@@ -65,6 +65,13 @@ public class DashboardDto
     /// <summary>Number of open cases whose scheduled follow-up is overdue.</summary>
     public int OverdueFollowUps { get; set; }
 
+    // ---- Agent-scoped unassigned count ----
+    // Cases with no agent assigned — surfaced on the Agent dashboard so agents
+    // can see how many cases need claiming. Company-wide for admin view too.
+
+    /// <summary>Cases with no agent assigned (AssignedToUserId == null).</summary>
+    public int UnassignedCases { get; set; }
+
     /// <summary>Details of the overdue follow-ups (for the dashboard list).</summary>
     public List<OverdueFollowUpDto> OverdueFollowUpsList { get; set; } = new();
 }

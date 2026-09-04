@@ -39,6 +39,7 @@ describe('DashboardComponent', () => {
     myAiPredictedCases: 0,
     myResolvedCases: 1,
     myOverdueFollowUps: 6,
+    unassignedCases: 3,
     byStatus: { InProgress: 1, Escalated: 1, Resolved: 1, Closed: 1 },
     byPriority: { Low: 3, Medium: 5, High: 5 },
     trend: [{ date: '2026-07-13', count: 1 }],
@@ -74,7 +75,7 @@ describe('DashboardComponent', () => {
 
   afterEach(() => httpMock.verify());
 
-  it('derives the six KPI cards from the payload', () => {
+  it('derives the seven KPI cards from the payload (admin)', () => {
     component.data.set(sample);
     const labels = component.kpis.map((k) => k.label);
     expect(labels).toEqual([
@@ -87,6 +88,18 @@ describe('DashboardComponent', () => {
       'Overdue Follow-ups',
     ]);
     expect(component.kpis.find((k) => k.label === 'Total Cases')?.value).toBe(13);
+  });
+
+  it('derives agent KPI cards including Unassigned on the agent dashboard', () => {
+    component.data.set(sample);
+    // The component's kpis getter checks auth.getRole(); mock it to 'Agent'.
+    spyOn(component['auth'], 'getRole').and.returnValue('Agent');
+    const labels = component.kpis.map((k) => k.label);
+    expect(labels).toContain('Unassigned');
+    const unassigned = component.kpis.find((k) => k.label === 'Unassigned');
+    expect(unassigned?.value).toBe(3);
+    expect(unassigned?.link).toBe('/cases?unassigned=true');
+    expect(unassigned?.icon).toBe('assignment');
   });
 
   it('always renders all five statuses, including zero-count "New"', () => {

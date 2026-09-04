@@ -837,8 +837,62 @@ mat-form-field.compose-input {
 }
 
 .case-option {
-  font-size: 0.85rem;
+  font-size: 0.875rem;
+  font-weight: 500;
   color: var(--cs-text);
+}
+
+/* Case autocomplete option inner spans (template updated to use these). */
+::ng-deep .case-option .case-id {
+  color: var(--cs-accent-strong);
+  font-weight: 600;
+}
+
+::ng-deep .case-option .case-separator {
+  color: var(--cs-text-muted);
+  margin: 0 6px;
+}
+
+::ng-deep .case-option .case-subject {
+  color: var(--cs-text);
+}
+
+/* ── Compose email: case autocomplete dropdown ──
+   The autocomplete panel renders in the body-level cdk-overlay-container,
+   so :ng-deep must be top-level (not nested under .compose-field) to reach it. */
+/* Autocomplete panel — lives in body-level cdk-overlay-container,
+   so we use plain ::ng-deep (NOT :host ::ng-deep) so the selector
+   isn't scoped to host descendants. */
+::ng-deep .mat-mdc-autocomplete-panel {
+  border-radius: 8px !important;
+  border: 1px solid var(--cs-border) !important;
+  background: var(--cs-surface) !important;
+  box-shadow: var(--cs-popup-shadow) !important;
+  padding: 4px 0 !important;
+  max-height: 280px !important;
+  animation: cs-autocomplete-fade 0.18s var(--cs-ease);
+}
+::ng-deep .mat-mdc-autocomplete-option.mdc-list-item {
+  padding: 8px 12px !important;
+  min-height: 40px !important;
+  font-size: 0.875rem !important;
+}
+::ng-deep .mat-mdc-autocomplete-option.mdc-list-item:hover {
+  background-color: var(--cs-accent-light) !important;
+  border-radius: 6px !important;
+  margin: 2px 8px !important;
+}
+::ng-deep .mat-mdc-autocomplete-option.mdc-list-item.mat-mdc-option-active {
+  background-color: var(--cs-accent-light) !important;
+  border-radius: 6px !important;
+  margin: 2px 8px !important;
+}
+::ng-deep .mat-mdc-autocomplete-option .mdc-list-item__primary-text {
+  padding: 0 !important;
+}
+@keyframes cs-autocomplete-fade {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
 }
 
 .compose-input:focus {

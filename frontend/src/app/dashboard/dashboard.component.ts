@@ -22,9 +22,9 @@ import { RealtimeService } from '../shared/realtime.service';
 import { withAuthRetry } from '../shared/auth-retry';
 
 /**
- * Dashboard: 6 KPI cards, weekly trend line, priority donut, horizontal
- * category bar, status bar chart, and a recent-cases list — all wired to the
- * API.
+ * Dashboard: 6 KPI cards (admin) / 7 KPI cards (agent, +Unassigned), weekly
+ * trend line, priority donut, horizontal category bar, status bar chart, and a
+ * recent-cases list — all wired to the API.
  * See docs/DIY.md §8 for the dashboard + Chart.js walkthrough.
  */
 @Component({
@@ -228,6 +228,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
         { label: 'My Resolved', value: d.myResolvedCases, icon: 'check_circle', tone: 'green', link: '/cases?assignedToMe=true&status=Resolved' },
         { label: 'My AI Predicted', value: d.myAiPredictedCases, icon: 'auto_awesome', tone: 'purple', link: '/cases?assignedToMe=true&aiOnly=true' },
         { label: 'My Overdue', value: d.myOverdueFollowUps, icon: 'schedule', tone: 'amber', link: '/cases?assignedToMe=true&overdue=true' },
+        { label: 'Unassigned', value: d.unassignedCases, icon: 'assignment', tone: 'teal', link: '/cases?unassigned=true' },
       ];
     }
     return [

@@ -22,6 +22,7 @@ export class CaseService {
     to?: string;
     overdue?: boolean;
     assignedToMe?: boolean;
+    unassigned?: boolean;
   } = {}): Observable<Case[]> {
     let params = new HttpParams();
     if (filters.status) params = params.set('status', filters.status);
@@ -32,6 +33,7 @@ export class CaseService {
     if (filters.to) params = params.set('to', filters.to);
     if (filters.overdue) params = params.set('overdue', 'true');
     if (filters.assignedToMe) params = params.set('assignedToMe', 'true');
+    if (filters.unassigned) params = params.set('unassigned', 'true');
     return this.http.get<Case[]>(this.baseUrl, { params });
   }
 

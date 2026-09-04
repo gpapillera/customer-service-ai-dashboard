@@ -62,6 +62,7 @@ import {
   Calendar,
   User,
   RotateCcw,
+  ClipboardList,
 } from 'lucide-angular/src/icons';
 
 /**
@@ -93,6 +94,7 @@ const ICON_MAP: Record<string, LucideIconData> = {
   briefcase: Briefcase,
   clock: Clock,
   schedule: AlarmClock,
+  assignment: ClipboardList,
   check_circle: CheckCircle2,
   circle_alert: CircleAlert,
   inbox: Inbox,

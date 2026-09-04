@@ -391,7 +391,9 @@
                 @for (c of composeFilteredCases(); track c.id) {
                   <mat-option [value]="c" (optionSelected)="onCaseSelected($event)">
                     <span class="case-option">
-                      {{ c.caseDisplayId || ('#' + c.id) }} - {{ c.subject }}
+                      <span class="case-id">{{ c.caseDisplayId || ('#' + c.id) }}</span>
+                      <span class="case-separator">—</span>
+                      <span class="case-subject">{{ c.subject }}</span>
                     </span>
                   </mat-option>
                 }

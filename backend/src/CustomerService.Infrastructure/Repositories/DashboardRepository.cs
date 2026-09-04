@@ -58,6 +58,12 @@ public class DashboardRepository : IDashboardRepository
 
         var totalCustomers = await _context.Customers.CountAsync();
 
+        // Unassigned cases (AssignedToUserId == null) — surfaced as a KPI card
+        // on the Agent dashboard so agents can see how many cases need claiming.
+        // This is always company-wide (not agent-scoped); an agent's "My Cases"
+        // card already covers their own assigned cases.
+        var unassigned = await cases.CountAsync(c => c.AssignedToUserId == null);
+
         var overdue = await GetOverdueFollowUpsAsync(agentId);
 
         // Agent-scoped ("My *") totals — only when an agent id is supplied.
@@ -98,6 +104,7 @@ public class DashboardRepository : IDashboardRepository
             ByPriority = byPriority,
             OverdueFollowUps = overdue.Count,
             OverdueFollowUpDetails = overdue,
+            UnassignedCases = unassigned,
         };
     }
 

@@ -73,6 +73,7 @@ public class DashboardService : IDashboardService
                 Status = c.Status,
                 PriorityAutoSuggested = c.PriorityAutoSuggested,
             }).ToList(),
+            UnassignedCases = summary.UnassignedCases,
         };
     }
 }

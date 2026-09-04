@@ -58,7 +58,7 @@ public class CaseService : ICaseService
 
     /// <inheritdoc/>
     public async Task<IReadOnlyList<CaseDto>> GetAllAsync(
-        CaseStatus? status, Priority? priority, int? categoryId, DateTime? from, DateTime? to, bool overdue = false, string? assignedToUserId = null, string? callerRole = null, string? callerUserId = null)
+        CaseStatus? status, Priority? priority, int? categoryId, DateTime? from, DateTime? to, bool overdue = false, string? assignedToUserId = null, string? callerRole = null, string? callerUserId = null, bool unassigned = false)
     {
         IQueryable<Case> q = _cases.Query()
             .Include(c => c.Customer)
@@ -89,6 +89,10 @@ public class CaseService : ICaseService
         if (!string.IsNullOrEmpty(assignedToUserId))
         {
             q = q.Where(c => c.AssignedToUserId == assignedToUserId);
+        }
+        if (unassigned)
+        {
+            q = q.Where(c => c.AssignedToUserId == null);
         }
         if (overdue)
         {

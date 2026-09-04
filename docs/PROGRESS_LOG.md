@@ -2,6 +2,45 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Agent dashboard: add Unassigned KPI card + case-list filter + icon fix] (2026-09-04)
+**Status:** ✅ DONE
+**Fix:** Resolved missing `assignment` icon — `cs-icon.component.ts` `ICON_MAP` had no entry for the Material `assignment` name. Added `ClipboardList` from `lucide-angular` and mapped `assignment: ClipboardList`.
+
+### Why / root cause
+An Agent viewing their dashboard ("agent space") had no at-a-glance visibility into how many cases needed claiming — cases with no agent assigned (`AssignedToUserId == null`). Agents already see their own assigned cases via "My Cases", but there was no KPI for the unassigned pool that any agent could claim. This adds a single card so the unassigned count is visible and clickable through to a filtered case list.
+
+### What changed
+- **Backend** (`DashboardRepository.cs`, `DashboardService.cs`, `DashboardDtos.cs`, `IDashboardRepository.cs`):
+  - Added `UnassignedCases` field to `DashboardDto` and `DashboardSummary`.
+  - `GetSummaryAsync` now counts cases where `AssignedToUserId == null` (company-wide, not agent-scoped — an agent's "My Cases" already covers their own).
+- **Backend case list filter** (`CasesController.cs`, `CaseService.cs`, `ICaseService.cs`):
+  - Added `unassigned` query param (`bool`) to `GET /api/cases`. When true, filters to cases with no agent assigned (`AssignedToUserId == null`). Server-side agent scoping still applies (agents only see their own + unassigned).
+- **Backend test** (`CaseServiceTests.cs`): added `GetAllAsync_UnassignedFilter_ReturnsOnlyUnassignedCases` verifying the unassigned filter returns only null-assigned cases.
+- **Frontend model** (`models.ts`): added `unassignedCases: number` to `Dashboard`.
+- **Frontend dashboard** (`dashboard.component.ts`, `.scss`): added an "Unassigned" KPI card to the agent's KPI set (icon `assignment`, tone `teal`, link `/cases?unassigned=true`). Added `.tone-teal` CSS class for the icon background.
+- **Frontend case list** (`case.service.ts`, `case-list.component.ts`): added `unassigned` filter support — query param pre-fill from URL, pass to backend API, active-chip rendering, and chip-clear logic.
+- **Frontend test** (`dashboard.component.spec.ts`): updated sample payload with `unassignedCases: 3`, renamed "six" to "seven" KPI test (admin), added agent KPI test verifying the Unassigned card renders with correct value/link/icon.
+
+### Verify
+- `dotnet build CustomerServiceApi.sln` → 0 errors, 0 warnings
+
+## [Email compose: case autocomplete panel — full design + style polish] (2026-09-04)
+**Status:** ✅ DONE
+**What changed:**
+- **Frontend HTML** (`email-list.component.html`, ~line 393): Split the Related case option text into three styled spans — `case-id` (accent-strong, bold), `case-separator` (muted em-dash), `case-subject` (standard text) — so each part is independently colorable.
+- **Frontend SCSS** (`email-list.component.scss`, ~line 839–896): Added complete autocomplete panel styling:
+  - Panel: 8px border-radius, 1px border via `--cs-border`, `--cs-surface` background, `--cs-popup-shadow` box-shadow, 280px max-height, fade-in `cs-autocomplete-fade` animation (0.18s ease).
+  - Options: 8px 12px padding, 40px min-height, 0.875rem font, `--cs-accent-light` hover/active background with 2px 8px margin for a card-within-panel look and 6px border-radius.
+  - Case option inner spans: `.case-id` uses `--cs-accent-strong` + bold; `.case-separator` uses `--cs-text-muted` with 0 6px margin; `.case-subject` uses `--cs-text`.
+  - Used top-level `::ng-deep` (not `:host ::ng-deep`) since the panel renders in the body-level `cdk-overlay-container`.
+
+**Verification:**
+- `npm run build` → 690.21 kB initial (under 1.5 MB warning budget), 0 errors.
+- Frontend tests: 48/48 SUCCESS. Backend tests: 142/142 Passed.
+
+### Why / root cause
+The autocomplete panel inherited Angular Material's default MDC styling, which clashed with the project's Apple-like design system: the MDC default border-radius (4px top-only), no border (blending into the dark theme background), subtle default hover, and no entrance animation. This made the panel feel generic and disconnected from the rest of the compose UI. Styled it to match the system's `--cs-radius`, `--cs-border`, `--cs-surface`, `--cs-accent-light`, and `--cs-popup-shadow` tokens with the same `var(--cs-ease)` transition timing used across the app.
+
 ## [Customers page: fix stale active-case count on customer cards] (2026-09-03)
 **Status:** ✅ DONE
 **Fix:** Added a 30s polling fallback to `CustomerListComponent` so a customer card's active-case count can never stale silently.
