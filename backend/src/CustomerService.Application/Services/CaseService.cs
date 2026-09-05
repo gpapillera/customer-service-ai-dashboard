@@ -58,11 +58,12 @@ public class CaseService : ICaseService
 
     /// <inheritdoc/>
     public async Task<IReadOnlyList<CaseDto>> GetAllAsync(
-        CaseStatus? status, Priority? priority, int? categoryId, DateTime? from, DateTime? to, bool overdue = false, string? assignedToUserId = null, string? callerRole = null, string? callerUserId = null, bool unassigned = false)
+        CaseStatus? status, Priority? priority, int? categoryId, DateTime? from, DateTime? to, bool overdue = false, string? assignedToUserId = null, string? callerRole = null, string? callerUserId = null, bool unassigned = false, string? assignedToUserIdFilter = null)
     {
         IQueryable<Case> q = _cases.Query()
             .Include(c => c.Customer)
             .Include(c => c.Category)
+            .Include(c => c.AssignedToUser)
             .Include(c => c.CallLogs)
             .Include(c => c.Comments)
             .AsSplitQuery();
@@ -93,6 +94,15 @@ public class CaseService : ICaseService
         if (unassigned)
         {
             q = q.Where(c => c.AssignedToUserId == null);
+        }
+        // Admin filtering by a specific agent (from the cases-list header filter).
+        // This is a real filter on the agent id; it narrows the existing query
+        // (which is already agent-scoped for an Agent caller), so it can never
+        // widen a caller's view. Ignored for Agent-role callers.
+        if (!string.IsNullOrEmpty(assignedToUserIdFilter)
+            && !string.Equals(callerRole, nameof(UserRole.Agent), StringComparison.OrdinalIgnoreCase))
+        {
+            q = q.Where(c => c.AssignedToUserId == assignedToUserIdFilter);
         }
         if (overdue)
         {

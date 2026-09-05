@@ -41,6 +41,7 @@ public class CasesController : ControllerBase
     /// <param name="overdue">When true, only open cases with a past follow-up deadline and no follow-up since.</param>
     /// <param name="assignedToMe">When true, only cases assigned to the calling user (id from the JWT, never the client).</param>
     /// <param name="unassigned">When true, only cases with no agent assigned (AssignedToUserId == null).</param>
+    /// <param name="assignedToUserIdFilter">Explicit agent id to filter by (Admin filtering by a specific agent).</param>
     /// <returns>Matching cases.</returns>
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -52,7 +53,8 @@ public class CasesController : ControllerBase
         [FromQuery] DateTime? to,
         [FromQuery] bool overdue = false,
         [FromQuery] bool assignedToMe = false,
-        [FromQuery] bool unassigned = false)
+        [FromQuery] bool unassigned = false,
+        [FromQuery] string? assignedToUserIdFilter = null)
     {
         // "Assigned to me" is resolved from the authenticated user's JWT, never
         // from a client-supplied id, so an agent can only ever scope to themselves.
@@ -64,7 +66,7 @@ public class CasesController : ControllerBase
         // cases regardless of any query param. Admin is unaffected.
         var callerUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         var callerRole = User.FindFirst(ClaimTypes.Role)?.Value;
-        return await _service.GetAllAsync(status, priority, categoryId, from, to, overdue, assignedToUserId, callerRole, callerUserId, unassigned);
+        return await _service.GetAllAsync(status, priority, categoryId, from, to, overdue, assignedToUserId, callerRole, callerUserId, unassigned, assignedToUserIdFilter);
     }
 
     /// <summary>Gets a case by id.</summary>

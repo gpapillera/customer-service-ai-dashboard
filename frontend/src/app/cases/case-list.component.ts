@@ -31,7 +31,7 @@ import { RouteLoadingService } from '../shared/route-loading.service';
 import { KbdNavDirective } from '../shared/keyboard-nav.directive';
 import { CaseService } from './case.service';
 import { CaseFormComponent } from './case-form.component';
-import { Case } from '../shared/models';
+import { Case, Agent } from '../shared/models';
 import { CATEGORIES } from '../shared/categories';
 import { RealtimeService } from '../shared/realtime.service';
 import { DeletedDrawerComponent, RecycleItem } from '../shared/deleted-drawer.component';
@@ -159,6 +159,7 @@ export class CaseListComponent implements OnInit, OnDestroy {
     overdue: false,
     assignedToMe: false,
     unassigned: false,
+    agentFilter: '' as string,
   });
 
   /** True when the "Open" pseudo-filter (only New / InProgress / Escalated) is active. */
@@ -207,6 +208,10 @@ export class CaseListComponent implements OnInit, OnDestroy {
     }
     if (f.unassigned) {
       chips.push({ key: 'unassigned', label: 'Unassigned' });
+    }
+    if (f.agentFilter) {
+      const agent = this.agents().find((a) => a.id === f.agentFilter);
+      chips.push({ key: 'agentFilter', label: 'Agent: ' + (agent?.fullName ?? f.agentFilter) });
     }
     return chips;
   });
@@ -257,7 +262,8 @@ export class CaseListComponent implements OnInit, OnDestroy {
     }
   }
 
-  // ── Per-user column order + width (Cases table customization) ──
+  /** Agents fetched from GET /api/users for the assignment filter dropdown and column. */
+  readonly agents = signal<Agent[]>([]);
   private readonly tableSettings = inject(CaseTableSettingsService);
   /** Column order (per-user) driving both <thead> and <tbody>. */
   readonly columnOrder = this.tableSettings.columnOrder;
@@ -265,13 +271,14 @@ export class CaseListComponent implements OnInit, OnDestroy {
   readonly columnWidths = this.tableSettings.columnWidths;
 
   /** Static metadata per column: label + which header filter (if any) it owns. */
-  readonly COLDEFS: Record<string, { label: string; filter?: 'category' | 'priority' | 'status' | 'date' | 'modDate' }> = {
+  readonly COLDEFS: Record<string, { label: string; filter?: 'category' | 'priority' | 'status' | 'date' | 'modDate' | 'assignedToUserId' }> = {
     subject:      { label: 'Case' },
     customerName: { label: 'Customer' },
     categoryName: { label: 'Category', filter: 'category' },
     priority:     { label: 'Priority', filter: 'priority' },
     status:       { label: 'Status', filter: 'status' },
     createdAtUtc: { label: 'Created', filter: 'date' },
+    assignedToUserId: { label: 'Assigned Agent', filter: 'assignedToUserId' },
     updatedAtUtc: { label: 'Modified on', filter: 'modDate' },
   };
   /** Columns in the current (per-user) display order, with metadata. */
@@ -406,6 +413,9 @@ export class CaseListComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    // Fetch the agent list for the "Assigned Agent" column + header filter.
+    this.service.agents().subscribe((list) => this.agents.set(list));
+
     // Support deep-link from a customer detail ("View cases").
     const customerId = this.route.snapshot.queryParamMap.get('customerId');
     if (customerId) {
@@ -501,6 +511,7 @@ export class CaseListComponent implements OnInit, OnDestroy {
         overdue: f.overdue || undefined,
         assignedToMe: f.assignedToMe || undefined,
         unassigned: f.unassigned || undefined,
+        assignedToUserIdFilter: f.agentFilter || undefined,
       })
       .subscribe({
         next: (list) => {
@@ -678,6 +689,13 @@ export class CaseListComponent implements OnInit, OnDestroy {
       this.filters.update((f) => ({ ...f, priority: (value as string) ?? '' }));
     } else if (col === 'category') {
       this.filters.update((f) => ({ ...f, categoryId: value as number | null }));
+    } else if (col === 'assignedToUserId') {
+      const v = value as string | null;
+      if (v === '__unassigned__') {
+        this.filters.update((f) => ({ ...f, agentFilter: '', unassigned: true }));
+      } else {
+        this.filters.update((f) => ({ ...f, agentFilter: v ?? '', unassigned: false }));
+      }
     }
     this.load();
   }
@@ -750,6 +768,8 @@ export class CaseListComponent implements OnInit, OnDestroy {
       this.modCustomDateSingle.set('');
     } else if (chip.key === 'unassigned') {
       this.filters.update((f) => ({ ...f, unassigned: false }));
+    } else if (chip.key === 'agentFilter') {
+      this.filters.update((f) => ({ ...f, agentFilter: '' }));
     }
     this.load();
   }

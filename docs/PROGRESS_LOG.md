@@ -2,6 +2,31 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Cases table: add Assigned Agent column + filter + reorder/resize] (2026-09-05)
+**Status:** ✅ DONE
+**What changed:**
+- **Backend** (`CaseService.cs`, `CasesController.cs`, `ICaseService.cs`):
+  - Added `assignedToUserIdFilter` query param to `GET /api/cases` for Admin filtering by a specific agent.
+  - Added `.Include(c => c.AssignedToUser)` to `GetAllAsync` — **root-cause fix**: the assigned agent name was always null because the navigation property wasn't loaded, so every row showed "Unassigned" even when cases were assigned.
+  - `FakeCaseService` updated to match the new interface signature.
+- **Backend test** (`CaseServiceTests.cs`): added `GetAllAsync_AssignedToUserIdFilter_ReturnsOnlyCasesForThatAgent` verifying the filter works for Admin and is correctly ignored (server-side scoping wins) for Agent callers.
+- **Frontend** (`case-table-settings.service.ts`): added `'assignedToUserId'` to `CASE_COLUMNS`, positioned 2nd-to-last (before `'updatedAtUtc'`) so it appears in the correct spot by default.
+- **Frontend** (`case-list.component.ts`): added `COLDEFS` entry for `assignedToUserId` (label "Assigned Agent", filter type `'assignedToUserId'`), `agents` signal fetched on init via `caseService.agents()`, `agentFilter` field in the `filters` signal, `assignedToUserId` param passed to `service.list()`, header filter handling in `setHeaderFilter`, chip rendering + clearing in `activeChips`/`clearFilter`, and `filter-active` CSS class binding.
+- **Frontend** (`case-list.component.html`): added `@case ('assignedToUserId')` cell renderer (shows agent name or "Unassigned"), `assignedToUserId` to `nowrap` class binding, header filter dropdown with "All" / "Unassigned" / per-agent options, and the `filter-active` condition.
+- **Frontend** (`case.service.ts`): added `assignedToUserIdFilter` to the `list()` filter type and query-param serialization.
+- **Frontend** (`case-list.component.scss`): added `.agent-name` style.
+- **Frontend test** (`case-table-settings.service.spec.ts`): added test verifying `assignedToUserId` is 2nd-to-last in default column order.
+
+### Root-cause fix
+The original bug (every row showing "Unassigned") was in `CaseService.GetAllAsync` — the query included `Customer`, `Category`, `CallLogs`, and `Comments` but **not** `AssignedToUser`. `ToDto` maps `AssignedToUserName = c.AssignedToUser?.FullName`, so without the include it was always null. Added `.Include(c => c.AssignedToUser)` to the query. This is the same pattern already used in `GetByIdAsync` (which already had the include).
+
+### Verify
+- `dotnet build CustomerServiceApi.sln` → 0 errors, 0 warnings
+- `dotnet test CustomerServiceApi.sln` → 143 passed, 0 failed
+- `npm run build` (from `frontend/`) → 0 errors
+- `ng test` → 49 passed, 0 failed
+- Browser check (admin login → /cases): "Assigned Agent" column appears 2nd-to-last with correct agent names; header filter dropdown shows All/Unassigned/agent names; selecting an agent filters the table; Unassigned filter shows only unassigned cases; drag-to-reorder verified via method-level test (pointer-derived drop index works with the new column); drag-to-resize handles present on all 8 columns.
+
 ## [Agent dashboard: add Unassigned KPI card + case-list filter + icon fix] (2026-09-04)
 **Status:** ✅ DONE
 **Fix:** Resolved missing `assignment` icon — `cs-icon.component.ts` `ICON_MAP` had no entry for the Material `assignment` name. Added `ClipboardList` from `lucide-angular` and mapped `assignment: ClipboardList`.

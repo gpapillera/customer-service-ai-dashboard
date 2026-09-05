@@ -4,7 +4,7 @@ import { AuthService } from '../auth/auth.service';
 /** All columns the Cases table can show, in the default order. */
 export const CASE_COLUMNS = [
   'subject', 'customerName', 'categoryName', 'priority',
-  'status', 'createdAtUtc', 'updatedAtUtc',
+  'status', 'createdAtUtc', 'assignedToUserId', 'updatedAtUtc',
 ] as const;
 export type CaseColumn = (typeof CASE_COLUMNS)[number];
 

@@ -267,6 +267,36 @@ public class CaseServiceTests
     }
 
     [Fact]
+    public async Task GetAllAsync_AssignedToUserIdFilter_ReturnsOnlyCasesForThatAgent()
+    {
+        var svc = BuildService(out var cases, out var customers, out var categories);
+        SeedCustomer(customers, 1);
+        SeedCategory(categories, 1);
+
+        var a1 = await svc.CreateAsync(new CreateCaseDto { Subject = "A1", CustomerId = 1, CategoryId = 1 });
+        var a2 = await svc.CreateAsync(new CreateCaseDto { Subject = "A2", CustomerId = 1, CategoryId = 1 });
+        var a3 = await svc.CreateAsync(new CreateCaseDto { Subject = "A3", CustomerId = 1, CategoryId = 1 });
+
+        await svc.UpdateAsync(a1.Id, new UpdateCaseDto { Subject = "A1", CategoryId = 1, AssignedToUserId = "agent-001" });
+        await svc.UpdateAsync(a2.Id, new UpdateCaseDto { Subject = "A2", CategoryId = 1, AssignedToUserId = "agent-002" });
+        // a3 stays unassigned
+
+        // Admin filters by agent-001 — should see only a1.
+        var result = await svc.GetAllAsync(null, null, null, null, null, false, null, "Admin", null, false, "agent-001");
+        var ids = result.Select(c => c.Id).ToHashSet();
+        Assert.Contains(a1.Id, ids);
+        Assert.DoesNotContain(a2.Id, ids);
+        Assert.DoesNotContain(a3.Id, ids);
+
+        // An Agent caller cannot use the explicit filter — they still only see
+        // their own + unassigned (server-side scoping wins).
+        var agentResult = await svc.GetAllAsync(null, null, null, null, null, false, null, "Agent", "agent-001", false, "agent-001");
+        var agentIds = agentResult.Select(c => c.Id).ToHashSet();
+        Assert.Contains(a1.Id, agentIds);
+        Assert.DoesNotContain(a2.Id, agentIds);
+    }
+
+    [Fact]
     public async Task GetByIdAsync_AgentCannotViewOthersCase_ThrowsForbidden()
     {
         var svc = BuildService(out var cases, out var customers, out var categories);

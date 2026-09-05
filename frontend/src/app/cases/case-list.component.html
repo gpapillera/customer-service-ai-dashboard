@@ -89,7 +89,8 @@
                       || (col.filter === 'priority' && filters().priority)
                       || (col.filter === 'status' && (filters().status || isOpenFilter()))
                       || (col.filter === 'date' && dateFilterPreset() !== 'all')
-                      || (col.filter === 'modDate' && modDateFilterPreset() !== 'all')"
+                      || (col.filter === 'modDate' && modDateFilterPreset() !== 'all')
+                      || (col.filter === 'assignedToUserId' && (filters().agentFilter || filters().unassigned))"
                     (click)="$event.stopPropagation(); toggleHeaderFilter(col.filter!)"
                     aria-label="Filter column">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z"/></svg>
@@ -114,6 +115,13 @@
                           <button type="button" class="hfd-option" [class.active]="isOpenFilter()" (click)="setHeaderFilter('status', 'Open')">Open</button>
                           @for (s of statuses; track s) {
                             <button type="button" class="hfd-option" [class.active]="filters().status === s" (click)="setHeaderFilter('status', s)">{{ s }}</button>
+                          }
+                        }
+                        @case ('assignedToUserId') {
+                          <button type="button" class="hfd-option" [class.active]="!filters().agentFilter" (click)="setHeaderFilter('assignedToUserId', null)">All</button>
+                          <button type="button" class="hfd-option" [class.active]="filters().agentFilter === '__unassigned__'" (click)="setHeaderFilter('assignedToUserId', '__unassigned__')">Unassigned</button>
+                          @for (a of agents(); track a.id) {
+                            <button type="button" class="hfd-option" [class.active]="filters().agentFilter === a.id" (click)="setHeaderFilter('assignedToUserId', a.id)">{{ a.fullName }}</button>
                           }
                         }
                         @case ('date') {
@@ -189,7 +197,7 @@
           <tr class="row-link" (click)="open(c.id)" tabindex="-1" (keydown.enter)="open(c.id)">
             @for (col of orderedColumns(); track col.key) {
               <td [class.muted]="col.key !== 'subject' && col.key !== 'priority' && col.key !== 'status'"
-                  [class.nowrap]="col.key === 'priority' || col.key === 'status' || col.key === 'categoryName' || col.key === 'createdAtUtc' || col.key === 'updatedAtUtc'"
+                  [class.nowrap]="col.key === 'priority' || col.key === 'status' || col.key === 'categoryName' || col.key === 'assignedToUserId' || col.key === 'createdAtUtc' || col.key === 'updatedAtUtc'"
                   [style.width.px]="columnWidths()[col.key] || null"
                   [style.minWidth.px]="columnWidths()[col.key] || null">
                 @switch (col.key) {
@@ -209,6 +217,13 @@
                     <span class="cs-pill" [class]="statusClass(c.status)" [csTooltip]="statusTooltip(c)"><span class="cs-dot"></span>{{ c.status }}</span>
                   }
                   @case ('createdAtUtc') { {{ c.createdAtUtc | date:'mediumDate' }} }
+                  @case ('assignedToUserId') {
+                    @if (c.assignedToUserName) {
+                      <span class="agent-name">{{ c.assignedToUserName }}</span>
+                    } @else {
+                      <span class="muted">Unassigned</span>
+                    }
+                  }
                   @case ('updatedAtUtc') { {{ (c.updatedAtUtc ?? c.createdAtUtc) | date:'mediumDate' }} }
                 }
               </td>

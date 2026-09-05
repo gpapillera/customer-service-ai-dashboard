@@ -17,8 +17,9 @@ public interface ICaseService
     /// <param name="callerRole">Role of the calling user (Admin sees everything; Agent is server-side scoped to their own + unassigned cases).</param>
     /// <param name="callerUserId">Id of the calling user (used to scope an Agent's view).</param>
     /// <param name="unassigned">When true, only cases with no agent assigned (AssignedToUserId == null).</param>
+    /// <param name="assignedToUserIdFilter">Explicit agent id to filter by (Admin filtering by a specific agent).</param>
     /// <returns>Matching cases.</returns>
-    Task<IReadOnlyList<CaseDto>> GetAllAsync(CaseStatus? status, Priority? priority, int? categoryId, DateTime? from, DateTime? to, bool overdue = false, string? assignedToUserId = null, string? callerRole = null, string? callerUserId = null, bool unassigned = false);
+    Task<IReadOnlyList<CaseDto>> GetAllAsync(CaseStatus? status, Priority? priority, int? categoryId, DateTime? from, DateTime? to, bool overdue = false, string? assignedToUserId = null, string? callerRole = null, string? callerUserId = null, bool unassigned = false, string? assignedToUserIdFilter = null);
 
     /// <summary>Returns a single case by id.</summary>
     /// <param name="id">Case id.</param>

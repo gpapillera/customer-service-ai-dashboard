@@ -30,6 +30,14 @@ describe('CaseTableSettingsService', () => {
     expect(svc.columnWidths()).toEqual({});
   });
 
+  it('includes assignedToUserId as 2nd-to-last column by default', () => {
+    const svc = makeService(null);
+    const order = svc.columnOrder();
+    expect(order).toContain('assignedToUserId');
+    expect(order[order.length - 1]).toBe('updatedAtUtc');
+    expect(order[order.length - 2]).toBe('assignedToUserId');
+  });
+
   it('persists reorder + widths and reloads them for the same user', () => {
     const svc = makeService(null);
     const reordered = ['status', 'priority', ...CASE_COLUMNS.filter(c => c !== 'status' && c !== 'priority')];

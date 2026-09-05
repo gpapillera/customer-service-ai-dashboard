@@ -342,7 +342,18 @@ th.sortable.drag-source {
   border-color: var(--cs-accent);
 }
 
-/* ---- Case ID badge ---- */
+@media screen {
+  .agent-name {
+    display: inline-block;
+    font-weight: 500;
+    color: var(--cs-text);
+    white-space: nowrap;
+  }
+}
+
+@media screen and (prefers-reduced-motion: reduce) {
+  .agent-name { white-space: nowrap; }
+}
 .case-id {
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
   font-size: 0.72rem;
