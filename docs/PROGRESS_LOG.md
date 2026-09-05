@@ -7,19 +7,16 @@
 **What changed:**
 - **Frontend** (`case-list.component.ts`): `orderedColumns` computed now filters out `'assignedToUserId'` when `auth.getRole() === 'Agent'` — agents only see their own cases (server-side scoped), so the column is redundant for them. Added `isAgentUnassignedRow(c)` helper: returns `true` when the current user is an Agent and `c.assignedToUserId == null`.
 - **Frontend** (`case-list.component.html`): added `[class.unassigned-highlight]` binding on `<tr>` (via the helper) and `[attr.title]` that shows "This case is unassigned — open to claim it" on hover for highlighted rows. The hint text lives on the row hover (not in the header hint) per user request.
-- **Frontend** (`case-list.component.scss`): added `tr.unassigned-highlight` styles — left accent bar (`3px solid var(--cs-warning)`) plus subtle amber background, with a darker variant for `[data-theme="dark"]`. Reuses existing `--cs-warning` / `--cs-warning-bg` design tokens.
+- **Frontend** (`case-list.component.scss`): changed the unassigned-row highlight color from amber (`--cs-warning`/`--cs-warning-bg`, with a hardcoded `rgba(251, 191, 36, 0.08)` dark-mode variant) to blue (`--cs-info`/`--cs-info-bg`) across both themes. Amber read as "warning/danger" and the faint dark-mode tint was hard to read; the blue tone conveys "attention needed — open to claim" more cleanly and uses theme-aware tokens (no hardcoded dark-mode RGBA). Verified in both light mode (border `rgb(59, 130, 246)`, bg `rgb(219, 234, 254)`) and dark mode (border `rgb(96, 165, 250)`, bg `rgb(12, 25, 41)`) via live browser DOM inspection.
 - Removed the standalone "Unassigned cases are highlighted" table-hint from the header (moved to row hover `title` attribute per user request).
 
 ### Verify
-- `tsc --noEmit` → no new errors (5 pre-existing `Timeout` errors in unrelated files)
-- `ng build` → 0 errors
-- `ng test` → 49 passed
-- Browser check:
-  - **Agent login** → /cases: "Assigned Agent" column is NOT in the header (7 columns: Case, Customer, Category, Priority, Status, Created, Modified on) ✓
-  - Unassigned case (CAS-00022) has `unassigned-highlight` class + `title` attribute ✓
+- `npm run build` → 0 errors, 0 warnings
+- Browser check (agent login → /cases, both themes):
+  - Unassigned row (CAS-00022) has `unassigned-highlight` class with blue accent bar + tinted bg ✓
   - All assigned case rows have no highlight ✓
-  - **Admin login** → /cases: "Assigned Agent" column IS visible at index 6 (2nd-to-last) ✓
-  - No rows have highlight/title in Admin view ✓
+  - Light mode: `--cs-info` border (#3b82f6), `--cs-info-bg` tint (#dbeafe) ✓
+  - Dark mode: `--cs-info` border (#60a5fa), `--cs-info-bg` tint (#0c1929) ✓
 
 ## [Cases table: add Assigned Agent column + filter + reorder/resize] (2026-09-05)
 **Status:** ✅ DONE

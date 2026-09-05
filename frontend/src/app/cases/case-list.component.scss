@@ -563,13 +563,12 @@ th.cdk-drag-placeholder {
 }
 
 /* Unassigned cases in the Agent's case list get a left accent bar so they
-   stand out as "needs claiming" — visible in both light and dark themes. */
+   stand out as "needs claiming" — visible in both light and dark themes.
+   Blue (--cs-info) conveys "attention needed" without the warning/danger
+   urgency that amber implies; --cs-info-bg is already theme-aware. */
 tr.unassigned-highlight td:first-child {
-  border-left: 3px solid var(--cs-warning);
+  border-left: 3px solid var(--cs-info);
 }
 tr.unassigned-highlight td {
-  background: var(--cs-warning-bg);
-}
-[data-theme="dark"] tr.unassigned-highlight td {
-  background: rgba(251, 191, 36, 0.08);
+  background: var(--cs-info-bg);
 }
