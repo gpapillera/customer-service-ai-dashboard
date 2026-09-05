@@ -281,8 +281,16 @@ export class CaseListComponent implements OnInit, OnDestroy {
     assignedToUserId: { label: 'Assigned Agent', filter: 'assignedToUserId' },
     updatedAtUtc: { label: 'Modified on', filter: 'modDate' },
   };
-  /** Columns in the current (per-user) display order, with metadata. */
-  readonly orderedColumns = computed(() => this.columnOrder().map((k) => ({ key: k, ...this.COLDEFS[k] })));
+  /** Columns in the current (per-user) display order, with metadata.
+      Agents never see the "Assigned Agent" column — they only see their own
+      cases (server-side scoped), so the column is redundant for them; they
+      instead get a highlight on unassigned rows (see .unassigned-highlight). */
+  readonly orderedColumns = computed(() => {
+    const isAgent = this.auth.getRole() === 'Agent';
+    return this.columnOrder()
+      .filter((k) => !(isAgent && k === 'assignedToUserId'))
+      .map((k) => ({ key: k, ...this.COLDEFS[k] }));
+  });
 
   /** Landing index (among current columns) where the dragged column will drop.
       Drives the live drop-indicator bar. Computed from the pointer's X position
@@ -792,6 +800,11 @@ export class CaseListComponent implements OnInit, OnDestroy {
   /** Priority pill class for the template. */
   priorityClass(p: string): string {
     return 'priority-' + p.toLowerCase();
+  }
+
+  /** True for Agent users viewing an unassigned case row (highlight cue). */
+  isAgentUnassignedRow(c: Case): boolean {
+    return this.auth.getRole() === 'Agent' && c.assignedToUserId == null;
   }
 
   /** Build tooltip data for a priority pill. */

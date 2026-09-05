@@ -561,3 +561,15 @@ th.cdk-drag-placeholder {
 [data-theme="dark"] th.cdk-drag-preview {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
+
+/* Unassigned cases in the Agent's case list get a left accent bar so they
+   stand out as "needs claiming" — visible in both light and dark themes. */
+tr.unassigned-highlight td:first-child {
+  border-left: 3px solid var(--cs-warning);
+}
+tr.unassigned-highlight td {
+  background: var(--cs-warning-bg);
+}
+[data-theme="dark"] tr.unassigned-highlight td {
+  background: rgba(251, 191, 36, 0.08);
+}

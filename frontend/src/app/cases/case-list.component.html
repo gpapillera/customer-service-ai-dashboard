@@ -194,7 +194,10 @@
       </thead>
       <tbody appKbdNav kbdNavItem="tr.row-link" [kbdNavWrap]="false">
         @for (c of sortedCases(); track c.id) {
-          <tr class="row-link" (click)="open(c.id)" tabindex="-1" (keydown.enter)="open(c.id)">
+          <tr class="row-link"
+              [class.unassigned-highlight]="isAgentUnassignedRow(c)"
+              [attr.title]="isAgentUnassignedRow(c) ? 'This case is unassigned — open to claim it' : null"
+              (click)="open(c.id)" tabindex="-1" (keydown.enter)="open(c.id)">
             @for (col of orderedColumns(); track col.key) {
               <td [class.muted]="col.key !== 'subject' && col.key !== 'priority' && col.key !== 'status'"
                   [class.nowrap]="col.key === 'priority' || col.key === 'status' || col.key === 'categoryName' || col.key === 'assignedToUserId' || col.key === 'createdAtUtc' || col.key === 'updatedAtUtc'"

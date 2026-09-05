@@ -2,6 +2,25 @@
 
 <!-- Entries are appended newest-on-top. Each phase gets one entry. -->
 
+## [Cases: hide Assigned Agent column for agents + highlight unassigned rows] (2026-09-05)
+**Status:** ✅ DONE
+**What changed:**
+- **Frontend** (`case-list.component.ts`): `orderedColumns` computed now filters out `'assignedToUserId'` when `auth.getRole() === 'Agent'` — agents only see their own cases (server-side scoped), so the column is redundant for them. Added `isAgentUnassignedRow(c)` helper: returns `true` when the current user is an Agent and `c.assignedToUserId == null`.
+- **Frontend** (`case-list.component.html`): added `[class.unassigned-highlight]` binding on `<tr>` (via the helper) and `[attr.title]` that shows "This case is unassigned — open to claim it" on hover for highlighted rows. The hint text lives on the row hover (not in the header hint) per user request.
+- **Frontend** (`case-list.component.scss`): added `tr.unassigned-highlight` styles — left accent bar (`3px solid var(--cs-warning)`) plus subtle amber background, with a darker variant for `[data-theme="dark"]`. Reuses existing `--cs-warning` / `--cs-warning-bg` design tokens.
+- Removed the standalone "Unassigned cases are highlighted" table-hint from the header (moved to row hover `title` attribute per user request).
+
+### Verify
+- `tsc --noEmit` → no new errors (5 pre-existing `Timeout` errors in unrelated files)
+- `ng build` → 0 errors
+- `ng test` → 49 passed
+- Browser check:
+  - **Agent login** → /cases: "Assigned Agent" column is NOT in the header (7 columns: Case, Customer, Category, Priority, Status, Created, Modified on) ✓
+  - Unassigned case (CAS-00022) has `unassigned-highlight` class + `title` attribute ✓
+  - All assigned case rows have no highlight ✓
+  - **Admin login** → /cases: "Assigned Agent" column IS visible at index 6 (2nd-to-last) ✓
+  - No rows have highlight/title in Admin view ✓
+
 ## [Cases table: add Assigned Agent column + filter + reorder/resize] (2026-09-05)
 **Status:** ✅ DONE
 **What changed:**
